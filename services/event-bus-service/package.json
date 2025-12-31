@@ -15,7 +15,6 @@
     "helmet": "^7.1.0",
     "dotenv": "^16.3.1",
     "express-rate-limit": "^7.1.5",
-    "@tripcomposer/event-bus": "file:../../packages/event-bus",
     "@types/node": "^20.10.6",
     "typescript": "^5.3.3"
   },

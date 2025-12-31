@@ -3,13 +3,15 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import { createEventBus, IEventBus } from '@tripcomposer/event-bus';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const eventBus: IEventBus = createEventBus();
+
+// In-memory event storage
+const subscriptions: Map<string, Set<(event: any) => void>> = new Map();
+const eventHistory: any[] = [];
 
 // Middleware
 app.use(helmet());
@@ -65,15 +67,38 @@ app.post('/publish', authenticate, async (req, res) => {
       });
     }
 
-    const result = await eventBus.publish(eventType, payload, {
-      ...metadata,
-      sourceService: req.body.sourceService || 'unknown',
-    });
+    const event = {
+      eventId: `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      eventType,
+      payload,
+      metadata: {
+        ...metadata,
+        sourceService: req.body.sourceService || 'unknown',
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    // Store in history
+    eventHistory.push(event);
+    if (eventHistory.length > 1000) eventHistory.shift();
+
+    // Notify subscribers
+    const handlers = subscriptions.get(eventType) || new Set();
+    let handlersInvoked = 0;
+    
+    for (const handler of handlers) {
+      try {
+        await handler(event);
+        handlersInvoked++;
+      } catch (error) {
+        console.error('Handler error:', error);
+      }
+    }
 
     res.json({
       success: true,
-      eventId: result.eventId,
-      handlersInvoked: result.handlersInvoked,
+      eventId: event.eventId,
+      handlersInvoked,
     });
   } catch (error: any) {
     console.error('Error publishing event:', error);
@@ -96,29 +121,32 @@ app.post('/subscribe', authenticate, (req, res) => {
       });
     }
 
-    // Store webhook callback
-    const subscription = eventBus.subscribe(
-      eventType,
-      async (event) => {
-        // If callbackUrl provided, send HTTP POST
-        if (callbackUrl) {
-          try {
-            await fetch(callbackUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(event),
-            });
-          } catch (error) {
-            console.error(`Failed to notify ${subscriberId}:`, error);
-          }
+    // Create handler function
+    const handler = async (event: any) => {
+      if (callbackUrl) {
+        try {
+          await fetch(callbackUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(event),
+          });
+        } catch (error) {
+          console.error(`Failed to notify ${subscriberId}:`, error);
         }
-      },
-      { priority: 0 }
-    );
+      }
+    };
+
+    // Store subscription
+    if (!subscriptions.has(eventType)) {
+      subscriptions.set(eventType, new Set());
+    }
+    subscriptions.get(eventType)!.add(handler);
+
+    const subscriptionId = `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     res.json({
       success: true,
-      subscriptionId: subscription.subscriptionId,
+      subscriptionId,
       eventType,
       subscriberId,
     });
@@ -162,6 +190,8 @@ app.get('/stats', authenticate, (req, res) => {
   res.json({
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
+    subscriberCount: subscriptions.size,
+    eventHistorySize: eventHistory.length,
   });
 });
 
