@@ -387,15 +387,15 @@ export default function Home() {
                 </div>
                 
                 <p className="text-2xl md:text-3xl text-gray-800 mb-8 leading-relaxed font-medium">
-                  &ldquo;{testimonials[currentTestimonial].text}&rdquo;
+                  &ldquo;{testimonials[currentTestimonial]?.text ?? ''}&rdquo;
                 </p>
                 
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-bold text-lg">{testimonials[currentTestimonial].name}</p>
-                    <p className="text-gray-500">{testimonials[currentTestimonial].location}</p>
+                    <p className="font-bold text-lg">{testimonials[currentTestimonial]?.name ?? ''}</p>
+                    <p className="text-gray-500">{testimonials[currentTestimonial]?.location ?? ''}</p>
                     <p className="text-blue-600 text-sm font-medium mt-1">
-                      {testimonials[currentTestimonial].trip}
+                      {testimonials[currentTestimonial]?.trip ?? ''}
                     </p>
                   </div>
                   
