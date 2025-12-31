@@ -83,11 +83,19 @@ async function start(): Promise<void> {
     initializePool();
     logger.info('Database connection initialized');
 
-    // Connect to event bus
-    logger.info('Connecting to event bus...');
-    await eventBusConsumer.connect();
-    await eventBusConsumer.startConsuming();
-    logger.info('Event bus consumer started');
+    // Connect to event bus (optional)
+    if (env.EVENT_BUS_URL) {
+      logger.info('Connecting to event bus...');
+      try {
+        await eventBusConsumer.connect();
+        await eventBusConsumer.startConsuming();
+        logger.info('Event bus consumer started');
+      } catch (error) {
+        logger.warn('Failed to connect to event bus, continuing without it', { error });
+      }
+    } else {
+      logger.info('Event bus not configured, skipping');
+    }
 
     // Build and start HTTP server
     const app = await buildApp();
