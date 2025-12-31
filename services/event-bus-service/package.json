@@ -15,13 +15,13 @@
     "helmet": "^7.1.0",
     "dotenv": "^16.3.1",
     "express-rate-limit": "^7.1.5",
-    "@tripcomposer/event-bus": "file:../../packages/event-bus"
+    "@tripcomposer/event-bus": "file:../../packages/event-bus",
+    "@types/node": "^20.10.6",
+    "typescript": "^5.3.3"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/cors": "^2.8.17",
-    "@types/node": "^20.10.6",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "tsx": "^4.7.0"
   }
 }

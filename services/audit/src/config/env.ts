@@ -31,8 +31,8 @@ const envSchema = z.object({
     .string()
     .optional()
     .refine(
-      (url) => !url || url.startsWith('amqp://') || url.startsWith('amqps://'),
-      'EVENT_BUS_URL must be a valid AMQP connection string if provided'
+      (url) => !url || url.startsWith('amqp://') || url.startsWith('amqps://') || url.startsWith('http://') || url.startsWith('https://'),
+      'EVENT_BUS_URL must be a valid AMQP or HTTP(S) connection string if provided'
     ),
   EVENT_BUS_EXCHANGE: z.string().min(1).default('tripcomposer.events'),
   EVENT_BUS_QUEUE: z.string().min(1).default('audit.events'),
