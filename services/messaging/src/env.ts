@@ -31,7 +31,7 @@ const envSchema = z.object({
   // ---------------------------------------------------------------------------
   DATABASE_URL: z
     .string()
-    .url()
+    .min(1, 'DATABASE_URL is required')
     .refine(
       (url: string) => url.startsWith('postgresql://') || url.startsWith('postgres://'),
       { message: 'DATABASE_URL must be a valid PostgreSQL connection string' }
@@ -41,7 +41,7 @@ const envSchema = z.object({
   // EVENT BUS
   // ---------------------------------------------------------------------------
   EVENT_BUS_TYPE: z.enum(['redis', 'rabbitmq', 'kafka']).default('redis'),
-  EVENT_BUS_URL: z.string().url(),
+  EVENT_BUS_URL: z.string().url().optional(),
   EVENT_BUS_PREFIX: z.string().default('tripcomposer:messaging'),
 
   // ---------------------------------------------------------------------------
@@ -74,7 +74,8 @@ const envSchema = z.object({
     .default(730),
   EVIDENCE_ENCRYPTION_KEY: z
     .string()
-    .length(32, 'EVIDENCE_ENCRYPTION_KEY must be exactly 32 characters for AES-256'),
+    .length(32, 'EVIDENCE_ENCRYPTION_KEY must be exactly 32 characters for AES-256')
+    .default('change-this-to-32-char-secret!'),
 
   // ---------------------------------------------------------------------------
   // CONTACT MASKING

@@ -168,6 +168,30 @@ class RedisEventBus implements EventBusClient {
 }
 
 // =============================================================================
+// NO-OP EVENT BUS (for when EVENT_BUS_URL is not configured)
+// =============================================================================
+
+function createNoOpEventBus(): EventBusClient {
+  return {
+    async publish<T extends MessagingEmittedEvent>(_event: T): Promise<void> {
+      // No-op
+    },
+    async subscribe<T extends MessagingConsumedEvent>(
+      _eventType: string,
+      _handler: (event: T) => Promise<void>
+    ): Promise<void> {
+      // No-op
+    },
+    async unsubscribe(_eventType: string): Promise<void> {
+      // No-op
+    },
+    async disconnect(): Promise<void> {
+      // No-op
+    },
+  };
+}
+
+// =============================================================================
 // EVENT BUS FACTORY
 // =============================================================================
 
@@ -179,6 +203,13 @@ let eventBusInstance: EventBusClient | null = null;
  */
 export async function getEventBus(): Promise<EventBusClient> {
   if (eventBusInstance) {
+    return eventBusInstance;
+  }
+
+  // If EVENT_BUS_URL is not configured, return a no-op event bus
+  if (!config.eventBus.url) {
+    console.warn('[EventBus] EVENT_BUS_URL not configured, using no-op event bus');
+    eventBusInstance = createNoOpEventBus();
     return eventBusInstance;
   }
 
