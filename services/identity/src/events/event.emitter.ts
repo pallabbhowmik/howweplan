@@ -66,7 +66,7 @@ async function publishEvents(events: IdentityEvent[]): Promise<void> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${env.EVENT_BUS_AUTH_TOKEN}`,
+        Authorization: `Bearer ${env.EVENT_BUS_CREDS_B64}`,
         'X-Source-Service': env.SERVICE_NAME,
       },
       body: JSON.stringify({ events }),

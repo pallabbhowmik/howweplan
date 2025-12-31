@@ -194,7 +194,7 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:-tripcomposer}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-tripcomposer-services}
       EVENT_BUS_URL: redis://default:${REDIS_PASSWORD:-redis_dev_password}@redis:6379
-      EVENT_BUS_AUTH_TOKEN: ${EVENT_BUS_AUTH_TOKEN:-dev-event-bus-auth-token}
+      EVENT_BUS_CREDS_B64: ${EVENT_BUS_CREDS_B64:-dev-event-bus-creds}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - "3011:3011"
