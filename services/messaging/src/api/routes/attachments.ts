@@ -67,10 +67,12 @@ export function createAttachmentRoutes(
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const { attachmentId } = getAttachmentSchema.parse(req.params);
+        const { publicId } = req.body;
         const actor = req.user!;
 
         const attachment = await attachmentService.confirmUpload(
           attachmentId,
+          publicId,
           actor.userId
         );
 

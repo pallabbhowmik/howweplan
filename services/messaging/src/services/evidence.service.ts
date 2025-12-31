@@ -236,8 +236,8 @@ export class EvidenceService {
       throw Errors.EXPORT_NOT_FOUND(exportId);
     }
 
-    // Generate presigned download URL
-    const url = `${config.storage.endpoint}/${config.storage.bucket}/${exportRecord.storageKey}?download=presigned`;
+    // Generate Cloudinary download URL
+    const url = `https://res.cloudinary.com/${config.storage.cloudName}/raw/upload/${exportRecord.storageKey}`;
 
     return url;
   }
