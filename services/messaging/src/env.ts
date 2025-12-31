@@ -74,8 +74,8 @@ const envSchema = z.object({
     .default(730),
   EVIDENCE_ENCRYPTION_KEY: z
     .string()
-    .default('CHANGE-ME-32-CHAR-ENCRYPTION-KEY!!')
-    .transform((val) => val.trim() || 'CHANGE-ME-32-CHAR-ENCRYPTION-KEY!!')
+    .default('AES256-ENCRYPTION-KEY-CHANGE-ME!')
+    .transform((val) => val.trim() || 'AES256-ENCRYPTION-KEY-CHANGE-ME!')
     .refine(
       (val) => val.length === 32,
       { message: 'EVIDENCE_ENCRYPTION_KEY must be exactly 32 characters for AES-256' }
