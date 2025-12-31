@@ -122,7 +122,7 @@ See `.env.example` for all configuration options.
 | `MAX_LOGIN_ATTEMPTS` | Operational Limits | Failed login limit | No (default: 5) |
 | `ACCOUNT_LOCKOUT_DURATION_SECONDS` | Operational Limits | Lockout duration | No (default: 900) |
 | `EVENT_BUS_URL` | Audit/Observability | Event bus endpoint | **Yes** |
-| `EVENT_BUS_CREDS_B64` | Audit/Observability | Event bus credentials (base64) | **Yes** |
+| `EVENT_BUS_API_KEY` | Audit/Observability | Event bus API key | **Yes** |
 | `LOG_LEVEL` | Audit/Observability | Logging verbosity | No (default: info) |
 
 ## Business Rules Enforcement
