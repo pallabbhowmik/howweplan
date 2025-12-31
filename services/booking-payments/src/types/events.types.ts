@@ -103,7 +103,7 @@ export interface PaymentInitiatedEvent extends BaseEvent {
     readonly bookingId: string;
     readonly paymentId: string;
     readonly amountCents: number;
-    readonly stripeCheckoutSessionId: string;
+    readonly razorpayOrderId: string;
   };
   readonly metadata: EventMetadata;
 }
@@ -114,8 +114,8 @@ export interface PaymentSucceededEvent extends BaseEvent {
     readonly bookingId: string;
     readonly paymentId: string;
     readonly amountCents: number;
-    readonly stripePaymentIntentId: string;
-    readonly stripeChargeId: string;
+    readonly razorpayPaymentId: string;
+    readonly razorpayOrderId: string;
   };
   readonly metadata: EventMetadata;
 }
@@ -217,7 +217,7 @@ export interface RefundIssuedEvent extends BaseEvent {
     readonly bookingId: string;
     readonly paymentId: string;
     readonly amountCents: number;
-    readonly stripeRefundId: string;
+    readonly razorpayRefundId: string;
     readonly isPartial: boolean;
   };
   readonly metadata: EventMetadata;

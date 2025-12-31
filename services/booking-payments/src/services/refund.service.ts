@@ -357,24 +357,6 @@ class RefundService {
     windowEnd.setDate(windowEnd.getDate() + this.refundWindowDays);
     return now <= windowEnd;
   }
-
-  /**
-   * Map internal refund reason to Stripe's refund reason.
-   */
-  private mapToStripeReason(
-    reason: RefundReason
-  ): 'duplicate' | 'fraudulent' | 'requested_by_customer' {
-    switch (reason) {
-      case RefundReason.DUPLICATE_CHARGE:
-        return 'duplicate';
-      case RefundReason.AGENT_NO_SHOW:
-      case RefundReason.SERVICE_NOT_DELIVERED:
-      case RefundReason.VERIFIED_QUALITY_ISSUE:
-        return 'requested_by_customer';
-      default:
-        return 'requested_by_customer';
-    }
-  }
 }
 
 export const refundService = new RefundService();
