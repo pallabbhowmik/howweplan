@@ -1,0 +1,58 @@
+{
+  "name": "@tripcomposer/auth-utils",
+  "version": "1.0.0",
+  "description": "Pure authentication and authorization utilities for HowWePlan",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./jwt": {
+      "types": "./dist/jwt/index.d.ts",
+      "import": "./dist/jwt/index.mjs",
+      "require": "./dist/jwt/index.js"
+    },
+    "./rbac": {
+      "types": "./dist/rbac/index.d.ts",
+      "import": "./dist/rbac/index.mjs",
+      "require": "./dist/rbac/index.js"
+    },
+    "./identity": {
+      "types": "./dist/identity/index.d.ts",
+      "import": "./dist/identity/index.mjs",
+      "require": "./dist/identity/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts src/jwt/index.ts src/rbac/index.ts src/identity/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts src/jwt/index.ts src/rbac/index.ts src/identity/index.ts --format cjs,esm --dts --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "clean": "rimraf dist"
+  },
+  "keywords": [
+    "auth",
+    "jwt",
+    "rbac",
+    "permissions",
+    "utilities"
+  ],
+  "license": "MIT",
+  "sideEffects": false,
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0",
+    "rimraf": "^5.0.0"
+  }
+}

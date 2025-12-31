@@ -1,0 +1,308 @@
+# ============================================================================
+# TripComposer - Production-Grade .gitignore
+# ============================================================================
+# Monorepo structure: apps/, services/, packages/
+# Deployment targets: Vercel, Fly.io
+# Infrastructure: Supabase, Stripe
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# ENVIRONMENT & SECRETS (CRITICAL - NEVER COMMIT)
+# ----------------------------------------------------------------------------
+# Environment files
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Secret files
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+secrets/
+.secrets/
+
+# Service account keys
+*-service-account.json
+service-account*.json
+google-credentials.json
+
+# API keys and tokens
+.stripe
+stripe-cli/
+
+# ----------------------------------------------------------------------------
+# DEPENDENCIES
+# ----------------------------------------------------------------------------
+# Node.js
+node_modules/
+**/node_modules/
+
+# Package manager files (keep lock files)
+# npm
+npm-debug.log*
+
+# Yarn
+yarn-debug.log*
+yarn-error.log*
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# pnpm
+.pnpm-store/
+.pnpm-debug.log
+
+# ----------------------------------------------------------------------------
+# BUILD OUTPUTS
+# ----------------------------------------------------------------------------
+# TypeScript
+dist/
+**/dist/
+build/
+**/build/
+out/
+**/out/
+*.tsbuildinfo
+
+# Next.js (apps/)
+.next/
+**/.next/
+.vercel/
+**/.vercel/
+
+# Compiled JavaScript (when source is TS)
+*.js.map
+*.d.ts.map
+
+# ----------------------------------------------------------------------------
+# TESTING & COVERAGE
+# ----------------------------------------------------------------------------
+coverage/
+**/coverage/
+.nyc_output/
+**/.nyc_output/
+test-results/
+**/test-results/
+playwright-report/
+**/.playwright/
+junit.xml
+test-report.xml
+
+# ----------------------------------------------------------------------------
+# CACHING & TEMPORARY FILES
+# ----------------------------------------------------------------------------
+# npm/yarn/pnpm cache
+.cache/
+**/.cache/
+*.cache
+
+# Turbo (monorepo build cache)
+.turbo/
+**/.turbo/
+
+# ESLint cache
+.eslintcache
+**/.eslintcache
+
+# Prettier cache
+.prettiercache
+**/.prettiercache
+
+# TypeScript incremental compilation
+*.tsbuildinfo
+
+# Temporary files
+tmp/
+**/tmp/
+temp/
+**/temp/
+*.tmp
+*.temp
+
+# ----------------------------------------------------------------------------
+# DATABASE & DATA
+# ----------------------------------------------------------------------------
+# SQLite
+*.sqlite
+*.sqlite3
+*.db
+
+# PostgreSQL dumps
+*.sql
+!migrations/**/*.sql
+*.dump
+*.backup
+
+# Supabase local development
+supabase/.branches/
+supabase/.temp/
+.supabase/
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+
+# ----------------------------------------------------------------------------
+# LOGS & DEBUGGING
+# ----------------------------------------------------------------------------
+logs/
+**/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+debug.log
+
+# Runtime logs
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Crash dumps
+*.dmp
+core
+core.*
+
+# ----------------------------------------------------------------------------
+# DOCKER & CONTAINERS
+# ----------------------------------------------------------------------------
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Container volumes
+volumes/
+
+# ----------------------------------------------------------------------------
+# OS & EDITOR ARTIFACTS
+# ----------------------------------------------------------------------------
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+.history/
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.idea_modules/
+
+# Vim
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+*~
+tags
+Session.vim
+Sessionx.vim
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# ----------------------------------------------------------------------------
+# DEPLOYMENT & CI/CD
+# ----------------------------------------------------------------------------
+# Vercel
+.vercel/
+
+# Fly.io
+fly.toml.local
+.fly/
+
+# Netlify
+.netlify/
+
+# AWS
+.aws-sam/
+samconfig.toml
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# ----------------------------------------------------------------------------
+# MISCELLANEOUS
+# ----------------------------------------------------------------------------
+# Package outputs
+*.tgz
+*.tar.gz
+*.zip
+
+# Storybook
+storybook-static/
+
+# Documentation builds
+docs/_build/
+
+# Release files
+CHANGELOG.draft.md
+
+# Performance profiling
+*.cpuprofile
+*.heapprofile
+*.heapsnapshot
+v8.log
+
+# Bundle analysis
+.analyze/
+bundle-stats.json
+
+# Serverless
+.serverless/
+
+# Library builds (uncomment if needed)
+# lib/
+# es/
+# umd/
+

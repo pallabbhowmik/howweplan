@@ -1,0 +1,58 @@
+{
+  "name": "@tripcomposer/contracts",
+  "version": "1.0.0",
+  "description": "Shared contracts for HowWePlan platform - types, enums, and interfaces",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./entities": {
+      "types": "./dist/entities/index.d.ts",
+      "import": "./dist/entities/index.mjs",
+      "require": "./dist/entities/index.js"
+    },
+    "./states": {
+      "types": "./dist/states/index.d.ts",
+      "import": "./dist/states/index.mjs",
+      "require": "./dist/states/index.js"
+    },
+    "./events": {
+      "types": "./dist/events/index.d.ts",
+      "import": "./dist/events/index.mjs",
+      "require": "./dist/events/index.js"
+    },
+    "./dtos": {
+      "types": "./dist/dtos/index.d.ts",
+      "import": "./dist/dtos/index.mjs",
+      "require": "./dist/dtos/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "rimraf": "^5.0.5",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  },
+  "keywords": [
+    "tripcomposer",
+    "contracts",
+    "types",
+    "travel",
+    "platform"
+  ],
+  "license": "UNLICENSED",
+  "private": true
+}

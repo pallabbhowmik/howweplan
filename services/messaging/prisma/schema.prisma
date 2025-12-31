@@ -1,0 +1,372 @@
+/**
+ * Messaging Service - Database Schema
+ *
+ * Defines all database models for the messaging service.
+ * Uses Prisma schema format for type-safe database access.
+ */
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// =============================================================================
+// CONVERSATIONS
+// =============================================================================
+
+/// A conversation thread between participants (user and agent)
+model Conversation {
+  id                String              @id @default(uuid()) @db.Uuid
+  /// Reference to the booking this conversation is about (nullable for pre-booking inquiries)
+  bookingId         String?             @map("booking_id") @db.Uuid
+  /// The user ID who initiated or is part of the conversation
+  userId            String              @map("user_id") @db.Uuid
+  /// The agent ID who is part of the conversation
+  agentId           String              @map("agent_id") @db.Uuid
+  /// Current state of the conversation
+  state             ConversationState   @default(ACTIVE)
+  /// Whether contact details have been revealed (payment completed)
+  contactsRevealed  Boolean             @default(false) @map("contacts_revealed")
+  /// Booking state at time of last update (for masking decisions)
+  bookingState      String?             @map("booking_state")
+  /// When the conversation was created
+  createdAt         DateTime            @default(now()) @map("created_at")
+  /// When the conversation was last updated
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  /// When contacts were revealed (null if not yet)
+  contactsRevealedAt DateTime?          @map("contacts_revealed_at")
+
+  // Relations
+  messages          Message[]
+  participants      ConversationParticipant[]
+  auditLogs         ConversationAuditLog[]
+
+  @@unique([bookingId, userId, agentId])
+  @@index([userId])
+  @@index([agentId])
+  @@index([bookingId])
+  @@index([state])
+  @@index([createdAt])
+  @@map("conversations")
+}
+
+enum ConversationState {
+  /// Active conversation, messages can be sent
+  ACTIVE
+  /// Conversation paused (e.g., pending payment)
+  PAUSED
+  /// Conversation closed normally
+  CLOSED
+  /// Conversation archived (retention period active)
+  ARCHIVED
+  /// Conversation flagged for dispute
+  DISPUTED
+}
+
+// =============================================================================
+// CONVERSATION PARTICIPANTS
+// =============================================================================
+
+/// Tracks participants in a conversation with their visibility settings
+model ConversationParticipant {
+  id              String          @id @default(uuid()) @db.Uuid
+  conversationId  String          @map("conversation_id") @db.Uuid
+  /// The user ID of the participant
+  participantId   String          @map("participant_id") @db.Uuid
+  /// Type of participant
+  participantType ParticipantType
+  /// Display name visible to other participants
+  displayName     String          @map("display_name")
+  /// Whether this participant's full identity is visible
+  identityRevealed Boolean        @default(false) @map("identity_revealed")
+  /// Last time this participant was active
+  lastSeenAt      DateTime?       @map("last_seen_at")
+  /// Whether participant has left the conversation
+  hasLeft         Boolean         @default(false) @map("has_left")
+  /// When participant joined
+  joinedAt        DateTime        @default(now()) @map("joined_at")
+  /// When participant left (if applicable)
+  leftAt          DateTime?       @map("left_at")
+
+  // Relations
+  conversation    Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, participantId])
+  @@index([participantId])
+  @@map("conversation_participants")
+}
+
+enum ParticipantType {
+  USER
+  AGENT
+  ADMIN
+  SYSTEM
+}
+
+// =============================================================================
+// MESSAGES
+// =============================================================================
+
+/// Individual message in a conversation
+model Message {
+  id              String          @id @default(uuid()) @db.Uuid
+  conversationId  String          @map("conversation_id") @db.Uuid
+  /// ID of the sender
+  senderId        String          @map("sender_id") @db.Uuid
+  /// Type of sender
+  senderType      ParticipantType @map("sender_type")
+  /// The raw message content (may contain masked data)
+  content         String          @db.Text
+  /// Original content before masking (encrypted, for dispute resolution)
+  originalContent String?         @map("original_content") @db.Text
+  /// Whether content was masked
+  wasMasked       Boolean         @default(false) @map("was_masked")
+  /// Type of message
+  messageType     MessageType     @default(TEXT) @map("message_type")
+  /// Message metadata (JSON)
+  metadata        Json?
+  /// When the message was sent
+  createdAt       DateTime        @default(now()) @map("created_at")
+  /// When the message was edited (null if never)
+  editedAt        DateTime?       @map("edited_at")
+  /// Whether message was deleted (soft delete for audit trail)
+  isDeleted       Boolean         @default(false) @map("is_deleted")
+  /// When message was soft deleted
+  deletedAt       DateTime?       @map("deleted_at")
+  /// Who deleted the message
+  deletedBy       String?         @map("deleted_by") @db.Uuid
+
+  // Relations
+  conversation    Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  attachments     MessageAttachment[]
+  readReceipts    MessageReadReceipt[]
+  reactions       MessageReaction[]
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+enum MessageType {
+  /// Regular text message
+  TEXT
+  /// System-generated message
+  SYSTEM
+  /// Message with attachments
+  ATTACHMENT
+  /// Itinerary preview (obfuscated)
+  ITINERARY_PREVIEW
+  /// Payment confirmation message
+  PAYMENT_CONFIRMATION
+  /// Contact reveal notification
+  CONTACT_REVEAL
+  /// Booking state change notification
+  BOOKING_UPDATE
+}
+
+// =============================================================================
+// MESSAGE ATTACHMENTS
+// =============================================================================
+
+/// Attachment associated with a message
+model MessageAttachment {
+  id              String    @id @default(uuid()) @db.Uuid
+  messageId       String    @map("message_id") @db.Uuid
+  /// Original filename
+  filename        String
+  /// MIME type
+  mimeType        String    @map("mime_type")
+  /// File size in bytes
+  sizeBytes       Int       @map("size_bytes")
+  /// Storage key/path
+  storageKey      String    @map("storage_key")
+  /// Public URL (may be signed/temporary)
+  url             String?
+  /// Thumbnail URL for images
+  thumbnailUrl    String?   @map("thumbnail_url")
+  /// When the attachment was uploaded
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  message         Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("message_attachments")
+}
+
+// =============================================================================
+// READ RECEIPTS
+// =============================================================================
+
+/// Tracks when participants read messages
+model MessageReadReceipt {
+  id              String    @id @default(uuid()) @db.Uuid
+  messageId       String    @map("message_id") @db.Uuid
+  /// ID of the user who read the message
+  readById        String    @map("read_by_id") @db.Uuid
+  /// When the message was read
+  readAt          DateTime  @default(now()) @map("read_at")
+
+  // Relations
+  message         Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, readById])
+  @@index([readById])
+  @@map("message_read_receipts")
+}
+
+// =============================================================================
+// MESSAGE REACTIONS
+// =============================================================================
+
+/// Emoji reactions to messages
+model MessageReaction {
+  id              String    @id @default(uuid()) @db.Uuid
+  messageId       String    @map("message_id") @db.Uuid
+  /// ID of the user who reacted
+  reactedById     String    @map("reacted_by_id") @db.Uuid
+  /// The emoji reaction
+  emoji           String
+  /// When the reaction was added
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  message         Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, reactedById, emoji])
+  @@index([messageId])
+  @@map("message_reactions")
+}
+
+// =============================================================================
+// CONVERSATION AUDIT LOG
+// =============================================================================
+
+/// Audit trail for conversation state changes
+model ConversationAuditLog {
+  id              String          @id @default(uuid()) @db.Uuid
+  conversationId  String          @map("conversation_id") @db.Uuid
+  /// Type of action performed
+  action          AuditAction
+  /// ID of the actor who performed the action
+  actorId         String          @map("actor_id") @db.Uuid
+  /// Type of actor
+  actorType       ParticipantType @map("actor_type")
+  /// Previous state (JSON)
+  previousState   Json?           @map("previous_state")
+  /// New state (JSON)
+  newState        Json?           @map("new_state")
+  /// Reason for the action (required for admin actions)
+  reason          String?
+  /// Additional metadata
+  metadata        Json?
+  /// IP address of the actor
+  ipAddress       String?         @map("ip_address")
+  /// User agent of the actor
+  userAgent       String?         @map("user_agent")
+  /// When the action occurred
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  // Relations
+  conversation    Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("conversation_audit_logs")
+}
+
+enum AuditAction {
+  /// Conversation was created
+  CONVERSATION_CREATED
+  /// Conversation state changed
+  STATE_CHANGED
+  /// Message was sent
+  MESSAGE_SENT
+  /// Message was edited
+  MESSAGE_EDITED
+  /// Message was deleted
+  MESSAGE_DELETED
+  /// Contacts were revealed
+  CONTACTS_REVEALED
+  /// Participant joined
+  PARTICIPANT_JOINED
+  /// Participant left
+  PARTICIPANT_LEFT
+  /// Conversation was archived
+  ARCHIVED
+  /// Conversation marked as disputed
+  MARKED_DISPUTED
+  /// Evidence was exported
+  EVIDENCE_EXPORTED
+  /// Admin intervention
+  ADMIN_ACTION
+  /// Masking was applied
+  CONTENT_MASKED
+}
+
+// =============================================================================
+// EVIDENCE EXPORTS
+// =============================================================================
+
+/// Records of exported conversation evidence for disputes
+model EvidenceExport {
+  id              String    @id @default(uuid()) @db.Uuid
+  conversationId  String    @map("conversation_id") @db.Uuid
+  /// ID of the user who requested the export
+  requestedById   String    @map("requested_by_id") @db.Uuid
+  /// Type of requester
+  requesterType   ParticipantType @map("requester_type")
+  /// Reason for the export
+  reason          String
+  /// Storage key for the exported file
+  storageKey      String    @map("storage_key")
+  /// Hash of the exported content for integrity verification
+  contentHash     String    @map("content_hash")
+  /// Encryption key ID used
+  encryptionKeyId String    @map("encryption_key_id")
+  /// When the export was created
+  createdAt       DateTime  @default(now()) @map("created_at")
+  /// When the export expires
+  expiresAt       DateTime  @map("expires_at")
+
+  @@index([conversationId])
+  @@index([requestedById])
+  @@index([createdAt])
+  @@map("evidence_exports")
+}
+
+// =============================================================================
+// RATE LIMITING
+// =============================================================================
+
+/// Tracks rate limiting for users
+model RateLimitEntry {
+  id              String    @id @default(uuid()) @db.Uuid
+  /// ID of the user being rate limited
+  userId          String    @map("user_id") @db.Uuid
+  /// Type of rate limit
+  limitType       RateLimitType @map("limit_type")
+  /// Number of actions in the current window
+  count           Int       @default(1)
+  /// Start of the current window
+  windowStart     DateTime  @map("window_start")
+  /// When this entry expires
+  expiresAt       DateTime  @map("expires_at")
+
+  @@unique([userId, limitType, windowStart])
+  @@index([userId, limitType])
+  @@index([expiresAt])
+  @@map("rate_limit_entries")
+}
+
+enum RateLimitType {
+  MESSAGES_PER_MINUTE
+  CONVERSATIONS_PER_HOUR
+}

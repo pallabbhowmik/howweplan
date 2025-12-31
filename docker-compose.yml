@@ -1,0 +1,563 @@
+# ============================================================================
+# HowWePlan - Docker Compose Configuration
+# Local Development Environment
+# ============================================================================
+# 
+# Usage:
+#   docker compose up -d          # Start all services
+#   docker compose down           # Stop all services
+#   docker compose logs -f        # View logs
+#   docker compose ps             # Check status
+#
+# ============================================================================
+
+name: tripcomposer
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  tripcomposer-network:
+    driver: bridge
+    name: tripcomposer-network
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  postgres-data:
+    name: tripcomposer-postgres-data
+  redis-data:
+    name: tripcomposer-redis-data
+  rabbitmq-data:
+    name: tripcomposer-rabbitmq-data
+
+# ============================================================================
+# SERVICES
+# ============================================================================
+services:
+  # --------------------------------------------------------------------------
+  # INFRASTRUCTURE
+  # --------------------------------------------------------------------------
+  
+  postgres:
+    image: postgres:15-alpine
+    container_name: tripcomposer-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tripcomposer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tripcomposer_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-tripcomposer}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/init-db:/docker-entrypoint-initdb.d:ro
+    networks:
+      - tripcomposer-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tripcomposer} -d ${POSTGRES_DB:-tripcomposer}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: tripcomposer-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_dev_password}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - tripcomposer-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_dev_password}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: tripcomposer-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-tripcomposer}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbitmq_dev_password}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - tripcomposer-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # PostgREST - RESTful API for PostgreSQL
+  postgrest:
+    image: postgrest/postgrest:v11.2.2
+    container_name: tripcomposer-postgrest
+    restart: unless-stopped
+    environment:
+      PGRST_DB_URI: postgresql://${POSTGRES_USER:-tripcomposer}:${POSTGRES_PASSWORD:-tripcomposer_dev_password}@postgres:5432/${POSTGRES_DB:-tripcomposer}
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: ${POSTGRES_USER:-tripcomposer}
+      PGRST_JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-minimum-32-characters-long}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+    networks:
+      - tripcomposer-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/bin/postgrest", "--help"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Supabase REST API compatibility proxy
+  supabase-rest:
+    image: nginx:alpine
+    container_name: tripcomposer-supabase-rest
+    restart: unless-stopped
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "54321:3000"
+    networks:
+      - tripcomposer-network
+    depends_on:
+      postgrest:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # --------------------------------------------------------------------------
+  # BACKEND SERVICES
+  # --------------------------------------------------------------------------
+
+  audit:
+    build:
+      context: ./services/audit
+      dockerfile: Dockerfile
+    container_name: tripcomposer-audit
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      LOCAL_DEV_MODE: "true"
+      PORT: 3010
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tripcomposer}:${POSTGRES_PASSWORD:-tripcomposer_dev_password}@postgres:5432/${POSTGRES_DB:-tripcomposer}
+      SUPABASE_URL: http://supabase-rest:3000
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-dev-service-role-key-placeholder}
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret-32}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3010:3010"
+    networks:
+      - tripcomposer-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  identity:
+    build:
+      context: ./services/identity
+      dockerfile: Dockerfile
+    container_name: tripcomposer-identity
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3011
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3002,http://localhost:3003}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tripcomposer}:${POSTGRES_PASSWORD:-tripcomposer_dev_password}@postgres:5432/${POSTGRES_DB:-tripcomposer}
+      SUPABASE_URL: http://supabase-rest:3000
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-dev-service-role-key-placeholder-32chars}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-minimum-32-characters-long}
+      JWT_ISSUER: ${JWT_ISSUER:-tripcomposer}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-tripcomposer-services}
+      EVENT_BUS_URL: redis://default:${REDIS_PASSWORD:-redis_dev_password}@redis:6379
+      EVENT_BUS_AUTH_TOKEN: ${EVENT_BUS_AUTH_TOKEN:-dev-event-bus-auth-token}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3011:3011"
+    networks:
+      - tripcomposer-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3011/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      audit:
+        condition: service_healthy
+      supabase-rest:
+        condition: service_healthy
+
+  requests:
+    build:
+      context: ./services/requests
+      dockerfile: Dockerfile
+    container_name: tripcomposer-requests
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3012
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tripcomposer}:${POSTGRES_PASSWORD:-tripcomposer_dev_password}@postgres:5432/${POSTGRES_DB:-tripcomposer}
+      SUPABASE_URL: http://supabase-rest:3000
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-dev-service-role-key}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-minimum-32-characters-long}
+      EVENT_BUS_URL: redis://default:${REDIS_PASSWORD:-redis_dev_password}@redis:6379
+      DAILY_REQUEST_CAP: ${DAILY_REQUEST_CAP:-5}
+      MAX_OPEN_REQUESTS: ${MAX_OPEN_REQUESTS:-3}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3012:3012"
+    networks:
+      - tripcomposer-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3012/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      audit:
+        condition: service_healthy
+      identity:
+        condition: service_healthy
+
+  matching:
+    build:
+      context: ./services/matching
+      dockerfile: Dockerfile
+    container_name: tripcomposer-matching
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3013
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tripcomposer}:${POSTGRES_PASSWORD:-tripcomposer_dev_password}@postgres:5432/${POSTGRES_DB:-tripcomposer}
+      SUPABASE_URL: http://supabase-rest:3000
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-dev-service-role-key}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password}
+      INTERNAL_JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-minimum-32-characters-long}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3013:3013"
+    networks:
+      - tripcomposer-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      audit:
+        condition: service_healthy
+      requests:
+        condition: service_started
+
+  itineraries:
+    build:
+      context: ./services/itineraries
+      dockerfile: Dockerfile
+    container_name: tripcomposer-itineraries
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3014
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tripcomposer}:${POSTGRES_PASSWORD:-tripcomposer_dev_password}@postgres:5432/${POSTGRES_DB:-tripcomposer}
+      SUPABASE_URL: http://supabase-rest:3000
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-dev-service-role-key}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-minimum-32-characters-long}
+      EVENT_BUS_URL: redis://default:${REDIS_PASSWORD:-redis_dev_password}@redis:6379
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-api-key-32chars}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3014:3014"
+    networks:
+      - tripcomposer-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      audit:
+        condition: service_healthy
+
+  booking-payments:
+    build:
+      context: ./services/booking-payments
+      dockerfile: Dockerfile
+    container_name: tripcomposer-booking-payments
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3015
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tripcomposer}:${POSTGRES_PASSWORD:-tripcomposer_dev_password}@postgres:5432/${POSTGRES_DB:-tripcomposer}
+      SUPABASE_URL: http://supabase-rest:3000
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-dev-service-role-key}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-minimum-32-characters-long}
+      EVENT_BUS_URL: redis://default:${REDIS_PASSWORD:-redis_dev_password}@redis:6379
+      EVENT_BUS_API_KEY: ${EVENT_BUS_API_KEY:-dev-event-bus-key}
+      # STRIPE - ONLY IN THIS SERVICE
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_placeholder}
+      STRIPE_API_VERSION: "2023-10-16"
+      ENABLE_LIVE_PAYMENTS: "false"
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-api-key}
+      PLATFORM_COMMISSION_RATE: "0.10"
+      BOOKING_FEE_RATE: "0.029"
+      BOOKING_FEE_FIXED_CENTS: "30"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3015:3015"
+    networks:
+      - tripcomposer-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      audit:
+        condition: service_healthy
+
+  messaging:
+    build:
+      context: ./services/messaging
+      dockerfile: Dockerfile
+    container_name: tripcomposer-messaging
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3016
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tripcomposer}:${POSTGRES_PASSWORD:-tripcomposer_dev_password}@postgres:5432/${POSTGRES_DB:-tripcomposer}
+      SUPABASE_URL: http://supabase-rest:3000
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-dev-service-role-key}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-minimum-32-characters-long}
+      EVENT_BUS_URL: redis://default:${REDIS_PASSWORD:-redis_dev_password}@redis:6379
+      BOOKING_SERVICE_URL: http://booking-payments:3015
+      IDENTITY_SERVICE_URL: http://identity:3011
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-api-key-minimum}
+      EVIDENCE_ENCRYPTION_KEY: abcdefghijklmnopqrstuvwxyz123456
+      STORAGE_ENDPOINT: http://localhost:9000
+      STORAGE_BUCKET: tripcomposer-dev
+      STORAGE_ACCESS_KEY: minioadmin
+      STORAGE_SECRET_KEY: minioadmin
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3016:3016"
+    networks:
+      - tripcomposer-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3016/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      audit:
+        condition: service_healthy
+
+  disputes:
+    build:
+      context: ./services/disputes
+      dockerfile: Dockerfile
+    container_name: tripcomposer-disputes
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3017
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tripcomposer}:${POSTGRES_PASSWORD:-tripcomposer_dev_password}@postgres:5432/${POSTGRES_DB:-tripcomposer}
+      SUPABASE_URL: http://supabase-rest:3000
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-dev-service-role-key}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-minimum-32-characters-long}
+      JWT_ISSUER: http://identity:3011
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-tripcomposer-services}
+      JWKS_URI: http://identity:3011/.well-known/jwks.json
+      EVENT_BUS_URL: redis://default:${REDIS_PASSWORD:-redis_dev_password}@redis:6379
+      BOOKING_SERVICE_URL: http://booking-payments:3015
+      PAYMENTS_SERVICE_URL: http://booking-payments:3015
+      NOTIFICATION_SERVICE_URL: http://notifications:3019
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-service-token}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3017:3017"
+    networks:
+      - tripcomposer-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3017/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      audit:
+        condition: service_healthy
+      booking-payments:
+        condition: service_healthy
+
+  reviews:
+    build:
+      context: ./services/reviews
+      dockerfile: Dockerfile
+    container_name: tripcomposer-reviews
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3018
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tripcomposer}:${POSTGRES_PASSWORD:-tripcomposer_dev_password}@postgres:5432/${POSTGRES_DB:-tripcomposer}
+      SUPABASE_URL: http://supabase-rest:3000
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-dev-service-role-key}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-minimum-32-characters-long}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:-dev-jwt-public-key-placeholder}
+      EVENT_BUS_URL: redis://default:${REDIS_PASSWORD:-redis_dev_password}@redis:6379
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3018:3018"
+    networks:
+      - tripcomposer-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      audit:
+        condition: service_healthy
+
+  notifications:
+    build:
+      context: ./services/notifications
+      dockerfile: Dockerfile
+    container_name: tripcomposer-notifications
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3019
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tripcomposer}:${POSTGRES_PASSWORD:-tripcomposer_dev_password}@postgres:5432/${POSTGRES_DB:-tripcomposer}
+      SUPABASE_URL: http://supabase-rest:3000
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-dev-service-role-key}
+      EVENT_BUS_URL: amqp://${RABBITMQ_USER:-tripcomposer}:${RABBITMQ_PASSWORD:-rabbitmq_dev_password}@rabbitmq:5672
+      EMAIL_FROM_ADDRESS: noreply@howweplan.dev
+      EMAIL_PROVIDER: console
+      SMS_PROVIDER: console
+      PUSH_PROVIDER: console
+      ENABLE_EMAIL: "true"
+      SMS_ENABLED: "false"
+      PUSH_ENABLED: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3019:3019"
+    networks:
+      - tripcomposer-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3019/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      audit:
+        condition: service_healthy
+
+  # --------------------------------------------------------------------------
+  # FRONTEND APPLICATIONS
+  # --------------------------------------------------------------------------
+
+  # Note: For local development, it's often easier to run Next.js apps
+  # on the host using `npm run dev`. These containers are for full stack testing.
+
+  # user-web:
+  #   build:
+  #     context: ./apps/user-web
+  #     dockerfile: Dockerfile
+  #     args:
+  #       NEXT_PUBLIC_API_BASE_URL: http://localhost:3012
+  #       NEXT_PUBLIC_SUPABASE_URL: http://supabase-rest:3000
+  #       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-dev-anon-key}
+  #       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}
+  #   container_name: tripcomposer-user-web
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - tripcomposer-network
+  #   depends_on:
+  #     - requests
+  #     - booking-payments
+  #     - messaging
+
+  # agent-web:
+  #   build:
+  #     context: ./apps/agent-web
+  #     dockerfile: Dockerfile
+  #     args:
+  #       NEXT_PUBLIC_API_BASE_URL: http://localhost:3012
+  #       NEXT_PUBLIC_SUPABASE_URL: http://supabase-rest:3000
+  #       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-dev-anon-key}
+  #   container_name: tripcomposer-agent-web
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3001:3001"
+  #   networks:
+  #     - tripcomposer-network
+  #   depends_on:
+  #     - itineraries
+  #     - messaging
+
+  # admin-web:
+  #   build:
+  #     context: ./apps/admin-web
+  #     dockerfile: Dockerfile
+  #     args:
+  #       NEXT_PUBLIC_API_BASE_URL: http://localhost:3010
+  #       NEXT_PUBLIC_SUPABASE_URL: http://supabase-rest:3000
+  #       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-dev-anon-key}
+  #   container_name: tripcomposer-admin-web
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3002:3002"
+  #   networks:
+  #     - tripcomposer-network
+  #   depends_on:
+  #     - audit
+  #     - disputes
