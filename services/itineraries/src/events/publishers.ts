@@ -13,6 +13,11 @@ let channel: Awaited<ReturnType<Awaited<ReturnType<typeof amqplib.connect>>['cre
  * Initialize event bus connection.
  */
 export async function initializeEventBus(): Promise<void> {
+  if (!env.EVENT_BUS_URL) {
+    logger.warn('EVENT_BUS_URL not configured, skipping event bus initialization');
+    return;
+  }
+
   try {
     connection = await amqplib.connect(env.EVENT_BUS_URL);
     channel = await connection.createChannel();

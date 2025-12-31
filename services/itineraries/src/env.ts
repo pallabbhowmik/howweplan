@@ -41,7 +41,7 @@ const envSchema = z.object({
   // ============================================================
   // EVENT BUS
   // ============================================================
-  EVENT_BUS_URL: z.string().min(1, 'EVENT_BUS_URL is required'),
+  EVENT_BUS_URL: z.string().min(1).optional(),
   EVENT_BUS_EXCHANGE: z.string().default('tripcomposer.events'),
   EVENT_BUS_QUEUE_PREFIX: z.string().default('itineraries'),
 

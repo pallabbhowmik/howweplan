@@ -33,6 +33,11 @@ let channel: AmqpChannel | null = null;
  * Initialize event subscribers.
  */
 export async function initializeSubscribers(config: SubscriberConfig): Promise<void> {
+  if (!env.EVENT_BUS_URL) {
+    logger.warn('EVENT_BUS_URL not configured, skipping event subscribers initialization');
+    return;
+  }
+
   try {
     connection = await amqplib.connect(env.EVENT_BUS_URL);
     channel = await connection.createChannel();
