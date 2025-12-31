@@ -6,7 +6,6 @@
  */
 
 import type { Request, Response } from 'express';
-import { v4 as uuid } from 'uuid';
 import { logger as log } from '../services/logger.service.js';
 import { razorpayService } from '../services/razorpay.service.js';
 import { idempotencyStore } from '../utils/idempotency.js';
@@ -18,7 +17,6 @@ import { paymentService } from '../services/payment.service.js';
 const eventMetadata = {
   actorType: 'system' as const,
   actorId: 'razorpay-webhook',
-  ipAddress: null,
 };
 
 /**
@@ -138,10 +136,7 @@ async function handlePaymentCaptured(
     paymentId: payment.id,
     orderId: payment.order_id,
     amountCents: payment.amount,
-    metadata: {
-      ...eventMetadata,
-      correlationId: bookingId,
-    },
+    metadata: eventMetadata,
   });
 
   log.info(
@@ -175,10 +170,7 @@ async function handlePaymentFailed(
     failureCode: payment.error_code || 'unknown',
     failureMessage: payment.error_description || 'Payment failed',
     amountCents: payment.amount,
-    metadata: {
-      ...eventMetadata,
-      correlationId: bookingId,
-    },
+    metadata: eventMetadata,
   });
 
   log.info(
