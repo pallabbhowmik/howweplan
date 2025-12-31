@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { TestSiteBanner } from '@/components/ui/test-site-banner';
 
 export const metadata: Metadata = {
   title: 'HowWePlan Agent Portal',
@@ -16,7 +17,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <TestSiteBanner />
+        {children}
+      </body>
     </html>
   );
 }
