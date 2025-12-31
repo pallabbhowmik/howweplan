@@ -74,8 +74,12 @@ const envSchema = z.object({
     .default(730),
   EVIDENCE_ENCRYPTION_KEY: z
     .string()
-    .length(32, 'EVIDENCE_ENCRYPTION_KEY must be exactly 32 characters for AES-256')
-    .default('CHANGE-ME-32-CHAR-ENCRYPTION-KEY'),
+    .optional()
+    .default('CHANGE-ME-32-CHAR-ENCRYPTION-KEY')
+    .refine(
+      (val) => !val || val.length === 32,
+      { message: 'EVIDENCE_ENCRYPTION_KEY must be exactly 32 characters for AES-256' }
+    ),
 
   // ---------------------------------------------------------------------------
   // CONTACT MASKING
