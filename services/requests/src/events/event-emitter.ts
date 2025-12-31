@@ -37,6 +37,11 @@ export function createEventEmitter(logger: Logger): EventEmitter {
         return;
       }
 
+      if (!config.eventBus.url) {
+        logger.warn('EVENT_BUS_URL not configured, event emitter will be disabled');
+        return;
+      }
+
       client = createClient({
         url: config.eventBus.url,
       });
@@ -62,7 +67,8 @@ export function createEventEmitter(logger: Logger): EventEmitter {
       context: EventContext
     ): Promise<void> {
       if (!client) {
-        throw new Error('Event emitter not connected');
+        logger.warn('Event emitter not connected, skipping event emission');
+        return;
       }
 
       eventVersion++;

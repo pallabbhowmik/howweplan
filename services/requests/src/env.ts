@@ -15,12 +15,12 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
 
   // Database
-  DATABASE_URL: z.string().url('DATABASE_URL must be a valid PostgreSQL connection string'),
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   SUPABASE_URL: z.string().url('SUPABASE_URL must be a valid URL'),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
 
   // Event Bus
-  EVENT_BUS_URL: z.string().url('EVENT_BUS_URL must be a valid Redis connection string'),
+  EVENT_BUS_URL: z.string().url('EVENT_BUS_URL must be a valid Redis connection string').optional(),
   EVENT_BUS_CHANNEL_PREFIX: z.string().default('tripcomposer'),
 
   // Authentication

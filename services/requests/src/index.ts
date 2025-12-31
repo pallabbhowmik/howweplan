@@ -49,8 +49,14 @@ async function main() {
   const auditService = createAuditService(logger);
   const capEnforcementService = createCapEnforcementService(repository, logger);
   
-  // Connect to event bus
-  await eventEmitter.connect();
+  // Connect to event bus (optional)
+  try {
+    await eventEmitter.connect();
+  } catch (error) {
+    logger.warn('Failed to connect to event bus, continuing without it', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 
   const requestService = createRequestService(
     repository,
