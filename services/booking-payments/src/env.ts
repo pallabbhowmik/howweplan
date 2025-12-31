@@ -30,16 +30,10 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
   DATABASE_URL: z.string().min(10),
 
-  // Payments (Stripe) - ONLY IN THIS SERVICE
-  STRIPE_SECRET_KEY: z.string().refine(
-    (key) => key.startsWith('sk_test_') || key.startsWith('sk_live_'),
-    { message: 'STRIPE_SECRET_KEY must start with sk_test_ or sk_live_' }
-  ),
-  STRIPE_WEBHOOK_SECRET: z.string().refine(
-    (key) => key.startsWith('whsec_'),
-    { message: 'STRIPE_WEBHOOK_SECRET must start with whsec_' }
-  ),
-  STRIPE_API_VERSION: z.string().default('2023-10-16'),
+  // Payments (Razorpay) - ONLY IN THIS SERVICE
+  RAZORPAY_KEY_ID: z.string().min(10, 'RAZORPAY_KEY_ID is required'),
+  RAZORPAY_KEY_SECRET: z.string().min(10, 'RAZORPAY_KEY_SECRET is required'),
+  RAZORPAY_WEBHOOK_SECRET: z.string().min(10, 'RAZORPAY_WEBHOOK_SECRET is required'),
 
   // Feature Toggles
   ENABLE_LIVE_PAYMENTS: z
@@ -101,17 +95,17 @@ function validateEnv(): EnvConfig {
   // Additional cross-field validations
   const config = result.data;
 
-  // Ensure live payments only work with live keys
-  if (config.ENABLE_LIVE_PAYMENTS && config.STRIPE_SECRET_KEY.startsWith('sk_test_')) {
+  // Ensure live payments only work with live keys (Razorpay test keys start with rzp_test_)
+  if (config.ENABLE_LIVE_PAYMENTS && config.RAZORPAY_KEY_ID.startsWith('rzp_test_')) {
     console.error('\n❌ CONFIGURATION ERROR\n');
-    console.error('ENABLE_LIVE_PAYMENTS is true but STRIPE_SECRET_KEY is a test key.');
-    console.error('Use a live key (sk_live_*) for production payments.\n');
+    console.error('ENABLE_LIVE_PAYMENTS is true but RAZORPAY_KEY_ID is a test key.');
+    console.error('Use a live key (rzp_live_*) for production payments.\n');
     process.exit(1);
   }
 
   // Warn about test mode in production
-  if (config.NODE_ENV === 'production' && config.STRIPE_SECRET_KEY.startsWith('sk_test_')) {
-    console.warn('\n⚠️  WARNING: Running in production with Stripe test keys!\n');
+  if (config.NODE_ENV === 'production' && config.RAZORPAY_KEY_ID.startsWith('rzp_test_')) {
+    console.warn('\n⚠️  WARNING: Running in production with Razorpay test keys!\n');
   }
 
   return config;
@@ -141,10 +135,10 @@ export const config = {
     supabaseServiceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
     databaseUrl: env.DATABASE_URL,
   },
-  stripe: {
-    secretKey: env.STRIPE_SECRET_KEY,
-    webhookSecret: env.STRIPE_WEBHOOK_SECRET,
-    apiVersion: env.STRIPE_API_VERSION as '2023-10-16',
+  razorpay: {
+    keyId: env.RAZORPAY_KEY_ID,
+    keySecret: env.RAZORPAY_KEY_SECRET,
+    webhookSecret: env.RAZORPAY_WEBHOOK_SECRET,
   },
   features: {
     livePayments: env.ENABLE_LIVE_PAYMENTS,

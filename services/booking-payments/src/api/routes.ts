@@ -22,7 +22,7 @@ import {
   denyRefund,
   getRefundStats,
 } from './refund.controller.js';
-import { handleStripeWebhook } from '../webhooks/stripe.handler.js';
+import { handleRazorpayWebhook } from '../webhooks/razorpay.handler.js';
 
 export const router = Router();
 
@@ -84,9 +84,9 @@ router.post('/api/v1/refunds/:refundId/deny', denyRefund);
 // WEBHOOK ROUTES
 // ============================================================================
 
-/** Stripe webhook handler - uses raw body */
+/** Razorpay webhook handler - uses raw body */
 router.post(
-  '/api/v1/webhooks/stripe',
+  '/api/v1/webhooks/razorpay',
   // Note: The main app configures raw body parsing for this route
-  handleStripeWebhook
+  handleRazorpayWebhook
 );

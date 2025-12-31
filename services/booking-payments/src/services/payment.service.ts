@@ -7,7 +7,7 @@
 
 import { v4 as uuid } from 'uuid';
 import { logger } from './logger.service.js';
-import { stripeService } from './stripe.service.js';
+import { razorpayService } from './razorpay.service.js';
 import { feeCalculator } from './fee-calculator.service.js';
 import { escrowService } from './escrow.service.js';
 import { auditService } from './audit.service.js';
@@ -23,7 +23,7 @@ import type { EventMetadata } from '../types/events.types.js';
 /** Payment service for managing payment lifecycle */
 class PaymentService {
   /**
-   * Create a Stripe checkout session for a booking.
+   * Create a Razorpay order for a booking.
    * Payment MUST happen before contact release.
    */
   async createCheckout(
@@ -46,14 +46,12 @@ class PaymentService {
     // Calculate fees
     const fees = feeCalculator.calculate(booking.basePriceCents);
 
-    // Create Stripe checkout session
-    const session = await stripeService.createCheckoutSession({
+    // Create Razorpay order
+    const order = await razorpayService.createOrder({
       bookingId: booking.id,
       userId: booking.userId,
       userEmail,
       fees,
-      successUrl: dto.successUrl,
-      cancelUrl: dto.cancelUrl,
       idempotencyKey: dto.idempotencyKey,
       metadata: {
         agent_id: booking.agentId,
@@ -73,7 +71,7 @@ class PaymentService {
         bookingId: booking.id,
         paymentId: uuid(),
         amountCents: fees.totalAmountCents,
-        stripeCheckoutSessionId: session.sessionId,
+        razorpayOrderId: order.orderId,
       },
       metadata,
     });
@@ -81,41 +79,41 @@ class PaymentService {
     logger.info(
       {
         bookingId: booking.id,
-        sessionId: session.sessionId,
+        orderId: order.orderId,
         amountCents: fees.totalAmountCents,
       },
-      'Checkout session created'
+      'Razorpay order created'
     );
 
     return {
-      sessionId: session.sessionId,
-      checkoutUrl: session.checkoutUrl,
-      expiresAt: session.expiresAt.toISOString(),
+      sessionId: order.orderId,
+      checkoutUrl: dto.successUrl, // Frontend will handle Razorpay checkout
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutes
     };
   }
 
   /**
-   * Handle successful payment from Stripe webhook.
+   * Handle successful payment from Razorpay webhook.
    * Idempotent - safe to call multiple times with same payment.
    */
   async handlePaymentSuccess(params: {
     bookingId: string;
-    paymentIntentId: string;
-    chargeId: string;
+    paymentId: string;
+    orderId: string;
     amountCents: number;
     metadata: EventMetadata;
   }): Promise<{ success: boolean; error?: string }> {
-    const { bookingId, paymentIntentId, chargeId, amountCents, metadata } = params;
+    const { bookingId, paymentId, orderId, amountCents, metadata } = params;
 
     // Record the successful charge
     await auditService.recordMoneyMovement({
       bookingId,
-      paymentId: paymentIntentId,
+      paymentId: paymentId,
       movementType: 'charge',
       amountCents,
-      fromAccount: 'stripe_customer',
-      toAccount: 'platform_stripe',
-      stripeTransactionId: chargeId,
+      fromAccount: 'razorpay_customer',
+      toAccount: 'platform_razorpay',
+      stripeTransactionId: paymentId,
       metadata,
     });
 
@@ -129,10 +127,10 @@ class PaymentService {
       correlationId: bookingId,
       payload: {
         bookingId,
-        paymentId: paymentIntentId,
+        paymentId: paymentId,
         amountCents,
-        stripePaymentIntentId: paymentIntentId,
-        stripeChargeId: chargeId,
+        razorpayPaymentId: paymentId,
+        razorpayOrderId: orderId,
       },
       metadata,
     });
@@ -140,8 +138,8 @@ class PaymentService {
     logger.info(
       {
         bookingId,
-        paymentIntentId,
-        chargeId,
+        paymentId,
+        orderId,
         amountCents,
       },
       'Payment succeeded'
@@ -151,17 +149,17 @@ class PaymentService {
   }
 
   /**
-   * Handle failed payment from Stripe webhook.
+   * Handle failed payment from Razorpay webhook.
    */
   async handlePaymentFailure(params: {
     bookingId: string;
-    paymentIntentId: string;
+    paymentId: string;
     failureCode: string;
     failureMessage: string;
     amountCents: number;
     metadata: EventMetadata;
   }): Promise<void> {
-    const { bookingId, paymentIntentId, failureCode, failureMessage, amountCents, metadata } =
+    const { bookingId, paymentId, failureCode, failureMessage, amountCents, metadata } =
       params;
 
     // Emit payment failed event
@@ -174,7 +172,7 @@ class PaymentService {
       correlationId: bookingId,
       payload: {
         bookingId,
-        paymentId: paymentIntentId,
+        paymentId: paymentId,
         amountCents,
         failureCode,
         failureMessage,
@@ -185,7 +183,7 @@ class PaymentService {
     logger.warn(
       {
         bookingId,
-        paymentIntentId,
+        paymentId,
         failureCode,
         failureMessage,
       },

@@ -10,7 +10,7 @@
 import { v4 as uuid } from 'uuid';
 import { config } from '../env.js';
 import { logger } from './logger.service.js';
-import { stripeService } from './stripe.service.js';
+import { razorpayService } from './razorpay.service.js';
 import { auditService } from './audit.service.js';
 import { eventPublisher } from '../events/publisher.js';
 import {
@@ -265,20 +265,19 @@ class RefundService {
     amountCents: number;
     reason: RefundReason;
     metadata: EventMetadata;
-  }): Promise<{ success: boolean; stripeRefundId?: string; error?: string }> {
+  }): Promise<{ success: boolean; razorpayRefundId?: string; error?: string }> {
     const idempotencyKey = `refund_${params.refundId}`;
 
     try {
-      // Map our reason to Stripe's reason
-      const stripeReason = this.mapToStripeReason(params.reason);
-
-      const refund = await stripeService.createRefund({
-        chargeId: params.chargeId,
+      const refund = await razorpayService.createRefund({
+        paymentId: params.paymentId,
         amountCents: params.amountCents,
-        reason: stripeReason,
         bookingId: params.bookingId,
         refundId: params.refundId,
         idempotencyKey,
+        notes: {
+          reason: params.reason,
+        },
       });
 
       // Record the money movement
@@ -288,7 +287,7 @@ class RefundService {
         movementType: 'refund',
         amountCents: params.amountCents,
         fromAccount: 'platform_escrow',
-        toAccount: 'stripe_customer',
+        toAccount: 'razorpay_customer',
         stripeTransactionId: refund.id,
         metadata: params.metadata,
       });
@@ -306,8 +305,8 @@ class RefundService {
           bookingId: params.bookingId,
           paymentId: params.paymentId,
           amountCents: params.amountCents,
-          stripeRefundId: refund.id,
-          isPartial: params.amountCents < (refund.charge as { amount?: number })?.amount!,
+          razorpayRefundId: refund.id,
+          isPartial: false, // Razorpay refunds are either full or partial based on amount
         },
         metadata: params.metadata,
       });
@@ -316,13 +315,13 @@ class RefundService {
         {
           refundId: params.refundId,
           bookingId: params.bookingId,
-          stripeRefundId: refund.id,
+          razorpayRefundId: refund.id,
           amountCents: params.amountCents,
         },
         'Refund processed'
       );
 
-      return { success: true, stripeRefundId: refund.id };
+      return { success: true, razorpayRefundId: refund.id };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       logger.error(
