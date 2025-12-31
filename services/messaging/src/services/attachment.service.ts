@@ -1,12 +1,13 @@
 /**
  * Messaging Service - Attachment Service
  *
- * Handles file attachment uploads and storage.
+ * Handles file attachment uploads using Cloudinary with compression.
  */
 
 import { randomUUID } from 'crypto';
 import { config } from '../env';
 import { Errors } from '../api/errors';
+import { cloudinaryService } from './cloudinary.service';
 import type { AttachmentView } from '../types';
 import type { UploadAttachmentInput } from '../api/schemas';
 
@@ -16,7 +17,8 @@ import type { UploadAttachmentInput } from '../api/schemas';
 
 export class AttachmentService {
   /**
-   * Creates a presigned URL for uploading an attachment.
+   * Creates a presigned upload signature for Cloudinary.
+   * Client uploads directly to Cloudinary with automatic compression.
    */
   async createPresignedUploadUrl(
     input: UploadAttachmentInput,
@@ -24,6 +26,7 @@ export class AttachmentService {
   ): Promise<{
     attachmentId: string;
     uploadUrl: string;
+    uploadSignature: any;
     expiresAt: string;
   }> {
     // Validate file type
@@ -39,93 +42,78 @@ export class AttachmentService {
       throw Errors.ATTACHMENT_TOO_LARGE(config.limits.maxAttachmentSize);
     }
 
-    // Verify uploader is participant in conversation
-    // const conversation = await prisma.conversation.findUnique({
-    //   where: { id: input.conversationId }
-    // });
-    // if (conversation.userId !== uploaderId && conversation.agentId !== uploaderId) {
-    //   throw Errors.NOT_PARTICIPANT();
-    // }
-
     const attachmentId = randomUUID();
-    const storageKey = `${input.conversationId}/${attachmentId}/${input.filename}`;
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    // Generate Cloudinary upload signature
+    const uploadSignature = await cloudinaryService.generateUploadSignature({
+      conversationId: input.conversationId,
+      filename: input.filename,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+    });
+
+    // Cloudinary upload endpoint
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${uploadSignature.cloudName}/auto/upload`;
 
     // Create pending attachment record
     // await prisma.messageAttachment.create({
     //   data: {
     //     id: attachmentId,
-    //     messageId: null, // Will be set when message is sent
+    //     messageId: null,
     //     filename: input.filename,
     //     mimeType: input.mimeType,
     //     sizeBytes: input.sizeBytes,
-    //     storageKey,
-    //     url: null,
-    //     thumbnailUrl: null,
+    //     cloudinaryPublicId: uploadSignature.publicId,
     //     status: 'PENDING',
     //     uploaderId,
     //     expiresAt
     //   }
     // });
 
-    // Generate presigned upload URL
-    // In production, this would use S3 or compatible storage
-    const uploadUrl = `${config.storage.endpoint}/${config.storage.bucket}/${storageKey}?upload=presigned`;
-
     return {
       attachmentId,
       uploadUrl,
+      uploadSignature,
       expiresAt: expiresAt.toISOString(),
     };
   }
 
   /**
-   * Confirms an attachment upload has completed.
+   * Confirms an attachment upload has completed on Cloudinary.
    */
   async confirmUpload(
     attachmentId: string,
+    publicId: string,
     _uploaderId: string
   ): Promise<AttachmentView> {
-    // Verify the attachment exists and belongs to uploader
-    // const attachment = await prisma.messageAttachment.findUnique({
-    //   where: { id: attachmentId }
-    // });
+    // Get file info from Cloudinary
+    const fileInfo = await cloudinaryService.getFileInfo(publicId);
 
-    // Placeholder
-    const attachment = {
-      id: attachmentId,
-      filename: 'placeholder.jpg',
-      mimeType: 'image/jpeg',
-      sizeBytes: 1024,
-      storageKey: `attachments/${attachmentId}`,
-      url: null as string | null,
-      thumbnailUrl: null as string | null,
-    };
-
-    // Verify file exists in storage
-    // const exists = await storage.headObject(attachment.storageKey);
-
-    // Generate download URL
-    const url = `${config.storage.endpoint}/${config.storage.bucket}/${attachment.storageKey}`;
-
-    // Update attachment status
+    // Update attachment status in database
     // await prisma.messageAttachment.update({
     //   where: { id: attachmentId },
-    //   data: { status: 'CONFIRMED', url }
+    //   data: {
+    //     status: 'CONFIRMED',
+    //     cloudinaryPublicId: fileInfo.public_id,
+    //     url: fileInfo.secure_url,
+    //     thumbnailUrl: fileInfo.resource_type === 'image' ? thumbnailUrl : null,
+    //     sizeBytes: fileInfo.bytes
+    //   }
     // });
 
-    // Generate thumbnail for images
+    // Generate thumbnail URL for images
     let thumbnailUrl: string | null = null;
-    if (attachment.mimeType.startsWith('image/')) {
-      // thumbnailUrl = await this.generateThumbnail(attachment.storageKey);
+    if (fileInfo.resource_type === 'image') {
+      thumbnailUrl = `https://res.cloudinary.com/${config.storage.cloudName}/image/upload/w_300,h_300,c_fill,q_auto/${publicId}`;
     }
 
     return {
-      id: attachment.id,
-      filename: attachment.filename,
-      mimeType: attachment.mimeType,
-      sizeBytes: attachment.sizeBytes,
-      url,
+      id: attachmentId,
+      filename: fileInfo.public_id.split('/').pop() || 'unknown',
+      mimeType: fileInfo.format,
+      sizeBytes: fileInfo.bytes,
+      url: fileInfo.secure_url,
       thumbnailUrl,
     };
   }

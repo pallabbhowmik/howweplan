@@ -143,13 +143,14 @@ const envSchema = z.object({
     .default('image/jpeg,image/png,image/webp,application/pdf'),
 
   // ---------------------------------------------------------------------------
-  // STORAGE
+  // STORAGE (CLOUDINARY)
   // ---------------------------------------------------------------------------
-  STORAGE_ENDPOINT: z.string().url(),
-  STORAGE_BUCKET: z.string().min(1),
-  STORAGE_ACCESS_KEY: z.string().min(1),
-  STORAGE_SECRET_KEY: z.string().min(1),
-  STORAGE_REGION: z.string().default('us-east-1'),
+  CLOUDINARY_CLOUD_NAME: z.string().min(1, 'CLOUDINARY_CLOUD_NAME is required'),
+  CLOUDINARY_API_KEY: z.string().min(1, 'CLOUDINARY_API_KEY is required'),
+  CLOUDINARY_API_SECRET: z.string().min(1, 'CLOUDINARY_API_SECRET is required'),
+  CLOUDINARY_FOLDER: z.string().default('messaging-attachments'),
+  CLOUDINARY_UPLOAD_PRESET: z.string().optional(),
+  CLOUDINARY_AUTO_DELETE_DAYS: z.coerce.number().int().positive().default(730),
 
   // ---------------------------------------------------------------------------
   // AUDIT & OBSERVABILITY
@@ -325,11 +326,12 @@ export const config = {
   },
 
   storage: {
-    endpoint: env.STORAGE_ENDPOINT,
-    bucket: env.STORAGE_BUCKET,
-    accessKey: env.STORAGE_ACCESS_KEY,
-    secretKey: env.STORAGE_SECRET_KEY,
-    region: env.STORAGE_REGION,
+    cloudName: env.CLOUDINARY_CLOUD_NAME,
+    apiKey: env.CLOUDINARY_API_KEY,
+    apiSecret: env.CLOUDINARY_API_SECRET,
+    folder: env.CLOUDINARY_FOLDER,
+    uploadPreset: env.CLOUDINARY_UPLOAD_PRESET,
+    autoDeleteDays: env.CLOUDINARY_AUTO_DELETE_DAYS,
   },
 
   features: {
