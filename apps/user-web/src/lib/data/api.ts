@@ -245,6 +245,141 @@ export async function updateUser(userId: string, updates: Partial<{
   return true;
 }
 
+export interface UserSettings {
+  // Notifications
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  proposalAlerts: boolean;
+  messageAlerts: boolean;
+  marketingEmails: boolean;
+  weeklyDigest: boolean;
+  // Privacy
+  profileVisible: boolean;
+  showTravelHistory: boolean;
+  allowAgentContact: boolean;
+  // Preferences
+  currency: string;
+  language: string;
+  theme: string;
+  soundEnabled: boolean;
+  // Security
+  twoFactorEnabled: boolean;
+}
+
+export async function fetchUserSettings(userId: string): Promise<UserSettings | null> {
+  const supabase = getSupabaseClient();
+  
+  const { data, error } = await supabase
+    .from('users')
+    .select('preferences, email_notifications, marketing_emails, two_factor_enabled')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching user settings:', error);
+    return null;
+  }
+
+  const prefs = data.preferences || {};
+  
+  return {
+    // Notifications
+    emailNotifications: data.email_notifications ?? true,
+    pushNotifications: prefs.pushNotifications ?? true,
+    proposalAlerts: prefs.proposalAlerts ?? true,
+    messageAlerts: prefs.messageAlerts ?? true,
+    marketingEmails: data.marketing_emails ?? false,
+    weeklyDigest: prefs.weeklyDigest ?? true,
+    // Privacy
+    profileVisible: prefs.profileVisible ?? true,
+    showTravelHistory: prefs.showTravelHistory ?? false,
+    allowAgentContact: prefs.allowAgentContact ?? true,
+    // Preferences
+    currency: prefs.currency ?? 'INR',
+    language: prefs.language ?? 'en',
+    theme: prefs.theme ?? 'light',
+    soundEnabled: prefs.soundEnabled ?? true,
+    // Security
+    twoFactorEnabled: data.two_factor_enabled ?? false,
+  };
+}
+
+export async function updateUserSettings(userId: string, settings: Partial<UserSettings>): Promise<boolean> {
+  const supabase = getSupabaseClient();
+
+  // First fetch current preferences to merge
+  const { data: currentData, error: fetchError } = await supabase
+    .from('users')
+    .select('preferences')
+    .eq('id', userId)
+    .single();
+
+  if (fetchError) {
+    console.error('Error fetching current settings:', fetchError);
+    return false;
+  }
+
+  const currentPrefs = currentData?.preferences || {};
+  
+  // Build updates object
+  const dbUpdates: Record<string, unknown> = {};
+  
+  // Direct column updates
+  if (settings.emailNotifications !== undefined) {
+    dbUpdates.email_notifications = settings.emailNotifications;
+  }
+  if (settings.marketingEmails !== undefined) {
+    dbUpdates.marketing_emails = settings.marketingEmails;
+  }
+  if (settings.twoFactorEnabled !== undefined) {
+    dbUpdates.two_factor_enabled = settings.twoFactorEnabled;
+  }
+  
+  // Preferences JSON updates
+  const newPrefs = { ...currentPrefs };
+  if (settings.pushNotifications !== undefined) newPrefs.pushNotifications = settings.pushNotifications;
+  if (settings.proposalAlerts !== undefined) newPrefs.proposalAlerts = settings.proposalAlerts;
+  if (settings.messageAlerts !== undefined) newPrefs.messageAlerts = settings.messageAlerts;
+  if (settings.weeklyDigest !== undefined) newPrefs.weeklyDigest = settings.weeklyDigest;
+  if (settings.profileVisible !== undefined) newPrefs.profileVisible = settings.profileVisible;
+  if (settings.showTravelHistory !== undefined) newPrefs.showTravelHistory = settings.showTravelHistory;
+  if (settings.allowAgentContact !== undefined) newPrefs.allowAgentContact = settings.allowAgentContact;
+  if (settings.currency !== undefined) newPrefs.currency = settings.currency;
+  if (settings.language !== undefined) newPrefs.language = settings.language;
+  if (settings.theme !== undefined) newPrefs.theme = settings.theme;
+  if (settings.soundEnabled !== undefined) newPrefs.soundEnabled = settings.soundEnabled;
+  
+  dbUpdates.preferences = newPrefs;
+
+  const { error } = await supabase
+    .from('users')
+    .update(dbUpdates)
+    .eq('id', userId);
+
+  if (error) {
+    console.error('Error updating user settings:', error);
+    return false;
+  }
+
+  return true;
+}
+
+export async function changeUserPassword(userId: string, currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = getSupabaseClient();
+  
+  // Supabase handles password changes through auth
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword
+  });
+
+  if (error) {
+    console.error('Error changing password:', error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
 // ============================================================================
 // Travel Requests API
 // ============================================================================

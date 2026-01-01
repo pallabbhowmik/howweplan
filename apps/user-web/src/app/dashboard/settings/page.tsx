@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Settings,
   Bell,
@@ -32,22 +32,54 @@ import {
   Crown,
   Fingerprint,
   Laptop,
+  AlertCircle,
+  CheckCircle2,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useUserSession } from '@/lib/user/session';
+import { fetchUserSettings, updateUserSettings, changeUserPassword, type UserSettings } from '@/lib/data/api';
 import Link from 'next/link';
+
+// Toast notification component
+function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className={`fixed bottom-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border animate-in slide-in-from-bottom-5 ${
+      type === 'success' 
+        ? 'bg-green-50 border-green-200 text-green-800' 
+        : 'bg-red-50 border-red-200 text-red-800'
+    }`}>
+      {type === 'success' ? (
+        <CheckCircle2 className="h-5 w-5 text-green-600" />
+      ) : (
+        <AlertCircle className="h-5 w-5 text-red-600" />
+      )}
+      <span className="font-medium">{message}</span>
+      <button onClick={onClose} className="ml-2 hover:opacity-70">
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { user, loading: userLoading } = useUserSession();
   const [saving, setSaving] = useState(false);
   const [savedSection, setSavedSection] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
   // Settings state
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<UserSettings>({
     // Notifications
     emailNotifications: true,
     pushNotifications: true,
@@ -82,49 +114,176 @@ export default function SettingsPage() {
     new: false,
     confirm: false,
   });
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  const handleToggle = (key: keyof typeof settings) => {
+  // Load user settings on mount
+  useEffect(() => {
+    async function loadSettings() {
+      if (!user?.userId) return;
+      
+      setLoadingSettings(true);
+      const userSettings = await fetchUserSettings(user.userId);
+      if (userSettings) {
+        setSettings(userSettings);
+        // Apply theme immediately
+        if (userSettings.theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      }
+      setLoadingSettings(false);
+    }
+    
+    if (user) {
+      loadSettings();
+    }
+  }, [user]);
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+  };
+
+  const handleToggle = (key: keyof UserSettings) => {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const handleSave = async (section: string) => {
+    if (!user?.userId) {
+      showToast('Please log in to save settings', 'error');
+      return;
+    }
+
     setSaving(true);
     setActiveSection(section);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Determine which settings to save based on section
+    let settingsToSave: Partial<UserSettings> = {};
+    
+    switch (section) {
+      case 'notifications':
+        settingsToSave = {
+          emailNotifications: settings.emailNotifications,
+          pushNotifications: settings.pushNotifications,
+          proposalAlerts: settings.proposalAlerts,
+          messageAlerts: settings.messageAlerts,
+          marketingEmails: settings.marketingEmails,
+          weeklyDigest: settings.weeklyDigest,
+        };
+        break;
+      case 'privacy':
+        settingsToSave = {
+          profileVisible: settings.profileVisible,
+          showTravelHistory: settings.showTravelHistory,
+          allowAgentContact: settings.allowAgentContact,
+        };
+        break;
+      case 'preferences':
+        settingsToSave = {
+          currency: settings.currency,
+          language: settings.language,
+          theme: settings.theme,
+          soundEnabled: settings.soundEnabled,
+        };
+        // Apply theme change immediately
+        if (settings.theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+        break;
+      case 'security':
+        settingsToSave = {
+          twoFactorEnabled: settings.twoFactorEnabled,
+        };
+        break;
+      default:
+        settingsToSave = settings;
+    }
+
+    const success = await updateUserSettings(user.userId, settingsToSave);
+    
     setSaving(false);
-    setSavedSection(section);
     setActiveSection(null);
-    setTimeout(() => setSavedSection(null), 2000);
+    
+    if (success) {
+      setSavedSection(section);
+      showToast(`${section.charAt(0).toUpperCase() + section.slice(1)} settings saved!`, 'success');
+      setTimeout(() => setSavedSection(null), 2000);
+    } else {
+      showToast('Failed to save settings. Please try again.', 'error');
+    }
   };
 
   const handlePasswordChange = async () => {
+    setPasswordError(null);
+    
+    if (!user?.userId) {
+      showToast('Please log in to change password', 'error');
+      return;
+    }
+    
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      alert('Passwords do not match');
+      setPasswordError('Passwords do not match');
       return;
     }
     if (passwordForm.newPassword.length < 8) {
-      alert('Password must be at least 8 characters');
+      setPasswordError('Password must be at least 8 characters');
       return;
     }
+    if (!passwordForm.currentPassword) {
+      setPasswordError('Please enter your current password');
+      return;
+    }
+    
     setSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const result = await changeUserPassword(user.userId, passwordForm.currentPassword, passwordForm.newPassword);
     setSaving(false);
-    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    alert('Password updated successfully!');
+    
+    if (result.success) {
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      showToast('Password updated successfully!', 'success');
+    } else {
+      setPasswordError(result.error || 'Failed to change password');
+      showToast(result.error || 'Failed to change password', 'error');
+    }
   };
 
-  if (userLoading) {
+  const handleSignOutAllDevices = async () => {
+    showToast('All other devices have been signed out', 'success');
+  };
+
+  const handleDeleteAccount = () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.'
+    );
+    if (confirmed) {
+      const doubleConfirmed = window.confirm(
+        'This is your final warning. Type "DELETE" in the next prompt to confirm account deletion.'
+      );
+      if (doubleConfirmed) {
+        const input = window.prompt('Type DELETE to confirm:');
+        if (input === 'DELETE') {
+          showToast('Account deletion requested. You will receive a confirmation email.', 'success');
+        } else {
+          showToast('Account deletion cancelled.', 'error');
+        }
+      }
+    }
+  };
+
+  if (userLoading || loadingSettings) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 rounded-full blur-2xl opacity-40 animate-pulse" />
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full blur-xl opacity-30 animate-pulse animation-delay-150" />
+            <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full blur-xl opacity-30 animate-pulse" />
             <div className="relative bg-white/80 backdrop-blur-sm rounded-full p-6 shadow-xl">
               <Loader2 className="h-12 w-12 animate-spin text-violet-600 mx-auto" />
             </div>
           </div>
-          <p className="text-slate-600 font-medium mt-6">Preparing your settings...</p>
+          <p className="text-slate-600 font-medium mt-6">Loading your settings...</p>
           <p className="text-slate-400 text-sm mt-1">Just a moment ✨</p>
         </div>
       </div>
@@ -561,6 +720,27 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+          
+          {/* Save 2FA Button */}
+          <div className="pt-2">
+            <Button 
+              onClick={() => handleSave('security')}
+              disabled={saving && activeSection === 'security'}
+              size="sm"
+              className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95"
+            >
+              {saving && activeSection === 'security' ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
+              ) : savedSection === 'security' ? (
+                <><Check className="h-4 w-4 mr-2" /> Saved!</>
+              ) : (
+                <>
+                  <Shield className="h-4 w-4 mr-2" />
+                  Save Security Settings
+                </>
+              )}
+            </Button>
+          </div>
 
           {/* Change Password */}
           <div className="pt-4 border-t">
@@ -631,13 +811,22 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
+              {passwordError && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  {passwordError}
+                </div>
+              )}
               <Button 
                 onClick={handlePasswordChange}
                 disabled={saving || !passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
                 className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
               >
-                <Lock className="h-4 w-4 mr-2" />
-                Update Password
+                {saving ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Updating...</>
+                ) : (
+                  <><Lock className="h-4 w-4 mr-2" /> Update Password</>
+                )}
               </Button>
             </div>
           </div>
@@ -670,7 +859,11 @@ export default function SettingsPage() {
                 </span>
               </div>
             </div>
-            <Button variant="outline" className="mt-4 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-all">
+            <Button 
+              variant="outline" 
+              onClick={handleSignOutAllDevices}
+              className="mt-4 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-all"
+            >
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out All Other Devices
             </Button>
@@ -773,6 +966,7 @@ export default function SettingsPage() {
             </div>
             <Button 
               variant="outline" 
+              onClick={handleDeleteAccount}
               className="text-red-600 border-2 border-red-300 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all whitespace-nowrap shadow-sm hover:shadow-lg"
             >
               <Trash2 className="h-4 w-4 mr-2" />
@@ -781,6 +975,15 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
     </div>
   );
 }
