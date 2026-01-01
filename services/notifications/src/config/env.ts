@@ -1,5 +1,66 @@
 import { z } from 'zod';
 
+function normalizeEnvString(value: string): string {
+  // Render UI copy/paste sometimes introduces newlines; strip them.
+  const trimmed = value.replace(/[\r\n\t]/g, '').trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
+function coercePostgresConnectionString(raw: string): string {
+  const value = normalizeEnvString(raw);
+
+  // Fast-path: if Node's URL parser accepts it, pg-connection-string will too.
+  try {
+    // eslint-disable-next-line no-new
+    new URL(value);
+    return value;
+  } catch {
+    // Continue to heuristic fixups below.
+  }
+
+  // Heuristic fix: credentials often contain unescaped characters like '@' or '#'.
+  // We try to URL-encode the username/password portion while preserving the host/path.
+  const schemeMatch = /^(postgres(?:ql)?):\/\//i.exec(value);
+  if (!schemeMatch) {
+    return value;
+  }
+
+  const scheme = schemeMatch[1];
+  const afterScheme = value.slice(schemeMatch[0].length);
+
+  // Find the last '@' before the first '/' (end of authority).
+  const firstSlash = afterScheme.indexOf('/');
+  const authority = firstSlash === -1 ? afterScheme : afterScheme.slice(0, firstSlash);
+  const pathAndBeyond = firstSlash === -1 ? '' : afterScheme.slice(firstSlash);
+
+  const lastAt = authority.lastIndexOf('@');
+  if (lastAt === -1) {
+    return value;
+  }
+
+  const userInfo = authority.slice(0, lastAt);
+  const hostPort = authority.slice(lastAt + 1);
+
+  const colonIdx = userInfo.indexOf(':');
+  if (colonIdx === -1) {
+    // No password component.
+    const rebuilt = `${scheme}://${encodeURIComponent(userInfo)}@${hostPort}${pathAndBeyond}`;
+    return rebuilt;
+  }
+
+  const username = userInfo.slice(0, colonIdx);
+  const password = userInfo.slice(colonIdx + 1);
+
+  const rebuilt = `${scheme}://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${hostPort}${pathAndBeyond}`;
+  return rebuilt;
+}
+
 /**
  * Environment Configuration Schema
  * 
@@ -50,6 +111,7 @@ const envSchema = z.object({
   DATABASE_URL: z
     .string()
     .min(1, 'DATABASE_URL is required')
+    .transform(coercePostgresConnectionString)
     .refine(
       (url: string) => url.startsWith('postgresql://') || url.startsWith('postgres://'),
       { message: 'DATABASE_URL must be a valid PostgreSQL connection string' }

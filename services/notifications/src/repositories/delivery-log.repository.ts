@@ -61,7 +61,20 @@ export class DeliveryLogRepository {
    * Initialize database schema
    */
   async initialize(): Promise<void> {
-    const client = await this.pool.connect();
+    let client;
+    try {
+      client = await this.pool.connect();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // pg-connection-string can throw an unhelpful TypeError when URL parsing fails.
+      if (message.includes("searchParams") || message.includes('Cannot read properties of undefined')) {
+        throw new Error(
+          'DATABASE_URL could not be parsed by pg. This is usually caused by unescaped special characters in the username/password (e.g. @, #, :, /, ?, &). ' +
+            'URL-encode those characters in the password, or reset the DB password to alphanumeric only.'
+        );
+      }
+      throw error;
+    }
     try {
       await client.query(`
         CREATE TABLE IF NOT EXISTS delivery_logs (
