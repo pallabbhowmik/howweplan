@@ -156,6 +156,11 @@ export default function NewRequestPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Only allow submission on step 3 (Review step)
+    if (step !== 3) {
+      return;
+    }
+    
     if (!user?.userId) {
       alert('Please log in to submit a request');
       return;
@@ -355,6 +360,7 @@ export default function NewRequestPage() {
               {/* Action Buttons */}
               <div className="flex flex-col gap-3 pt-2">
                 <Button
+                  type="button"
                   onClick={() => router.push(`/dashboard/requests/${submittedRequestId}`)}
                   className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 h-14 text-lg font-semibold gap-2 shadow-lg shadow-emerald-200"
                 >
@@ -362,6 +368,7 @@ export default function NewRequestPage() {
                   Track Your Request
                 </Button>
                 <Button
+                  type="button"
                   onClick={() => router.push('/dashboard')}
                   variant="outline"
                   className="w-full h-12 text-base"
@@ -448,7 +455,15 @@ export default function NewRequestPage() {
 
       {/* Form Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <form onSubmit={handleSubmit}>
+        <form 
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            // Prevent form submission when pressing Enter, except when on submit button
+            if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
+              e.preventDefault();
+            }
+          }}
+        >
           {/* Step 1: Trip Details */}
           {step === 1 && (
             <div className="space-y-8 animate-in fade-in duration-500">
