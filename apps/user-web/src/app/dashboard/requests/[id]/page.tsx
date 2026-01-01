@@ -462,6 +462,40 @@ export default function RequestDetailPage() {
                     highlight
                   />
                 )}
+                {['booked', 'BOOKED'].includes(request.state) && (
+                  <TimelineItem
+                    icon={<CheckCircle className="h-4 w-4" />}
+                    title="Trip Booked"
+                    date={formatDate(request.updatedAt)}
+                    active
+                    highlight
+                  />
+                )}
+                {['completed', 'COMPLETED'].includes(request.state) && (
+                  <TimelineItem
+                    icon={<Star className="h-4 w-4" />}
+                    title="Trip Completed"
+                    date={formatDate(request.updatedAt)}
+                    active
+                    highlight
+                  />
+                )}
+                {['cancelled', 'CANCELLED'].includes(request.state) && (
+                  <TimelineItem
+                    icon={<XCircle className="h-4 w-4" />}
+                    title="Request Cancelled"
+                    date={formatDate(request.updatedAt)}
+                    cancelled
+                  />
+                )}
+                {['expired', 'EXPIRED'].includes(request.state) && (
+                  <TimelineItem
+                    icon={<Clock className="h-4 w-4" />}
+                    title="Request Expired"
+                    date={formatDate(request.updatedAt)}
+                    expired
+                  />
+                )}
                 {!hasProposals && isActive && (
                   <TimelineItem
                     icon={<Clock className="h-4 w-4" />}
@@ -516,7 +550,9 @@ function TimelineItem({
   date, 
   active, 
   pending,
-  highlight 
+  highlight,
+  cancelled,
+  expired
 }: { 
   icon: React.ReactNode; 
   title: string; 
@@ -524,10 +560,14 @@ function TimelineItem({
   active?: boolean;
   pending?: boolean;
   highlight?: boolean;
+  cancelled?: boolean;
+  expired?: boolean;
 }) {
   return (
     <div className="flex gap-4">
       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+        cancelled ? 'bg-red-100 text-red-600' :
+        expired ? 'bg-slate-200 text-slate-500' :
         highlight ? 'bg-green-100 text-green-600' :
         active ? 'bg-blue-100 text-blue-600' : 
         pending ? 'bg-slate-100 text-slate-400 animate-pulse' : 
@@ -536,8 +576,13 @@ function TimelineItem({
         {icon}
       </div>
       <div>
-        <p className={`font-medium ${pending ? 'text-slate-400' : 'text-slate-900'}`}>{title}</p>
-        <p className="text-sm text-slate-500">{date}</p>
+        <p className={`font-medium ${
+          cancelled ? 'text-red-600' : 
+          expired ? 'text-slate-500' :
+          pending ? 'text-slate-400' : 
+          'text-slate-900'
+        }`}>{title}</p>
+        <p className={`text-sm ${cancelled ? 'text-red-400' : expired ? 'text-slate-400' : 'text-slate-500'}`}>{date}</p>
       </div>
     </div>
   );
