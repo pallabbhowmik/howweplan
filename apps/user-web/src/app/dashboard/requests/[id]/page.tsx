@@ -33,7 +33,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUserSession } from '@/lib/user/session';
-import { fetchRequest, type TravelRequest } from '@/lib/data/api';
+import { fetchRequest, cancelTravelRequest, type TravelRequest } from '@/lib/data/api';
 
 const tripTypeIcons: Record<string, React.ElementType> = {
   leisure: Palmtree,
@@ -51,6 +51,8 @@ export default function RequestDetailPage() {
   const { loading: userLoading } = useUserSession();
   const [request, setRequest] = useState<TravelRequest | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => {
     const loadRequest = async () => {
@@ -67,6 +69,24 @@ export default function RequestDetailPage() {
 
     loadRequest();
   }, [requestId]);
+
+  const handleCancelRequest = async () => {
+    if (!request) return;
+    
+    setCancelling(true);
+    try {
+      await cancelTravelRequest(requestId);
+      // Refresh the request data
+      const updatedRequest = await fetchRequest(requestId);
+      setRequest(updatedRequest);
+      setShowCancelConfirm(false);
+    } catch (error) {
+      console.error('Error cancelling request:', error);
+      alert('Failed to cancel request. Please try again.');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   if (userLoading || loading) {
     return (
@@ -305,11 +325,46 @@ export default function RequestDetailPage() {
                 <Share2 className="h-4 w-4 mr-2" />
                 Share Request
               </Button>
-              {isActive && (
-                <Button variant="outline" className="w-full h-11 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
+              {isActive && !showCancelConfirm && (
+                <Button 
+                  variant="outline" 
+                  className="w-full h-11 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                  onClick={() => setShowCancelConfirm(true)}
+                >
                   <XCircle className="h-4 w-4 mr-2" />
                   Cancel Request
                 </Button>
+              )}
+              {showCancelConfirm && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+                  <p className="text-sm text-red-700 font-medium">Are you sure you want to cancel this request?</p>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => setShowCancelConfirm(false)}
+                      disabled={cancelling}
+                    >
+                      No, Keep It
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                      onClick={handleCancelRequest}
+                      disabled={cancelling}
+                    >
+                      {cancelling ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          Cancelling...
+                        </>
+                      ) : (
+                        'Yes, Cancel'
+                      )}
+                    </Button>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>

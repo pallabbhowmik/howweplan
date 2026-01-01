@@ -509,6 +509,24 @@ export async function updateTravelRequest(requestId: string, input: UpdateTravel
   }
 }
 
+// Cancel a travel request
+export async function cancelTravelRequest(requestId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const { error } = await supabase
+    .from('travel_requests')
+    .update({
+      status: 'cancelled',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', requestId);
+
+  if (error) {
+    console.error('Error cancelling travel request:', error);
+    throw new Error(`Failed to cancel travel request: ${error.message}`);
+  }
+}
+
 // ============================================================================
 // Bookings API
 // ============================================================================
