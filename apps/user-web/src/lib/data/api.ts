@@ -280,18 +280,25 @@ export async function fetchUserRequests(userId: string): Promise<TravelRequest[]
     id: r.id,
     userId: r.user_id,
     title: r.title,
-    description: r.description,
-    destination: r.destination || {},
-    departureLocation: r.departure_location,
-    departureDate: r.departure_date,
-    returnDate: r.return_date,
-    travelers: r.travelers || {},
+    description: r.special_requirements || r.description,
+    // Handle both Supabase (destination as string) and Docker (destination as JSONB)
+    destination: typeof r.destination === 'string' 
+      ? { city: r.destination, label: r.destination }
+      : (r.destination || {}),
+    departureLocation: r.departure_city 
+      ? { city: r.departure_city }
+      : r.departure_location,
+    // Handle both Supabase (start_date/end_date) and Docker (departure_date/return_date)
+    departureDate: r.start_date || r.departure_date,
+    returnDate: r.end_date || r.return_date,
+    // Handle both Supabase (travelers_count) and Docker (travelers JSONB)
+    travelers: r.travelers || { total: r.travelers_count },
     budgetMin: r.budget_min ? parseFloat(r.budget_min) : null,
     budgetMax: r.budget_max ? parseFloat(r.budget_max) : null,
-    budgetCurrency: r.budget_currency,
-    travelStyle: r.travel_style,
+    budgetCurrency: r.budget_currency || 'INR',
+    travelStyle: r.travel_style || r.preferences?.tripType,
     preferences: r.preferences || {},
-    notes: r.notes,
+    notes: r.special_requirements || r.notes,
     state: r.status || r.state, // Support both Supabase (status) and Docker (state) schemas
     expiresAt: r.expires_at,
     createdAt: r.created_at,
@@ -360,38 +367,27 @@ export async function createTravelRequest(input: CreateTravelRequestInput): Prom
   const startDate = new Date(input.startDate);
   const title = `${input.destination} Trip - ${startDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}`;
 
-  // Calculate expiry (7 days from now)
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
-
+  // Supabase schema uses different column names than Docker schema
   const insertData = {
     user_id: input.userId,
     title,
-    description: input.preferences || null,
-    destination: {
-      city: input.destination,
-      label: input.destination,
-    },
-    departure_date: input.startDate,
-    return_date: input.endDate,
-    travelers: {
-      adults: input.adults,
-      children: input.children,
-      infants: input.infants,
-      total: input.adults + input.children + input.infants,
-    },
+    destination: input.destination,
+    start_date: input.startDate,
+    end_date: input.endDate,
     budget_min: Math.floor(input.budget * 0.8),
     budget_max: input.budget,
-    travel_style: input.tripType,
+    travelers_count: input.adults + input.children + input.infants,
     preferences: {
       tripType: input.tripType,
       experiences: input.experiences,
       budgetRange: input.budgetRange,
-      specialRequests: input.specialRequests,
+      adults: input.adults,
+      children: input.children,
+      infants: input.infants,
+      notes: input.preferences,
     },
-    notes: input.specialRequests || null,
-    status: 'open', // Supabase uses lowercase 'status' column
-    expires_at: expiresAt.toISOString(),
+    special_requirements: input.specialRequests || null,
+    status: 'open',
   };
 
   const { data, error } = await supabase
@@ -405,24 +401,25 @@ export async function createTravelRequest(input: CreateTravelRequestInput): Prom
     throw new Error(`Failed to create travel request: ${error.message}`);
   }
 
+  // Map Supabase schema to our interface
   return {
     id: data.id,
     userId: data.user_id,
     title: data.title,
-    description: data.description,
-    destination: data.destination || {},
-    departureLocation: data.departure_location,
-    departureDate: data.departure_date,
-    returnDate: data.return_date,
-    travelers: data.travelers || {},
+    description: data.special_requirements,
+    destination: { city: data.destination, label: data.destination },
+    departureLocation: data.departure_city ? { city: data.departure_city } : null,
+    departureDate: data.start_date,
+    returnDate: data.end_date,
+    travelers: data.preferences || { total: data.travelers_count },
     budgetMin: data.budget_min ? parseFloat(data.budget_min) : null,
     budgetMax: data.budget_max ? parseFloat(data.budget_max) : null,
-    budgetCurrency: data.budget_currency,
-    travelStyle: data.travel_style,
+    budgetCurrency: 'INR',
+    travelStyle: data.preferences?.tripType || null,
     preferences: data.preferences || {},
-    notes: data.notes,
-    state: data.status || data.state,
-    expiresAt: data.expires_at,
+    notes: data.special_requirements,
+    state: data.status,
+    expiresAt: null,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
