@@ -267,7 +267,7 @@ export class EvidenceService {
    * Encrypts evidence content using AES-256.
    */
   private encryptEvidence(content: string): { encrypted: Buffer; keyId: string } {
-    const key = Buffer.from(config.encryption.evidenceKey, 'utf8');
+    const key = config.encryption.evidenceKey;
     const iv = randomBytes(16);
     const cipher = createCipheriv('aes-256-cbc', key, iv);
 

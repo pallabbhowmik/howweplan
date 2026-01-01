@@ -7,6 +7,7 @@
  * @module env
  */
 
+import { createHash } from 'crypto';
 import { z } from 'zod';
 
 // =============================================================================
@@ -72,16 +73,27 @@ const envSchema = z.object({
     .positive()
     .min(365, 'MESSAGE_RETENTION_DAYS must be at least 365 for compliance')
     .default(730),
-  EVIDENCE_ENCRYPTION_KEY: z.preprocess(
-    (val) => {
-      // Handle undefined, null, empty string, or whitespace
-      if (!val || (typeof val === 'string' && val.trim() === '')) {
-        return 'AES256-ENCRYPTION-KEY-CHANGE-ME!';
-      }
-      return val;
-    },
-    z.string().length(32, 'EVIDENCE_ENCRYPTION_KEY must be exactly 32 characters for AES-256')
-  ),
+  /**
+   * A user-provided secret used to derive a 32-byte AES-256 key.
+   *
+   * Render (and other platforms) sometimes provide empty strings or wrap values
+   * with quotes; we normalize and then derive a fixed-size key via SHA-256.
+   */
+  EVIDENCE_ENCRYPTION_KEY: z
+    .string()
+    .default('CHANGE-ME-IN-PROD')
+    .transform((raw) => {
+      const trimmed = raw.trim();
+      const unquoted =
+        (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+        (trimmed.startsWith("'") && trimmed.endsWith("'"))
+          ? trimmed.slice(1, -1)
+          : trimmed;
+      const normalized = unquoted.trim() || 'CHANGE-ME-IN-PROD';
+
+      // Derive a 32-byte key suitable for AES-256.
+      return createHash('sha256').update(normalized, 'utf8').digest();
+    }),
 
   // ---------------------------------------------------------------------------
   // CONTACT MASKING
