@@ -1,5 +1,23 @@
 import { getSupabaseClient } from '@/lib/supabase/client';
 
+// ============================================================================
+// ⚠️ ARCHITECTURE VIOLATION WARNING ⚠️
+// ============================================================================
+// This file directly queries Supabase for messaging data.
+// This VIOLATES our architecture - messages should go through Messaging Service.
+// 
+// ❌ WRONG: Direct Supabase queries with complex joins
+// ✅ RIGHT: Call Messaging Service API endpoints
+// 
+// TODO: Replace with:
+//   - GET /api/messaging/conversations
+//   - GET /api/messaging/conversations/:id/messages
+//   - POST /api/messaging/messages
+//   - PUT /api/messaging/conversations/:id/read
+// 
+// See docs/FRONTEND-DATA-ACCESS-POLICY.md for details.
+// ============================================================================
+
 export type ConversationListItem = {
   id: string;
   bookingId: string | null;

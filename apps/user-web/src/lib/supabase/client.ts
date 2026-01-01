@@ -2,6 +2,31 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
+// ============================================================================
+// SUPABASE CLIENT - USAGE POLICY
+// ============================================================================
+// This client should ONLY be used for:
+// 
+// ✅ ALLOWED:
+//   1. Authentication (supabase.auth.*)
+//      - signInWithPassword, signUp, signOut
+//      - getSession, getUser, onAuthStateChange
+//   2. Session management
+//   3. Public read-only reference data
+//      - destinations, countries (static tables)
+//      - public agent profiles (read-only views)
+// 
+// ❌ FORBIDDEN:
+//   - User profile CRUD → Use Identity Service API
+//   - Travel requests CRUD → Use Requests Service API
+//   - Bookings queries → Use Booking-Payments Service API
+//   - Messages CRUD → Use Messaging Service API
+//   - Notifications → Use Notifications Service API
+//   - Any state-changing operations → Use backend services
+// 
+// See docs/FRONTEND-DATA-ACCESS-POLICY.md for complete policy.
+// ============================================================================
+
 let client: SupabaseClient | null = null;
 
 function getSupabaseUrl(): string {

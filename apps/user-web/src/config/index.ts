@@ -24,8 +24,22 @@ export const appConfig = {
 } as const;
 
 // ============================================================================
-// API CONFIG
+// API CONFIG - GATEWAY ONLY
 // ============================================================================
+// All backend requests go through the API gateway.
+// Frontend NEVER calls microservices directly.
+// 
+// Gateway routes:
+//   /api/identity/*      → Identity Service
+//   /api/requests/*      → Requests Service
+//   /api/bookings/*      → Booking-Payments Service
+//   /api/messaging/*     → Messaging Service
+//   /api/matching/*      → Matching Service
+//   /api/itineraries/*   → Itineraries Service
+//   /api/notifications/* → Notifications Service
+//   /api/reviews/*       → Reviews Service
+//   /api/disputes/*      → Disputes Service
+//   /api/audit/*         → Audit Service
 
 export const apiConfig = {
   baseUrl: env.NEXT_PUBLIC_API_BASE_URL,

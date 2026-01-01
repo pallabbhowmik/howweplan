@@ -1,5 +1,25 @@
 import { getSupabaseClient } from '@/lib/supabase/client';
 
+// ============================================================================
+// ⚠️ ARCHITECTURE VIOLATION WARNING ⚠️
+// ============================================================================
+// This file directly queries Supabase for agent data, matches, and messages.
+// This VIOLATES our architecture.
+// 
+// ❌ WRONG: Direct Supabase queries bypassing backend services
+// ✅ RIGHT: Use backend service API endpoints
+// 
+// Functions that need migration:
+//   - getAgentIdentity() → Identity Service
+//   - getAgentStats() → Multiple services (aggregated endpoint needed)
+//   - listMatchedRequests() → Matching Service
+//   - acceptMatch()/declineMatch() → Matching Service
+//   - listConversations() → Messaging Service
+//   - sendMessage() → Messaging Service
+// 
+// See docs/FRONTEND-DATA-ACCESS-POLICY.md for migration plan.
+// ============================================================================
+
 export type AgentIdentity = {
   agentId: string;
   userId: string;

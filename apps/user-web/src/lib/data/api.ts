@@ -1,6 +1,31 @@
 import { getSupabaseClient } from '@/lib/supabase/client';
 
 // ============================================================================
+// ⚠️ ARCHITECTURE VIOLATION WARNING ⚠️
+// ============================================================================
+// This file contains DIRECT Supabase queries that VIOLATE our architecture.
+// 
+// ❌ WRONG: Frontend → Supabase DB (bypasses backend services)
+// ✅ RIGHT: Frontend → Backend Services → Supabase DB
+// 
+// According to FRONTEND-DATA-ACCESS-POLICY.md:
+// Frontend should ONLY use Supabase for:
+//   1. Authentication (Supabase Auth API)
+//   2. Session management
+//   3. Public read-only reference data (destinations, countries)
+// 
+// ALL OTHER OPERATIONS must go through backend services:
+//   - User profile → Identity Service
+//   - Travel requests → Requests Service
+//   - Bookings → Booking-Payments Service
+//   - Messages → Messaging Service
+//   - Notifications → Notifications Service
+// 
+// TODO: Migrate these functions to use backend API endpoints.
+// See docs/FRONTEND-DATA-ACCESS-POLICY.md for migration plan.
+// ============================================================================
+
+// ============================================================================
 // Types
 // ============================================================================
 

@@ -71,7 +71,9 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_APP_VERSION: z.string().optional().default('1.0.0'),
   NEXT_PUBLIC_APP_ENV: z.string().optional().default('development').pipe(AppEnvironment),
 
-  // API Connectivity
+  // API Connectivity - GATEWAY ONLY
+  // All backend requests MUST go through the API gateway.
+  // Frontend should NEVER call microservices directly.
   NEXT_PUBLIC_API_BASE_URL: urlSchema,
   NEXT_PUBLIC_WS_URL: wsUrlSchema,
   NEXT_PUBLIC_API_TIMEOUT_MS: z.string().optional().default('30000').transform((val) => parseInt(val, 10)),
@@ -124,6 +126,7 @@ function validateEnv() {
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
     NEXT_PUBLIC_API_TIMEOUT_MS: process.env.NEXT_PUBLIC_API_TIMEOUT_MS,
+
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
