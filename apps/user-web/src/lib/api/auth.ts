@@ -5,7 +5,10 @@
  * with the identity service.
  */
 
-const IDENTITY_SERVICE_URL = process.env.NEXT_PUBLIC_IDENTITY_URL || 'http://localhost:3011';
+import { IDENTITY_URL } from './services';
+
+// Use centralized service URL configuration
+const IDENTITY_SERVICE_URL = IDENTITY_URL;
 
 export interface AuthUser {
   id: string;
