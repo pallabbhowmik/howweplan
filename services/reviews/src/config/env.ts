@@ -30,7 +30,10 @@ const envSchema = z.object({
   // ---------------------------------------------------------------------------
   // EVENT BUS
   // ---------------------------------------------------------------------------
-  EVENT_BUS_URL: z.string().min(1, 'EVENT_BUS_URL is required'),
+  EVENT_BUS_URL: z.string().optional().refine(
+    (val) => !val || val.trim() === '' || /^(amqp|redis|kafka|http|https):/.test(val),
+    { message: 'EVENT_BUS_URL must be a valid broker URL if provided' }
+  ),
   EVENT_BUS_EXCHANGE: z.string().default('tripcomposer.events'),
   EVENT_BUS_REVIEWS_QUEUE: z.string().default('reviews.events'),
 
@@ -72,7 +75,10 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   LOG_FORMAT: z.enum(['json', 'pretty']).default('json'),
   AUDIT_EVENTS_ENABLED: z.coerce.boolean().default(true),
-  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional().refine(
+    (val) => !val || val.trim() === '' || /^https?:\/\//.test(val),
+    { message: 'OTEL_EXPORTER_OTLP_ENDPOINT must be a valid HTTP(S) URL if provided' }
+  ),
   OTEL_SERVICE_NAME: z.string().default('reviews-service'),
   METRICS_ENABLED: z.coerce.boolean().default(true),
 });
