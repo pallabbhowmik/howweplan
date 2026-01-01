@@ -15,14 +15,10 @@ import {
   Clock,
   Globe,
   Plane,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { useUserSession } from '@/lib/user/session';
 import { fetchUserRequests, type TravelRequest } from '@/lib/data/api';
 
@@ -62,7 +58,11 @@ export default function RequestsPage() {
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
     
-    const matchesStatus = filterStatus === 'all' || request.state === filterStatus;
+    const normalizedState = normalizeStatus(request.state);
+    const matchesStatus = filterStatus === 'all' || 
+      normalizedState === filterStatus ||
+      (filterStatus === 'ACTIVE' && ['OPEN', 'SUBMITTED', 'MATCHING', 'MATCHED', 'PROPOSALS_RECEIVED'].includes(normalizedState)) ||
+      (filterStatus === 'FINISHED' && ['BOOKED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'EXPIRED'].includes(normalizedState));
     
     return matchesSearch && matchesStatus;
   });
@@ -129,7 +129,7 @@ export default function RequestsPage() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
           <Input 
@@ -140,18 +140,29 @@ export default function RequestsPage() {
           />
         </div>
         <div className="flex gap-2 flex-wrap">
-          {['all', 'DRAFT', 'SUBMITTED', 'MATCHING', 'PROPOSALS_RECEIVED', 'BOOKED'].map((status) => (
+          {[
+            { key: 'all', label: 'All', emoji: '📋', color: 'from-slate-500 to-slate-600' },
+            { key: 'ACTIVE', label: 'Active', emoji: '🔵', color: 'from-blue-500 to-indigo-500' },
+            { key: 'OPEN', label: 'Open', emoji: '✨', color: 'from-cyan-500 to-blue-500' },
+            { key: 'PROPOSALS_RECEIVED', label: 'Has Proposals', emoji: '🔥', color: 'from-amber-500 to-orange-500' },
+            { key: 'BOOKED', label: 'Booked', emoji: '🎉', color: 'from-green-500 to-emerald-500' },
+            { key: 'CANCELLED', label: 'Cancelled', emoji: '❌', color: 'from-red-500 to-rose-500' },
+          ].map((filter) => (
             <Button
-              key={status}
-              variant={filterStatus === status ? 'default' : 'outline'}
+              key={filter.key}
+              variant={filterStatus === filter.key ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setFilterStatus(status)}
-              className={filterStatus === status 
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 border-0' 
-                : 'hover:bg-slate-50'
-              }
+              onClick={() => setFilterStatus(filter.key)}
+              className={`
+                transition-all duration-200 font-medium
+                ${filterStatus === filter.key 
+                  ? `bg-gradient-to-r ${filter.color} border-0 text-white shadow-lg transform scale-105` 
+                  : 'hover:bg-slate-50 hover:scale-102'
+                }
+              `}
             >
-              {status === 'all' ? 'All' : getStatusLabel(status)}
+              <span className="mr-1.5">{filter.emoji}</span>
+              {filter.label}
             </Button>
           ))}
         </div>
@@ -296,18 +307,53 @@ export default function RequestsPage() {
 // Helper Functions
 // ============================================================================
 
+// Normalize status to handle both Supabase (lowercase) and Docker (uppercase) schemas
+function normalizeStatus(status: string): string {
+  const statusMap: Record<string, string> = {
+    // Supabase lowercase statuses
+    'open': 'OPEN',
+    'draft': 'DRAFT',
+    'submitted': 'SUBMITTED',
+    'matching': 'MATCHING',
+    'matched': 'MATCHED',
+    'proposals_received': 'PROPOSALS_RECEIVED',
+    'booked': 'BOOKED',
+    'confirmed': 'CONFIRMED',
+    'completed': 'COMPLETED',
+    'cancelled': 'CANCELLED',
+    'expired': 'EXPIRED',
+    // Already uppercase
+    'OPEN': 'OPEN',
+    'DRAFT': 'DRAFT',
+    'SUBMITTED': 'SUBMITTED',
+    'MATCHING': 'MATCHING',
+    'MATCHED': 'MATCHED',
+    'PROPOSALS_RECEIVED': 'PROPOSALS_RECEIVED',
+    'BOOKED': 'BOOKED',
+    'CONFIRMED': 'CONFIRMED',
+    'COMPLETED': 'COMPLETED',
+    'CANCELLED': 'CANCELLED',
+    'EXPIRED': 'EXPIRED',
+  };
+  return statusMap[status] || status.toUpperCase();
+}
+
 function getStatusLabel(status: string): string {
+  const normalized = normalizeStatus(status);
   const labels: Record<string, string> = {
+    OPEN: 'Open',
     DRAFT: 'Draft',
     SUBMITTED: 'Submitted',
     MATCHING: 'Matching',
+    MATCHED: 'Matched',
     PROPOSALS_RECEIVED: 'Proposals',
     BOOKED: 'Booked',
+    CONFIRMED: 'Confirmed',
     COMPLETED: 'Completed',
     CANCELLED: 'Cancelled',
     EXPIRED: 'Expired',
   };
-  return labels[status] || status;
+  return labels[normalized] || status;
 }
 
 function getDestination(request: TravelRequest): string {
@@ -318,59 +364,75 @@ function getDestination(request: TravelRequest): string {
 }
 
 function getButtonText(status: string): string {
+  const normalized = normalizeStatus(status);
   const texts: Record<string, string> = {
+    OPEN: 'View Status',
     DRAFT: 'Complete',
     SUBMITTED: 'View Status',
     MATCHING: 'View Status',
+    MATCHED: 'View Agents',
     PROPOSALS_RECEIVED: 'Compare Options',
     BOOKED: 'View Details',
+    CONFIRMED: 'View Details',
     COMPLETED: 'View Details',
     CANCELLED: 'View Details',
     EXPIRED: 'View Details',
   };
-  return texts[status] || 'View';
+  return texts[normalized] || 'View';
 }
 
 function getStatusColor(status: string): string {
+  const normalized = normalizeStatus(status);
   const colors: Record<string, string> = {
+    OPEN: 'bg-blue-500',
     DRAFT: 'bg-slate-400',
     SUBMITTED: 'bg-blue-500',
     MATCHING: 'bg-indigo-500',
+    MATCHED: 'bg-purple-500',
     PROPOSALS_RECEIVED: 'bg-amber-500',
     BOOKED: 'bg-green-500',
+    CONFIRMED: 'bg-green-500',
     COMPLETED: 'bg-emerald-500',
     CANCELLED: 'bg-red-500',
     EXPIRED: 'bg-slate-500',
   };
-  return colors[status] || 'bg-slate-400';
+  return colors[normalized] || 'bg-slate-400';
 }
 
 function getStatusBgColor(status: string): string {
+  const normalized = normalizeStatus(status);
   const colors: Record<string, string> = {
+    OPEN: 'bg-blue-100',
     DRAFT: 'bg-slate-100',
     SUBMITTED: 'bg-blue-100',
     MATCHING: 'bg-indigo-100',
+    MATCHED: 'bg-purple-100',
     PROPOSALS_RECEIVED: 'bg-amber-100',
     BOOKED: 'bg-green-100',
+    CONFIRMED: 'bg-green-100',
     COMPLETED: 'bg-emerald-100',
     CANCELLED: 'bg-red-100',
     EXPIRED: 'bg-slate-100',
   };
-  return colors[status] || 'bg-slate-100';
+  return colors[normalized] || 'bg-slate-100';
 }
 
 function getStatusIconColor(status: string): string {
+  const normalized = normalizeStatus(status);
   const colors: Record<string, string> = {
+    OPEN: 'text-blue-600',
     DRAFT: 'text-slate-600',
     SUBMITTED: 'text-blue-600',
     MATCHING: 'text-indigo-600',
+    MATCHED: 'text-purple-600',
     PROPOSALS_RECEIVED: 'text-amber-600',
     BOOKED: 'text-green-600',
+    CONFIRMED: 'text-green-600',
     COMPLETED: 'text-emerald-600',
     CANCELLED: 'text-red-600',
     EXPIRED: 'text-slate-600',
   };
-  return colors[status] || 'text-slate-600';
+  return colors[normalized] || 'text-slate-600';
 }
 
 function getTripDuration(start: string, end: string): number | null {
@@ -410,61 +472,78 @@ function getTravelersCount(travelers: { adults?: number; children?: number; infa
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const configs: Record<string, { label: string; icon: React.ReactNode; className: string; pulse?: boolean }> = {
+  const normalized = normalizeStatus(status);
+  
+  const configs: Record<string, { label: string; emoji: string; className: string; pulse?: boolean }> = {
+    OPEN: { 
+      label: 'Open', 
+      emoji: '🔵',
+      className: 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-200 ring-2 ring-blue-300' 
+    },
     DRAFT: { 
       label: 'Draft', 
-      icon: <Clock className="h-4 w-4" />,
-      className: 'bg-slate-200 text-slate-800 border-2 border-slate-300 shadow-sm' 
+      emoji: '📝',
+      className: 'bg-slate-200 text-slate-700 ring-2 ring-slate-300' 
     },
     SUBMITTED: { 
       label: 'Submitted', 
-      icon: <CheckCircle className="h-4 w-4" />,
-      className: 'bg-blue-500 text-white border-2 border-blue-600 shadow-md shadow-blue-200' 
+      emoji: '✅',
+      className: 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-200 ring-2 ring-blue-300' 
     },
     MATCHING: { 
       label: 'Finding Agents', 
-      icon: <Sparkles className="h-4 w-4" />,
-      className: 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-2 border-indigo-600 shadow-md shadow-indigo-200',
+      emoji: '🔍',
+      className: 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-200 ring-2 ring-indigo-300',
       pulse: true
     },
+    MATCHED: { 
+      label: 'Agents Matched', 
+      emoji: '🤝',
+      className: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-200 ring-2 ring-purple-300'
+    },
     PROPOSALS_RECEIVED: { 
-      label: '🔥 Review Proposals', 
-      icon: <AlertCircle className="h-4 w-4" />,
-      className: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white border-2 border-amber-600 shadow-lg shadow-amber-200 font-bold',
+      label: 'Review Proposals', 
+      emoji: '🔥',
+      className: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-200 ring-2 ring-amber-300 font-bold',
       pulse: true
     },
     BOOKED: { 
-      label: '✓ Booked', 
-      icon: <CheckCircle className="h-4 w-4" />,
-      className: 'bg-green-500 text-white border-2 border-green-600 shadow-md shadow-green-200' 
+      label: 'Booked', 
+      emoji: '🎉',
+      className: 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-200 ring-2 ring-green-300' 
+    },
+    CONFIRMED: { 
+      label: 'Confirmed', 
+      emoji: '✓',
+      className: 'bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-lg shadow-green-200 ring-2 ring-green-300' 
     },
     COMPLETED: { 
-      label: '✓ Completed', 
-      icon: <CheckCircle className="h-4 w-4" />,
-      className: 'bg-emerald-500 text-white border-2 border-emerald-600 shadow-md shadow-emerald-200' 
+      label: 'Completed', 
+      emoji: '🏆',
+      className: 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-200 ring-2 ring-emerald-300' 
     },
     CANCELLED: { 
       label: 'Cancelled', 
-      icon: <XCircle className="h-4 w-4" />,
-      className: 'bg-red-500 text-white border-2 border-red-600 shadow-md shadow-red-200' 
+      emoji: '❌',
+      className: 'bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg shadow-red-200 ring-2 ring-red-300' 
     },
     EXPIRED: { 
       label: 'Expired', 
-      icon: <Clock className="h-4 w-4" />,
-      className: 'bg-slate-500 text-white border-2 border-slate-600 shadow-sm' 
+      emoji: '⏰',
+      className: 'bg-slate-500 text-white shadow-md ring-2 ring-slate-400' 
     },
   };
 
-  const config = configs[status] || { label: status, icon: null, className: 'bg-slate-200 text-slate-700' };
+  const config = configs[normalized] || { label: status, emoji: '📋', className: 'bg-slate-200 text-slate-700' };
   
   return (
     <span className={`
-      inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold
+      inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold
       ${config.className}
       ${config.pulse ? 'animate-pulse' : ''}
-      transition-all duration-200
+      transition-all duration-200 transform hover:scale-105
     `}>
-      {config.icon}
+      <span className="text-base">{config.emoji}</span>
       {config.label}
     </span>
   );
