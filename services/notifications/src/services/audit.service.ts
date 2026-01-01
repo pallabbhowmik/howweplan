@@ -46,6 +46,12 @@ export class AuditService {
       return;
     }
 
+    // Skip if EVENT_BUS_URL is not configured
+    if (!env.EVENT_BUS_URL || env.EVENT_BUS_URL.trim() === '') {
+      logger.warn('EVENT_BUS_URL not configured, audit events will be logged locally only');
+      return;
+    }
+
     try {
       const conn = await amqp.connect(env.EVENT_BUS_URL);
       this.connection = conn;

@@ -29,8 +29,12 @@ const envSchema = z.object({
   
   EVENT_BUS_URL: z
     .string()
-    .url()
-    .describe('AMQP connection URL for event bus'),
+    .optional()
+    .refine(
+      (val) => !val || val.trim() === '' || /^(amqp|redis|kafka):/.test(val),
+      { message: 'EVENT_BUS_URL must be a valid AMQP/Redis/Kafka URL if provided' }
+    )
+    .describe('AMQP connection URL for event bus (optional)'),
   EVENT_BUS_EXCHANGE: z
     .string()
     .min(1)
@@ -45,7 +49,7 @@ const envSchema = z.object({
   // ===========================================================================
   DATABASE_URL: z
     .string()
-    .url()
+    .min(1, 'DATABASE_URL is required')
     .refine(
       (url: string) => url.startsWith('postgresql://') || url.startsWith('postgres://'),
       { message: 'DATABASE_URL must be a valid PostgreSQL connection string' }
@@ -137,7 +141,6 @@ const envSchema = z.object({
     .describe('Required when PUSH_ENABLED=true and PUSH_PROVIDER=firebase'),
   FIREBASE_CLIENT_EMAIL: z
     .string()
-    .email()
     .optional()
     .describe('Required when PUSH_ENABLED=true and PUSH_PROVIDER=firebase'),
 

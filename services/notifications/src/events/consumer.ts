@@ -32,6 +32,12 @@ export class EventConsumer {
    * Start consuming events from the event bus
    */
   async start(): Promise<void> {
+    // Skip if EVENT_BUS_URL is not configured
+    if (!env.EVENT_BUS_URL || env.EVENT_BUS_URL.trim() === '') {
+      logger.warn('EVENT_BUS_URL not configured, skipping event bus connection');
+      return;
+    }
+
     try {
       logger.info('Connecting to event bus...', { url: this.redactUrl(env.EVENT_BUS_URL) });
 
