@@ -153,9 +153,7 @@ export default function NewRequestPage() {
     return true;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async () => {
     // Only allow submission on step 3 (Review step)
     if (step !== 3) {
       return;
@@ -455,15 +453,7 @@ export default function NewRequestPage() {
 
       {/* Form Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <form 
-          onSubmit={handleSubmit}
-          onKeyDown={(e) => {
-            // Prevent form submission when pressing Enter, except when on submit button
-            if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
-              e.preventDefault();
-            }
-          }}
-        >
+        <div>
           {/* Step 1: Trip Details */}
           {step === 1 && (
             <div className="space-y-8 animate-in fade-in duration-500">
@@ -927,7 +917,8 @@ export default function NewRequestPage() {
               </Button>
             ) : (
               <Button
-                type="submit"
+                type="button"
+                onClick={handleSubmit}
                 disabled={isSubmitting || userLoading}
                 className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 px-8"
               >
@@ -945,7 +936,7 @@ export default function NewRequestPage() {
               </Button>
             )}
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
