@@ -28,6 +28,7 @@ import {
   Utensils,
   Share2,
   Edit,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,13 +54,16 @@ export default function RequestDetailPage() {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
+  // Initial load
   useEffect(() => {
     const loadRequest = async () => {
       setLoading(true);
       try {
         const data = await fetchRequest(requestId);
         setRequest(data);
+        setLastUpdated(new Date());
       } catch (error) {
         console.error('Error loading request:', error);
       } finally {
@@ -70,6 +74,43 @@ export default function RequestDetailPage() {
     loadRequest();
   }, [requestId]);
 
+  // Real-time polling - refresh every 30 seconds for active requests
+  useEffect(() => {
+    if (!request) return;
+    
+    // Only poll for active requests (not completed, cancelled, or expired)
+    const isActiveRequest = !['completed', 'cancelled', 'expired', 'COMPLETED', 'CANCELLED', 'EXPIRED'].includes(request.state);
+    if (!isActiveRequest) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const data = await fetchRequest(requestId);
+        if (data) {
+          // Only update if something changed
+          if (JSON.stringify(data) !== JSON.stringify(request)) {
+            setRequest(data);
+            setLastUpdated(new Date());
+          }
+        }
+      } catch (error) {
+        console.error('Error polling request:', error);
+      }
+    }, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [requestId, request]);
+
+  // Manual refresh function
+  const refreshRequest = async () => {
+    try {
+      const data = await fetchRequest(requestId);
+      setRequest(data);
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error('Error refreshing request:', error);
+    }
+  };
+
   const handleCancelRequest = async () => {
     if (!request) return;
     
@@ -79,6 +120,7 @@ export default function RequestDetailPage() {
       // Refresh the request data
       const updatedRequest = await fetchRequest(requestId);
       setRequest(updatedRequest);
+      setLastUpdated(new Date());
       setShowCancelConfirm(false);
     } catch (error) {
       console.error('Error cancelling request:', error);
@@ -371,10 +413,31 @@ export default function RequestDetailPage() {
 
           {/* Timeline Card */}
           <Card className="border-0 shadow-lg">
-            <CardHeader className="border-b bg-slate-50/50">
+            <CardHeader className="border-b bg-slate-50/50 flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Timeline</CardTitle>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={refreshRequest}
+                className="h-8 w-8 p-0 hover:bg-blue-50"
+                title="Refresh"
+              >
+                <RefreshCw className="h-4 w-4 text-slate-500 hover:text-blue-600" />
+              </Button>
             </CardHeader>
             <CardContent className="p-6">
+              {/* Last Updated */}
+              <div className="flex items-center gap-2 text-xs text-slate-400 mb-4 pb-3 border-b border-dashed">
+                <Clock className="h-3 w-3" />
+                <span>Last updated: {lastUpdated.toLocaleTimeString()}</span>
+                {isActive && (
+                  <span className="ml-auto flex items-center gap-1 text-green-600">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    Live
+                  </span>
+                )}
+              </div>
+              
               <div className="space-y-4">
                 <TimelineItem
                   icon={<CheckCircle className="h-4 w-4" />}
