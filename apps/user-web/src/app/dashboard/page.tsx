@@ -44,18 +44,25 @@ const quickActions = [
 ];
 
 export default function DashboardPage() {
-  const { user, loading: userLoading } = useUserSession();
+  const { user, loading: userLoading, error: userError } = useUserSession();
   const [requests, setRequests] = useState<TravelRequest[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
 
   useEffect(() => {
+    // If user loading finished but no user, stop data loading
+    if (!userLoading && !user?.userId) {
+      setLoading(false);
+      return;
+    }
     if (!user?.userId) return;
 
     const loadData = async () => {
       setLoading(true);
+      setDataError(null);
       try {
         const [requestsData, bookingsData, statsData, activityData] = await Promise.all([
           fetchUserRequests(user.userId),
@@ -69,13 +76,14 @@ export default function DashboardPage() {
         setActivity(activityData);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
+        setDataError(error instanceof Error ? error.message : 'Failed to load dashboard data');
       } finally {
         setLoading(false);
       }
     };
 
     loadData();
-  }, [user?.userId]);
+  }, [user?.userId, userLoading]);
 
   const userName = user?.firstName || 'Traveler';
   
@@ -93,6 +101,23 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  // Show error state if user session failed or data loading failed
+  if (userError || dataError || !user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <h2 className="text-xl font-semibold text-red-800 mb-2">Unable to Load Dashboard</h2>
+          <p className="text-red-600 mb-4">
+            {userError || dataError || 'No user session found. Please try refreshing the page.'}
+          </p>
+          <Button onClick={() => window.location.reload()} variant="outline" className="text-red-600 border-red-300 hover:bg-red-50">
+            Refresh Page
+          </Button>
+        </div>
       </div>
     );
   }
