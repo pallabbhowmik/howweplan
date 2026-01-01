@@ -1,17 +1,5 @@
 import { z } from 'zod';
 
-function normalizeEnvString(value: string): string {
-  // Render UI copy/paste sometimes introduces newlines; strip them.
-  const trimmed = value.replace(/[\r\n\t]/g, '').trim();
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    return trimmed.slice(1, -1).trim();
-  }
-  return trimmed;
-}
-
 /**
  * Environment Configuration Schema
  * 
@@ -62,7 +50,6 @@ const envSchema = z.object({
   DATABASE_URL: z
     .string()
     .min(1, 'DATABASE_URL is required')
-    .transform(normalizeEnvString)
     .refine(
       (url: string) => url.startsWith('postgresql://') || url.startsWith('postgres://'),
       { message: 'DATABASE_URL must be a valid PostgreSQL connection string' }
