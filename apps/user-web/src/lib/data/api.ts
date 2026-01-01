@@ -179,12 +179,18 @@ export async function fetchUser(userId: string): Promise<User | null> {
     return null;
   }
 
-  // Get the number of completed bookings for this user
-  const { count: tripsTaken } = await supabase
-    .from('bookings')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .in('status', ['COMPLETED', 'completed']);
+  // Get the number of completed bookings for this user (table may not exist)
+  let tripsTaken = 0;
+  try {
+    const { count } = await supabase
+      .from('bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .in('state', ['COMPLETED', 'completed']);
+    tripsTaken = count || 0;
+  } catch {
+    // bookings table may not exist in Supabase
+  }
 
   return {
     id: data.id,
@@ -257,22 +263,26 @@ export async function fetchUserRequests(userId: string): Promise<TravelRequest[]
     return [];
   }
 
-  // Fetch agent match counts
+  // Fetch agent match counts (table may not exist in Supabase)
   const requestIds = requests.map((r: any) => r.id);
   const matchCounts = new Map<string, number>();
   
   if (requestIds.length > 0) {
-    const { data: matches, error: matchErr } = await supabase
-      .from('agent_matches')
-      .select('request_id')
-      .in('request_id', requestIds)
-      .eq('status', 'accepted');
+    try {
+      const { data: matches, error: matchErr } = await supabase
+        .from('agent_matches')
+        .select('request_id')
+        .in('request_id', requestIds)
+        .eq('status', 'accepted');
 
-    if (!matchErr && matches) {
-      for (const m of matches) {
-        const rid = (m as any).request_id;
-        matchCounts.set(rid, (matchCounts.get(rid) || 0) + 1);
+      if (!matchErr && matches) {
+        for (const m of matches) {
+          const rid = (m as any).request_id;
+          matchCounts.set(rid, (matchCounts.get(rid) || 0) + 1);
+        }
       }
+    } catch {
+      // agent_matches table may not exist
     }
   }
 
@@ -447,16 +457,21 @@ export async function createTravelRequest(input: CreateTravelRequestInput): Prom
 export async function fetchUserBookings(userId: string): Promise<Booking[]> {
   const supabase = getSupabaseClient();
 
-  const { data: bookings, error } = await supabase
-    .from('bookings')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+  try {
+    const { data: bookings, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching bookings:', error);
-    return [];
-  }
+    if (error) {
+      console.error('Error fetching bookings:', error);
+      return [];
+    }
+
+    if (!bookings || bookings.length === 0) {
+      return [];
+    }
 
   // Fetch agent details
   const agentIds = [...new Set(bookings.map((b: any) => b.agent_id).filter(Boolean))];
@@ -556,6 +571,11 @@ export async function fetchUserBookings(userId: string): Promise<Booking[]> {
       request,
     };
   });
+  } catch (err) {
+    // bookings table may not exist in Supabase
+    console.error('Error in fetchUserBookings:', err);
+    return [];
+  }
 }
 
 // ============================================================================
@@ -565,39 +585,49 @@ export async function fetchUserBookings(userId: string): Promise<Booking[]> {
 export async function fetchUserNotifications(userId: string, limit = 10): Promise<Notification[]> {
   const supabase = getSupabaseClient();
 
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  try {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
 
-  if (error) {
-    console.error('Error fetching notifications:', error);
+    if (error) {
+      console.error('Error fetching notifications:', error);
+      return [];
+    }
+
+    return (data || []).map((n: any) => ({
+      id: n.id,
+      userId: n.user_id,
+      type: n.type,
+      title: n.title,
+      body: n.body,
+      data: n.data || {},
+      channel: n.channel,
+      isRead: n.is_read,
+      readAt: n.read_at,
+      createdAt: n.created_at,
+    }));
+  } catch (err) {
+    // notifications table may not exist
+    console.error('Error in fetchUserNotifications:', err);
     return [];
   }
-
-  return (data || []).map((n: any) => ({
-    id: n.id,
-    userId: n.user_id,
-    type: n.type,
-    title: n.title,
-    body: n.body,
-    data: n.data || {},
-    channel: n.channel,
-    isRead: n.is_read,
-    readAt: n.read_at,
-    createdAt: n.created_at,
-  }));
 }
 
 export async function markNotificationRead(notificationId: string): Promise<void> {
   const supabase = getSupabaseClient();
 
-  await supabase
-    .from('notifications')
-    .update({ is_read: true, read_at: new Date().toISOString() })
-    .eq('id', notificationId);
+  try {
+    await supabase
+      .from('notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq('id', notificationId);
+  } catch {
+    // notifications table may not exist
+  }
 }
 
 // ============================================================================
@@ -625,37 +655,47 @@ export async function fetchDashboardStats(userId: string): Promise<DashboardStat
     selectionStates.includes(r.status || r.state)
   ).length;
 
-  // Fetch bookings counts
-  const { data: bookings } = await supabase
-    .from('bookings')
-    .select('status')
-    .eq('user_id', userId);
+  // Fetch bookings counts (table may not exist in Supabase)
+  let confirmedBookings = 0;
+  let completedTrips = 0;
+  try {
+    const { data: bookings } = await supabase
+      .from('bookings')
+      .select('state')
+      .eq('user_id', userId);
 
-  const confirmedBookings = (bookings || []).filter((b: any) => 
-    (b.status || b.state) === 'CONFIRMED' || (b.status || b.state) === 'confirmed'
-  ).length;
+    confirmedBookings = (bookings || []).filter((b: any) => 
+      (b.status || b.state) === 'CONFIRMED' || (b.status || b.state) === 'confirmed'
+    ).length;
 
-  const completedTrips = (bookings || []).filter((b: any) => 
-    (b.status || b.state) === 'COMPLETED' || (b.status || b.state) === 'completed'
-  ).length;
+    completedTrips = (bookings || []).filter((b: any) => 
+      (b.status || b.state) === 'COMPLETED' || (b.status || b.state) === 'completed'
+    ).length;
+  } catch {
+    // bookings table may not exist
+  }
 
-  // Fetch unread messages count
-  const { data: conversations } = await supabase
-    .from('conversations')
-    .select('id')
-    .eq('user_id', userId);
-
+  // Fetch unread messages count (tables may not exist)
   let unreadMessages = 0;
-  if (conversations && conversations.length > 0) {
-    const convIds = conversations.map((c: any) => c.id);
-    const { count } = await supabase
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .in('conversation_id', convIds)
-      .eq('sender_type', 'agent')
-      .eq('is_read', false);
+  try {
+    const { data: conversations } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('user_id', userId);
 
-    unreadMessages = count || 0;
+    if (conversations && conversations.length > 0) {
+      const convIds = conversations.map((c: any) => c.id);
+      const { count } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .in('conversation_id', convIds)
+        .eq('sender_type', 'agent')
+        .eq('is_read', false);
+
+      unreadMessages = count || 0;
+    }
+  } catch {
+    // conversations/messages tables may not exist
   }
 
   return {
@@ -683,48 +723,56 @@ export async function fetchRecentActivity(userId: string, limit = 5): Promise<Ac
   const supabase = getSupabaseClient();
   const activities: ActivityItem[] = [];
 
-  // Fetch recent notifications
-  const { data: notifications } = await supabase
-    .from('notifications')
-    .select('id, type, title, body, created_at')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-
-  for (const n of notifications || []) {
-    activities.push({
-      id: n.id,
-      type: 'notification',
-      message: n.title || n.body,
-      time: n.created_at,
-    });
-  }
-
-  // Fetch recent messages from agents
-  const { data: conversations } = await supabase
-    .from('conversations')
-    .select('id')
-    .eq('user_id', userId);
-
-  if (conversations && conversations.length > 0) {
-    const convIds = conversations.map((c: any) => c.id);
-    const { data: messages } = await supabase
-      .from('messages')
-      .select('id, content, created_at, conversation_id')
-      .in('conversation_id', convIds)
-      .eq('sender_type', 'agent')
+  // Fetch recent notifications (table may not exist)
+  try {
+    const { data: notifications } = await supabase
+      .from('notifications')
+      .select('id, type, title, body, created_at')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
-      .limit(3);
+      .limit(limit);
 
-    for (const m of messages || []) {
+    for (const n of notifications || []) {
       activities.push({
-        id: m.id,
-        type: 'message',
-        message: `New message: "${(m.content as string).substring(0, 50)}..."`,
-        time: m.created_at,
-        relatedId: m.conversation_id,
+        id: n.id,
+        type: 'notification',
+        message: n.title || n.body,
+        time: n.created_at,
       });
     }
+  } catch {
+    // notifications table may not exist
+  }
+
+  // Fetch recent messages from agents (tables may not exist)
+  try {
+    const { data: conversations } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('user_id', userId);
+
+    if (conversations && conversations.length > 0) {
+      const convIds = conversations.map((c: any) => c.id);
+      const { data: messages } = await supabase
+        .from('messages')
+        .select('id, content, created_at, conversation_id')
+        .in('conversation_id', convIds)
+        .eq('sender_type', 'agent')
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      for (const m of messages || []) {
+        activities.push({
+          id: m.id,
+          type: 'message',
+          message: `New message: "${(m.content as string).substring(0, 50)}..."`,
+          time: m.created_at,
+          relatedId: m.conversation_id,
+        });
+      }
+    }
+  } catch {
+    // conversations/messages tables may not exist
   }
 
   // Sort by time and return top items
@@ -743,56 +791,62 @@ export async function fetchAgents(filters?: {
 }): Promise<Agent[]> {
   const supabase = getSupabaseClient();
 
-  let query = supabase
-    .from('agents')
-    .select('*')
-    .eq('is_verified', true)
-    .eq('is_available', true);
+  try {
+    let query = supabase
+      .from('agents')
+      .select('*')
+      .eq('is_verified', true)
+      .eq('is_available', true);
 
-  if (filters?.tier) {
-    query = query.eq('tier', filters.tier);
-  }
+    if (filters?.tier) {
+      query = query.eq('tier', filters.tier);
+    }
 
-  const { data: agents, error } = await query.order('rating', { ascending: false });
+    const { data: agents, error } = await query.order('rating', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching agents:', error);
+    if (error) {
+      console.error('Error fetching agents:', error);
+      return [];
+    }
+
+    // Get user info for agents
+    const agentUserIds = agents.map((a: any) => a.user_id);
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, avatar_url')
+      .in('id', agentUserIds);
+
+    const usersById = new Map((users || []).map((u: any) => [u.id, u]));
+
+    return agents.map((a: any) => {
+      const user = usersById.get(a.user_id);
+      return {
+        id: a.id,
+        userId: a.user_id,
+        bio: a.bio,
+        specializations: a.specializations || [],
+        languages: a.languages || [],
+        destinations: a.destinations || [],
+        yearsOfExperience: a.years_of_experience,
+        agencyName: a.agency_name,
+        tier: a.tier,
+        commissionRate: parseFloat(a.commission_rate),
+        rating: parseFloat(a.rating),
+        totalReviews: a.total_reviews,
+        completedBookings: a.completed_bookings,
+        responseTimeMinutes: a.response_time_minutes,
+        isVerified: a.is_verified,
+        isAvailable: a.is_available,
+        firstName: user?.first_name,
+        lastName: user?.last_name,
+        avatarUrl: user?.avatar_url,
+      };
+    });
+  } catch (err) {
+    // agents table may not exist
+    console.error('Error in fetchAgents:', err);
     return [];
   }
-
-  // Get user info for agents
-  const agentUserIds = agents.map((a: any) => a.user_id);
-  const { data: users } = await supabase
-    .from('users')
-    .select('id, first_name, last_name, avatar_url')
-    .in('id', agentUserIds);
-
-  const usersById = new Map((users || []).map((u: any) => [u.id, u]));
-
-  return agents.map((a: any) => {
-    const user = usersById.get(a.user_id);
-    return {
-      id: a.id,
-      userId: a.user_id,
-      bio: a.bio,
-      specializations: a.specializations || [],
-      languages: a.languages || [],
-      destinations: a.destinations || [],
-      yearsOfExperience: a.years_of_experience,
-      agencyName: a.agency_name,
-      tier: a.tier,
-      commissionRate: parseFloat(a.commission_rate),
-      rating: parseFloat(a.rating),
-      totalReviews: a.total_reviews,
-      completedBookings: a.completed_bookings,
-      responseTimeMinutes: a.response_time_minutes,
-      isVerified: a.is_verified,
-      isAvailable: a.is_available,
-      firstName: user?.first_name,
-      lastName: user?.last_name,
-      avatarUrl: user?.avatar_url,
-    };
-  });
 }
 
 // ============================================================================
@@ -802,16 +856,17 @@ export async function fetchAgents(filters?: {
 export async function fetchBooking(bookingId: string): Promise<Booking | null> {
   const supabase = getSupabaseClient();
 
-  const { data, error } = await supabase
-    .from('bookings')
-    .select('*')
-    .eq('id', bookingId)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('id', bookingId)
+      .single();
 
-  if (error) {
-    console.error('Error fetching booking:', error);
-    return null;
-  }
+    if (error) {
+      console.error('Error fetching booking:', error);
+      return null;
+    }
 
   // Fetch travel request info if request_id exists
   let travelRequest = null;
@@ -889,6 +944,11 @@ export async function fetchBooking(bookingId: string): Promise<Booking | null> {
     updatedAt: data.updated_at,
     agent: agent || undefined,
   };
+  } catch (err) {
+    // bookings table may not exist
+    console.error('Error in fetchBooking:', err);
+    return null;
+  }
 }
 
 export interface Proposal {
@@ -924,78 +984,84 @@ export interface Proposal {
 export async function fetchRequestProposals(requestId: string): Promise<Proposal[]> {
   const supabase = getSupabaseClient();
 
-  // First try the proposals table
-  const { data: proposals, error } = await supabase
-    .from('proposals')
-    .select('*')
-    .eq('request_id', requestId)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching proposals:', error);
-    
-    // Fall back to agent_matches with proposals
-    const { data: matches, error: matchError } = await supabase
-      .from('agent_matches')
+  try {
+    // First try the proposals table
+    const { data: proposals, error } = await supabase
+      .from('proposals')
       .select('*')
       .eq('request_id', requestId)
-      .eq('status', 'proposal_sent');
-    
-    if (matchError || !matches || matches.length === 0) {
-      return [];
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching proposals:', error);
+      
+      // Fall back to agent_matches with proposals
+      try {
+        const { data: matches, error: matchError } = await supabase
+          .from('agent_matches')
+          .select('*')
+          .eq('request_id', requestId)
+          .eq('status', 'proposal_sent');
+        
+        if (matchError || !matches || matches.length === 0) {
+          return [];
+        }
+
+        // Get agent info for matches
+        const agentIds = matches.map((m: any) => m.agent_id);
+        const { data: agents } = await supabase
+          .from('agents')
+          .select('id, user_id, agency_name, tier, rating, specializations, years_of_experience')
+          .in('id', agentIds);
+
+        const userIds = (agents || []).map((a: any) => a.user_id);
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, first_name, last_name, avatar_url')
+          .in('id', userIds);
+
+        const agentsById = new Map((agents || []).map((a: any) => [a.id, a]));
+        const usersById = new Map((users || []).map((u: any) => [u.id, u]));
+
+        return matches.map((m: any) => {
+          const agent = agentsById.get(m.agent_id);
+          const user = agent ? usersById.get(agent.user_id) : null;
+          const proposal = m.proposal_data || {};
+          
+          return {
+            id: m.id,
+            requestId: m.request_id,
+            agentId: m.agent_id,
+            status: m.status,
+            title: proposal.title || 'Travel Proposal',
+            description: proposal.description || '',
+            totalPrice: proposal.total_price || m.quoted_price || 0,
+            currency: proposal.currency || 'USD',
+            validUntil: proposal.valid_until || m.expires_at,
+            itinerary: proposal.itinerary || [],
+            inclusions: proposal.inclusions || [],
+            exclusions: proposal.exclusions || [],
+            createdAt: m.created_at,
+            agent: agent ? {
+              id: agent.id,
+              fullName: user ? `${user.first_name} ${user.last_name}` : 'Unknown Agent',
+              businessName: agent.agency_name,
+              rating: parseFloat(agent.rating),
+              avatarUrl: user?.avatar_url,
+              specializations: agent.specializations || [],
+              yearsOfExperience: agent.years_of_experience,
+            } : undefined,
+          };
+        });
+      } catch {
+        // agent_matches table may not exist
+        return [];
+      }
     }
 
-    // Get agent info for matches
-    const agentIds = matches.map((m: any) => m.agent_id);
-    const { data: agents } = await supabase
-      .from('agents')
-      .select('id, user_id, agency_name, tier, rating, specializations, years_of_experience')
-      .in('id', agentIds);
-
-    const userIds = (agents || []).map((a: any) => a.user_id);
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, first_name, last_name, avatar_url')
-      .in('id', userIds);
-
-    const agentsById = new Map((agents || []).map((a: any) => [a.id, a]));
-    const usersById = new Map((users || []).map((u: any) => [u.id, u]));
-
-    return matches.map((m: any) => {
-      const agent = agentsById.get(m.agent_id);
-      const user = agent ? usersById.get(agent.user_id) : null;
-      const proposal = m.proposal_data || {};
-      
-      return {
-        id: m.id,
-        requestId: m.request_id,
-        agentId: m.agent_id,
-        status: m.status,
-        title: proposal.title || 'Travel Proposal',
-        description: proposal.description || '',
-        totalPrice: proposal.total_price || m.quoted_price || 0,
-        currency: proposal.currency || 'USD',
-        validUntil: proposal.valid_until || m.expires_at,
-        itinerary: proposal.itinerary || [],
-        inclusions: proposal.inclusions || [],
-        exclusions: proposal.exclusions || [],
-        createdAt: m.created_at,
-        agent: agent ? {
-          id: agent.id,
-          fullName: user ? `${user.first_name} ${user.last_name}` : 'Unknown Agent',
-          businessName: agent.agency_name,
-          rating: parseFloat(agent.rating),
-          avatarUrl: user?.avatar_url,
-          specializations: agent.specializations || [],
-          yearsOfExperience: agent.years_of_experience,
-        } : undefined,
-      };
-    });
-  }
-
-  if (!proposals || proposals.length === 0) {
-    return [];
-  }
+    if (!proposals || proposals.length === 0) {
+      return [];
+    }
 
   // Get agent info
   const agentIds = proposals.map((p: any) => p.agent_id);
@@ -1042,5 +1108,10 @@ export async function fetchRequestProposals(requestId: string): Promise<Proposal
       } : undefined,
     };
   });
+  } catch (err) {
+    // proposals/agents tables may not exist
+    console.error('Error in fetchRequestProposals:', err);
+    return [];
+  }
 }
 
