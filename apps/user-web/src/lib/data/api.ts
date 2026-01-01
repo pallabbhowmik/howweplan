@@ -382,7 +382,6 @@ export async function createTravelRequest(input: CreateTravelRequestInput): Prom
     },
     budget_min: Math.floor(input.budget * 0.8),
     budget_max: input.budget,
-    budget_currency: 'INR',
     travel_style: input.tripType,
     preferences: {
       tripType: input.tripType,
