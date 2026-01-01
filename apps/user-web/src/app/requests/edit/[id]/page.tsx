@@ -73,13 +73,13 @@ export default function EditRequestPage() {
           }
           
           // Safely extract dates - handle undefined properly
-          const startDate = data.departureDate ? String(data.departureDate).split('T')[0] : '';
-          const endDate = data.returnDate ? String(data.returnDate).split('T')[0] : '';
+          const startDate: string = data.departureDate ? String(data.departureDate).split('T')[0] : '';
+          const endDate: string = data.returnDate ? String(data.returnDate).split('T')[0] : '';
           
           setFormData({
-            destination,
-            startDate,
-            endDate,
+            destination: destination,
+            startDate: startDate,
+            endDate: endDate,
             adults: data.travelers?.adults || 2,
             children: data.travelers?.children || 0,
             infants: data.travelers?.infants || 0,
