@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -46,6 +46,7 @@ const tripTypeIcons: Record<string, React.ElementType> = {
 
 export default function RequestDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const requestId = params.id as string;
   const { loading: userLoading } = useUserSession();
   const [request, setRequest] = useState<TravelRequest | null>(null);
@@ -157,7 +158,12 @@ export default function RequestDetailPage() {
                 </Link>
               )}
               {canEdit && (
-                <Button size="lg" variant="secondary" className="bg-white/10 border-white/20 hover:bg-white/20">
+                <Button 
+                  size="lg" 
+                  variant="secondary" 
+                  className="bg-white/10 border-white/20 hover:bg-white/20"
+                  onClick={() => router.push(`/requests/edit/${request.id}`)}
+                >
                   <Edit className="h-5 w-5 mr-2" />
                   Edit
                 </Button>

@@ -451,6 +451,65 @@ export async function createTravelRequest(input: CreateTravelRequestInput): Prom
 }
 
 // ============================================================================
+// Update Travel Request
+// ============================================================================
+
+export interface UpdateTravelRequestInput {
+  destination?: string;
+  startDate?: string;
+  endDate?: string;
+  travelersCount?: number;
+  budgetMin?: number | null;
+  budgetMax?: number | null;
+  specialRequests?: string;
+  preferences?: Record<string, unknown>;
+}
+
+export async function updateTravelRequest(requestId: string, input: UpdateTravelRequestInput): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const updateData: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (input.destination !== undefined) {
+    updateData.destination = input.destination;
+    updateData.title = `Trip to ${input.destination}`;
+  }
+  if (input.startDate !== undefined) {
+    updateData.start_date = input.startDate;
+  }
+  if (input.endDate !== undefined) {
+    updateData.end_date = input.endDate;
+  }
+  if (input.travelersCount !== undefined) {
+    updateData.travelers_count = input.travelersCount;
+  }
+  if (input.budgetMin !== undefined) {
+    updateData.budget_min = input.budgetMin;
+  }
+  if (input.budgetMax !== undefined) {
+    updateData.budget_max = input.budgetMax;
+  }
+  if (input.specialRequests !== undefined) {
+    updateData.special_requirements = input.specialRequests;
+  }
+  if (input.preferences !== undefined) {
+    updateData.preferences = input.preferences;
+  }
+
+  const { error } = await supabase
+    .from('travel_requests')
+    .update(updateData)
+    .eq('id', requestId);
+
+  if (error) {
+    console.error('Error updating travel request:', error);
+    throw new Error(`Failed to update travel request: ${error.message}`);
+  }
+}
+
+// ============================================================================
 // Bookings API
 // ============================================================================
 
