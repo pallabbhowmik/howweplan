@@ -124,11 +124,52 @@ export default function EditRequestPage() {
     return days > 0 ? days : null;
   };
 
+  const validateForm = (): string | null => {
+    // Validate destination
+    if (!formData.destination.trim()) {
+      return 'Please enter a destination';
+    }
+
+    // Validate dates
+    if (!formData.startDate) {
+      return 'Please select a start date';
+    }
+    if (!formData.endDate) {
+      return 'Please select an end date';
+    }
+    const start = new Date(formData.startDate);
+    const end = new Date(formData.endDate);
+    if (end < start) {
+      return 'End date must be after start date';
+    }
+
+    // Validate budget
+    const budgetMin = formData.budgetMin ? parseInt(formData.budgetMin) : 0;
+    const budgetMax = formData.budgetMax ? parseInt(formData.budgetMax) : 0;
+    
+    if (budgetMin < 0 || budgetMax < 0) {
+      return 'Budget cannot be negative';
+    }
+    
+    if (budgetMin > 0 && budgetMax > 0 && budgetMin > budgetMax) {
+      return 'Minimum budget cannot be greater than maximum budget';
+    }
+
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!user?.userId || !request) {
       setError('Unable to save changes');
+      return;
+    }
+
+    // Validate form
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
