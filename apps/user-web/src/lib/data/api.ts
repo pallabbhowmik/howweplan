@@ -377,7 +377,8 @@ export interface CreateTravelRequestInput {
   adults: number;
   children: number;
   infants: number;
-  budget: number;
+  budgetMin: number;
+  budgetMax: number;
   budgetRange?: string;
   tripType: string;
   experiences: string[];
@@ -399,8 +400,8 @@ export async function createTravelRequest(input: CreateTravelRequestInput): Prom
     destination: input.destination,
     start_date: input.startDate,
     end_date: input.endDate,
-    budget_min: Math.floor(input.budget * 0.8),
-    budget_max: input.budget,
+    budget_min: input.budgetMin,
+    budget_max: input.budgetMax,
     travelers_count: input.adults + input.children + input.infants,
     preferences: {
       tripType: input.tripType,

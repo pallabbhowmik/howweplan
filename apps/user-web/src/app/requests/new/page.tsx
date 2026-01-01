@@ -26,6 +26,9 @@ import {
   Plus,
   Minus,
   Info,
+  CheckCircle2,
+  Clock,
+  Bell,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -94,6 +97,8 @@ export default function NewRequestPage() {
   const { user, loading: userLoading } = useUserSession();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     destination: '',
     startDate: '',
@@ -159,14 +164,28 @@ export default function NewRequestPage() {
     setIsSubmitting(true);
     
     try {
-      // Calculate budget value
+      // Calculate budget min and max values
       const selectedBudget = budgetRanges.find(b => b.id === formData.budgetRange);
-      const budgetValue = formData.customBudget 
-        ? parseInt(formData.customBudget) 
-        : selectedBudget?.max || 50000;
+      let budgetMin: number;
+      let budgetMax: number;
+      
+      if (formData.customBudget) {
+        // For custom budget, use it as max and 80% as min
+        const customValue = parseInt(formData.customBudget);
+        budgetMin = Math.floor(customValue * 0.8);
+        budgetMax = customValue;
+      } else if (selectedBudget) {
+        // For preset ranges, use the actual min and max
+        budgetMin = selectedBudget.min;
+        budgetMax = selectedBudget.max;
+      } else {
+        // Fallback
+        budgetMin = 25000;
+        budgetMax = 50000;
+      }
 
       // Create the travel request in Supabase
-      await createTravelRequest({
+      const newRequest = await createTravelRequest({
         userId: user.userId,
         destination: formData.destination,
         startDate: formData.startDate,
@@ -174,7 +193,8 @@ export default function NewRequestPage() {
         adults: formData.adults,
         children: formData.children,
         infants: formData.infants,
-        budget: budgetValue,
+        budgetMin,
+        budgetMax,
         budgetRange: formData.budgetRange,
         tripType: formData.tripType,
         experiences: formData.experiences,
@@ -182,7 +202,9 @@ export default function NewRequestPage() {
         specialRequests: formData.specialRequests,
       });
       
-      router.push('/dashboard?newRequest=success');
+      // Show success modal instead of redirecting immediately
+      setSubmittedRequestId(newRequest.id);
+      setShowSuccess(true);
     } catch (error) {
       console.error('Failed to submit request:', error);
       alert('Failed to submit request. Please try again.');
@@ -198,6 +220,166 @@ export default function NewRequestPage() {
   ];
 
   const tripDuration = getTripDuration();
+
+  // Success Modal Component
+  if (showSuccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 flex items-center justify-center p-4">
+        <div className="max-w-xl w-full">
+          {/* Confetti-like decorations */}
+          <div className="relative">
+            <div className="absolute -top-8 -left-8 w-16 h-16 bg-yellow-400/20 rounded-full blur-xl animate-pulse" />
+            <div className="absolute -top-4 -right-4 w-12 h-12 bg-pink-400/20 rounded-full blur-xl animate-pulse delay-100" />
+            <div className="absolute -bottom-4 left-1/4 w-10 h-10 bg-blue-400/20 rounded-full blur-xl animate-pulse delay-200" />
+          </div>
+
+          {/* Success Card */}
+          <div className="relative bg-white rounded-3xl shadow-2xl overflow-hidden border border-emerald-100">
+            {/* Animated Green Header */}
+            <div className="bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 p-10 text-center relative overflow-hidden">
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxIiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMiIvPjwvc3ZnPg==')] opacity-50" />
+              
+              {/* Success Icon with Animation */}
+              <div className="relative inline-flex items-center justify-center w-24 h-24 bg-white/20 rounded-full mb-5 backdrop-blur-sm ring-4 ring-white/30">
+                <div className="absolute inset-0 rounded-full bg-white/10 animate-ping" />
+                <CheckCircle2 className="h-12 w-12 text-white relative z-10" />
+              </div>
+              
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">
+                You&apos;re All Set! 🎉
+              </h2>
+              <p className="text-emerald-100 text-xl">
+                Your adventure to <span className="font-bold text-white">{formData.destination}</span> begins now
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="p-8 space-y-8">
+              {/* Excitement Message */}
+              <div className="text-center bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-100">
+                <p className="text-2xl mb-2">🌟</p>
+                <p className="text-lg font-medium text-slate-800">
+                  Expert travel agents are already being matched to your request!
+                </p>
+                <p className="text-slate-600 mt-1">
+                  Sit back and relax while they craft amazing itinerary options for you.
+                </p>
+              </div>
+
+              {/* Timeline */}
+              <div>
+                <h3 className="font-bold text-slate-800 mb-5 text-lg flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-emerald-600" />
+                  Here&apos;s what happens next
+                </h3>
+                <div className="relative">
+                  {/* Connecting Line */}
+                  <div className="absolute left-5 top-8 bottom-8 w-0.5 bg-gradient-to-b from-emerald-400 via-blue-400 to-purple-400" />
+                  
+                  <div className="space-y-6">
+                    <div className="flex gap-5 relative">
+                      <div className="flex-shrink-0 w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-emerald-200 z-10">
+                        1
+                      </div>
+                      <div className="pt-1">
+                        <p className="font-semibold text-slate-800 text-lg">Matching in progress</p>
+                        <p className="text-slate-500">We&apos;re connecting you with the best agents for your trip</p>
+                        <p className="text-emerald-600 text-sm font-medium mt-1 flex items-center gap-1">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                          </span>
+                          Happening now
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-5 relative">
+                      <div className="flex-shrink-0 w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-blue-200 z-10">
+                        2
+                      </div>
+                      <div className="pt-1">
+                        <p className="font-semibold text-slate-800 text-lg">Receive custom proposals</p>
+                        <p className="text-slate-500">Agents will send you personalized itineraries</p>
+                        <p className="text-blue-600 text-sm font-medium mt-1">⏱️ Usually within 24-48 hours</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-5 relative">
+                      <div className="flex-shrink-0 w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-purple-200 z-10">
+                        3
+                      </div>
+                      <div className="pt-1">
+                        <p className="font-semibold text-slate-800 text-lg">Pick your perfect trip</p>
+                        <p className="text-slate-500">Compare options and choose the one you love</p>
+                        <p className="text-purple-600 text-sm font-medium mt-1">💰 No payment until you decide</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notification Card */}
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-6 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+                <div className="relative flex items-start gap-4">
+                  <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                    <Bell className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-lg mb-1">We&apos;ll notify you instantly!</p>
+                    <p className="text-blue-100">
+                      You&apos;ll receive an email and app notification the moment an agent submits a proposal. 
+                      Most travelers receive <span className="font-semibold text-white">3-5 amazing options</span> to choose from!
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pro Stats */}
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <p className="text-2xl font-bold text-emerald-600">24h</p>
+                  <p className="text-xs text-slate-500">Avg. first proposal</p>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <p className="text-2xl font-bold text-blue-600">4.8★</p>
+                  <p className="text-xs text-slate-500">Agent rating</p>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <p className="text-2xl font-bold text-purple-600">98%</p>
+                  <p className="text-xs text-slate-500">Happy travelers</p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-3 pt-2">
+                <Button
+                  onClick={() => router.push(`/dashboard/requests/${submittedRequestId}`)}
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 h-14 text-lg font-semibold gap-2 shadow-lg shadow-emerald-200"
+                >
+                  <Sparkles className="h-5 w-5" />
+                  Track Your Request
+                </Button>
+                <Button
+                  onClick={() => router.push('/dashboard')}
+                  variant="outline"
+                  className="w-full h-12 text-base"
+                >
+                  Back to Dashboard
+                </Button>
+              </div>
+
+              {/* Fun Footer */}
+              <p className="text-center text-sm text-slate-400 pt-2">
+                ✨ Pro tip: Complete your profile to help agents personalize your experience even more!
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
