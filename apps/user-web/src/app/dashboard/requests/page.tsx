@@ -115,15 +115,15 @@ export default function RequestsPage() {
           </div>
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
             <p className="text-blue-100 text-sm">Active</p>
-            <p className="text-2xl font-bold">{requests.filter(r => ['SUBMITTED', 'MATCHING', 'PROPOSALS_RECEIVED'].includes(r.state)).length}</p>
+            <p className="text-2xl font-bold">{requests.filter(r => ['OPEN', 'SUBMITTED', 'MATCHING', 'MATCHED', 'PROPOSALS_RECEIVED'].includes(normalizeStatus(r.state))).length}</p>
           </div>
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
             <p className="text-blue-100 text-sm">With Proposals</p>
-            <p className="text-2xl font-bold">{requests.filter(r => r.state === 'PROPOSALS_RECEIVED').length}</p>
+            <p className="text-2xl font-bold">{requests.filter(r => normalizeStatus(r.state) === 'PROPOSALS_RECEIVED').length}</p>
           </div>
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
             <p className="text-blue-100 text-sm">Booked</p>
-            <p className="text-2xl font-bold">{requests.filter(r => ['BOOKED', 'COMPLETED'].includes(r.state)).length}</p>
+            <p className="text-2xl font-bold">{requests.filter(r => ['BOOKED', 'CONFIRMED', 'COMPLETED'].includes(normalizeStatus(r.state))).length}</p>
           </div>
         </div>
       </div>
@@ -474,77 +474,25 @@ function getTravelersCount(travelers: { adults?: number; children?: number; infa
 function StatusBadge({ status }: { status: string }) {
   const normalized = normalizeStatus(status);
   
-  const configs: Record<string, { label: string; emoji: string; className: string; pulse?: boolean }> = {
-    OPEN: { 
-      label: 'Open', 
-      emoji: '🔵',
-      className: 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-200 ring-2 ring-blue-300' 
-    },
-    DRAFT: { 
-      label: 'Draft', 
-      emoji: '📝',
-      className: 'bg-slate-200 text-slate-700 ring-2 ring-slate-300' 
-    },
-    SUBMITTED: { 
-      label: 'Submitted', 
-      emoji: '✅',
-      className: 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-200 ring-2 ring-blue-300' 
-    },
-    MATCHING: { 
-      label: 'Finding Agents', 
-      emoji: '🔍',
-      className: 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-200 ring-2 ring-indigo-300',
-      pulse: true
-    },
-    MATCHED: { 
-      label: 'Agents Matched', 
-      emoji: '🤝',
-      className: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-200 ring-2 ring-purple-300'
-    },
-    PROPOSALS_RECEIVED: { 
-      label: 'Review Proposals', 
-      emoji: '🔥',
-      className: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-200 ring-2 ring-amber-300 font-bold',
-      pulse: true
-    },
-    BOOKED: { 
-      label: 'Booked', 
-      emoji: '🎉',
-      className: 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-200 ring-2 ring-green-300' 
-    },
-    CONFIRMED: { 
-      label: 'Confirmed', 
-      emoji: '✓',
-      className: 'bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-lg shadow-green-200 ring-2 ring-green-300' 
-    },
-    COMPLETED: { 
-      label: 'Completed', 
-      emoji: '🏆',
-      className: 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-200 ring-2 ring-emerald-300' 
-    },
-    CANCELLED: { 
-      label: 'Cancelled', 
-      emoji: '❌',
-      className: 'bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg shadow-red-200 ring-2 ring-red-300' 
-    },
-    EXPIRED: { 
-      label: 'Expired', 
-      emoji: '⏰',
-      className: 'bg-slate-500 text-white shadow-md ring-2 ring-slate-400' 
-    },
+  const labels: Record<string, string> = {
+    OPEN: 'open',
+    DRAFT: 'draft',
+    SUBMITTED: 'submitted',
+    MATCHING: 'matching',
+    MATCHED: 'matched',
+    PROPOSALS_RECEIVED: 'proposals received',
+    BOOKED: 'booked',
+    CONFIRMED: 'confirmed',
+    COMPLETED: 'completed',
+    CANCELLED: 'cancelled',
+    EXPIRED: 'expired',
   };
 
-  const config = configs[normalized] || { label: status, emoji: '📋', className: 'bg-slate-200 text-slate-700' };
+  const label = labels[normalized] || status.toLowerCase();
   
   return (
-    <span className={`
-      inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold
-      ${config.className}
-      ${config.pulse ? 'animate-pulse' : ''}
-      transition-all duration-200 transform hover:scale-105
-    `}>
-      <span className="text-base">{config.emoji}</span>
-      {config.label}
+    <span className="text-sm text-slate-500 font-medium">
+      {label}
     </span>
   );
 }
