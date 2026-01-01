@@ -1,5 +1,16 @@
 import { z } from 'zod';
 
+function normalizeEnvString(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
 /**
  * Environment Configuration Schema
  * 
@@ -50,9 +61,26 @@ const envSchema = z.object({
   DATABASE_URL: z
     .string()
     .min(1, 'DATABASE_URL is required')
+    .transform(normalizeEnvString)
     .refine(
       (url: string) => url.startsWith('postgresql://') || url.startsWith('postgres://'),
       { message: 'DATABASE_URL must be a valid PostgreSQL connection string' }
+    )
+    .refine(
+      (url: string) => {
+        try {
+          // Ensure it is parseable by WHATWG URL (used by pg-connection-string)
+          // eslint-disable-next-line no-new
+          new URL(url, 'postgres://base');
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      {
+        message:
+          'DATABASE_URL is not a valid URL (check encoding, remove quotes, and ensure special chars are percent-encoded)',
+      }
     ),
   DATABASE_POOL_MIN: z.coerce.number().int().min(1).default(2),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).default(10),
