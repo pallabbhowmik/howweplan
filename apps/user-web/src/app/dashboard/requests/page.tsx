@@ -410,55 +410,62 @@ function getTravelersCount(travelers: { adults?: number; children?: number; infa
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const configs: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
+  const configs: Record<string, { label: string; icon: React.ReactNode; className: string; pulse?: boolean }> = {
     DRAFT: { 
       label: 'Draft', 
-      icon: null,
-      className: 'bg-slate-100 text-slate-700 border-slate-200' 
+      icon: <Clock className="h-4 w-4" />,
+      className: 'bg-slate-200 text-slate-800 border-2 border-slate-300 shadow-sm' 
     },
     SUBMITTED: { 
       label: 'Submitted', 
-      icon: <CheckCircle className="h-3 w-3" />,
-      className: 'bg-blue-100 text-blue-700 border-blue-200' 
+      icon: <CheckCircle className="h-4 w-4" />,
+      className: 'bg-blue-500 text-white border-2 border-blue-600 shadow-md shadow-blue-200' 
     },
     MATCHING: { 
       label: 'Finding Agents', 
-      icon: <Sparkles className="h-3 w-3 animate-pulse" />,
-      className: 'bg-indigo-100 text-indigo-700 border-indigo-200 animate-pulse' 
+      icon: <Sparkles className="h-4 w-4" />,
+      className: 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-2 border-indigo-600 shadow-md shadow-indigo-200',
+      pulse: true
     },
     PROPOSALS_RECEIVED: { 
-      label: 'Review Proposals', 
-      icon: <AlertCircle className="h-3 w-3" />,
-      className: 'bg-amber-100 text-amber-700 border-amber-200 font-semibold' 
+      label: '🔥 Review Proposals', 
+      icon: <AlertCircle className="h-4 w-4" />,
+      className: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white border-2 border-amber-600 shadow-lg shadow-amber-200 font-bold',
+      pulse: true
     },
     BOOKED: { 
-      label: 'Booked', 
-      icon: <CheckCircle className="h-3 w-3" />,
-      className: 'bg-green-100 text-green-700 border-green-200' 
+      label: '✓ Booked', 
+      icon: <CheckCircle className="h-4 w-4" />,
+      className: 'bg-green-500 text-white border-2 border-green-600 shadow-md shadow-green-200' 
     },
     COMPLETED: { 
-      label: 'Completed', 
-      icon: <CheckCircle className="h-3 w-3" />,
-      className: 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+      label: '✓ Completed', 
+      icon: <CheckCircle className="h-4 w-4" />,
+      className: 'bg-emerald-500 text-white border-2 border-emerald-600 shadow-md shadow-emerald-200' 
     },
     CANCELLED: { 
       label: 'Cancelled', 
-      icon: <XCircle className="h-3 w-3" />,
-      className: 'bg-red-100 text-red-700 border-red-200' 
+      icon: <XCircle className="h-4 w-4" />,
+      className: 'bg-red-500 text-white border-2 border-red-600 shadow-md shadow-red-200' 
     },
     EXPIRED: { 
       label: 'Expired', 
-      icon: <Clock className="h-3 w-3" />,
-      className: 'bg-slate-100 text-slate-600 border-slate-200' 
+      icon: <Clock className="h-4 w-4" />,
+      className: 'bg-slate-500 text-white border-2 border-slate-600 shadow-sm' 
     },
   };
 
-  const config = configs[status] || { label: status, icon: null, className: 'bg-slate-100 text-slate-700' };
+  const config = configs[status] || { label: status, icon: null, className: 'bg-slate-200 text-slate-700' };
   
   return (
-    <Badge variant="outline" className={`${config.className} flex items-center gap-1`}>
+    <span className={`
+      inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold
+      ${config.className}
+      ${config.pulse ? 'animate-pulse' : ''}
+      transition-all duration-200
+    `}>
       {config.icon}
       {config.label}
-    </Badge>
+    </span>
   );
 }
