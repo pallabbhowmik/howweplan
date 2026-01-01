@@ -14,7 +14,6 @@ import {
   Globe,
   Heart,
   Shield,
-  CheckCircle,
   ArrowRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

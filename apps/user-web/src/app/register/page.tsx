@@ -12,8 +12,6 @@ import {
   Loader2,
   User,
   Phone,
-  MapPin,
-  CheckCircle,
   ArrowRight,
   Shield,
   Globe,
@@ -86,7 +84,6 @@ export default function RegisterPage() {
         password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
-        phone: formData.phone,
       });
       
       storeAuthTokens(response);
