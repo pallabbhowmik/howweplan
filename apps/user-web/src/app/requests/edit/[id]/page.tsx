@@ -73,8 +73,16 @@ export default function EditRequestPage() {
           }
           
           // Safely extract dates - handle undefined properly
-          const startDate: string = data.departureDate ? String(data.departureDate).split('T')[0] : '';
-          const endDate: string = data.returnDate ? String(data.returnDate).split('T')[0] : '';
+          let startDate = '';
+          let endDate = '';
+          if (data.departureDate) {
+            const parts = String(data.departureDate).split('T');
+            startDate = parts[0] || '';
+          }
+          if (data.returnDate) {
+            const parts = String(data.returnDate).split('T');
+            endDate = parts[0] || '';
+          }
           
           setFormData({
             destination: destination,
