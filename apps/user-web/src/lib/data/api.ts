@@ -337,6 +337,98 @@ export async function fetchRequest(requestId: string): Promise<TravelRequest | n
   };
 }
 
+export interface CreateTravelRequestInput {
+  userId: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  adults: number;
+  children: number;
+  infants: number;
+  budget: number;
+  budgetRange?: string;
+  tripType: string;
+  experiences: string[];
+  preferences?: string;
+  specialRequests?: string;
+}
+
+export async function createTravelRequest(input: CreateTravelRequestInput): Promise<TravelRequest> {
+  const supabase = getSupabaseClient();
+
+  // Generate a title from destination and dates
+  const startDate = new Date(input.startDate);
+  const title = `${input.destination} Trip - ${startDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}`;
+
+  // Calculate expiry (7 days from now)
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
+  const insertData = {
+    user_id: input.userId,
+    title,
+    description: input.preferences || null,
+    destination: {
+      city: input.destination,
+      label: input.destination,
+    },
+    departure_date: input.startDate,
+    return_date: input.endDate,
+    travelers: {
+      adults: input.adults,
+      children: input.children,
+      infants: input.infants,
+      total: input.adults + input.children + input.infants,
+    },
+    budget_min: Math.floor(input.budget * 0.8),
+    budget_max: input.budget,
+    budget_currency: 'INR',
+    travel_style: input.tripType,
+    preferences: {
+      tripType: input.tripType,
+      experiences: input.experiences,
+      budgetRange: input.budgetRange,
+      specialRequests: input.specialRequests,
+    },
+    notes: input.specialRequests || null,
+    status: 'open', // Supabase uses lowercase 'status' column
+    expires_at: expiresAt.toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from('travel_requests')
+    .insert(insertData)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating travel request:', error);
+    throw new Error(`Failed to create travel request: ${error.message}`);
+  }
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    title: data.title,
+    description: data.description,
+    destination: data.destination || {},
+    departureLocation: data.departure_location,
+    departureDate: data.departure_date,
+    returnDate: data.return_date,
+    travelers: data.travelers || {},
+    budgetMin: data.budget_min ? parseFloat(data.budget_min) : null,
+    budgetMax: data.budget_max ? parseFloat(data.budget_max) : null,
+    budgetCurrency: data.budget_currency,
+    travelStyle: data.travel_style,
+    preferences: data.preferences || {},
+    notes: data.notes,
+    state: data.status || data.state,
+    expiresAt: data.expires_at,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
 // ============================================================================
 // Bookings API
 // ============================================================================

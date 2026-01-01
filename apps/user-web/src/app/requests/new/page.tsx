@@ -34,6 +34,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useUserSession } from '@/lib/user/session';
+import { createTravelRequest } from '@/lib/data/api';
 
 const popularDestinations = [
   { name: 'Goa', emoji: '🏖️', type: 'Beach Paradise' },
@@ -164,28 +165,22 @@ export default function NewRequestPage() {
         ? parseInt(formData.customBudget) 
         : selectedBudget?.max || 50000;
 
-      const requestPayload = {
+      // Create the travel request in Supabase
+      await createTravelRequest({
         userId: user.userId,
         destination: formData.destination,
         startDate: formData.startDate,
         endDate: formData.endDate,
-        travelers: totalTravelers,
-        adultsCount: formData.adults,
-        childrenCount: formData.children,
-        infantsCount: formData.infants,
+        adults: formData.adults,
+        children: formData.children,
+        infants: formData.infants,
         budget: budgetValue,
         budgetRange: formData.budgetRange,
         tripType: formData.tripType,
         experiences: formData.experiences,
         preferences: formData.preferences,
         specialRequests: formData.specialRequests,
-      };
-
-      // TODO: Replace with actual API call
-      console.log('Submitting request:', requestPayload);
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      });
       
       router.push('/dashboard?newRequest=success');
     } catch (error) {
