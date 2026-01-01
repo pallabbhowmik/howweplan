@@ -321,22 +321,37 @@ export async function fetchRequest(requestId: string): Promise<TravelRequest | n
     return null;
   }
 
+  // Map both Supabase and Docker schema columns
   return {
     id: data.id,
     userId: data.user_id,
     title: data.title,
-    description: data.description,
-    destination: data.destination || {},
-    departureLocation: data.departure_location,
-    departureDate: data.departure_date,
-    returnDate: data.return_date,
-    travelers: data.travelers || {},
+    description: data.special_requirements || data.description,
+    // Handle both Supabase (destination as string) and Docker (destination as JSONB)
+    destination: typeof data.destination === 'string' 
+      ? { city: data.destination, label: data.destination }
+      : (data.destination || {}),
+    departureLocation: data.departure_city 
+      ? { city: data.departure_city }
+      : data.departure_location,
+    // Handle both Supabase (start_date/end_date) and Docker (departure_date/return_date)
+    departureDate: data.start_date || data.departure_date,
+    returnDate: data.end_date || data.return_date,
+    // Handle both Supabase (travelers_count) and Docker (travelers JSONB)
+    travelers: data.preferences?.adults 
+      ? { 
+          adults: data.preferences.adults, 
+          children: data.preferences.children, 
+          infants: data.preferences.infants,
+          total: data.travelers_count || (data.preferences.adults + data.preferences.children + data.preferences.infants)
+        }
+      : (data.travelers || { total: data.travelers_count }),
     budgetMin: data.budget_min ? parseFloat(data.budget_min) : null,
     budgetMax: data.budget_max ? parseFloat(data.budget_max) : null,
-    budgetCurrency: data.budget_currency,
-    travelStyle: data.travel_style,
+    budgetCurrency: data.budget_currency || 'INR',
+    travelStyle: data.travel_style || data.preferences?.tripType,
     preferences: data.preferences || {},
-    notes: data.notes,
+    notes: data.special_requirements || data.notes,
     state: data.status || data.state, // Support both schemas
     expiresAt: data.expires_at,
     createdAt: data.created_at,
