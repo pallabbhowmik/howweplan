@@ -292,7 +292,7 @@ export async function fetchUserRequests(userId: string): Promise<TravelRequest[]
     travelStyle: r.travel_style,
     preferences: r.preferences || {},
     notes: r.notes,
-    state: r.state,
+    state: r.status || r.state, // Support both Supabase (status) and Docker (state) schemas
     expiresAt: r.expires_at,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -330,7 +330,7 @@ export async function fetchRequest(requestId: string): Promise<TravelRequest | n
     travelStyle: data.travel_style,
     preferences: data.preferences || {},
     notes: data.notes,
-    state: data.state,
+    state: data.status || data.state, // Support both schemas
     expiresAt: data.expires_at,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
@@ -412,9 +412,9 @@ export async function fetchUserBookings(userId: string): Promise<Booking[]> {
       itineraryId: b.itinerary_id,
       userId: b.user_id,
       agentId: b.agent_id,
-      state: b.state,
-      status: b.state, // Alias
-      paymentState: b.payment_state,
+      state: b.status || b.state, // Support both schemas
+      status: b.status || b.state, // Alias
+      paymentState: b.payment_state || b.payment_status,
       basePriceCents: b.base_price_cents,
       bookingFeeCents: b.booking_fee_cents,
       platformCommissionCents: b.platform_commission_cents,
@@ -504,35 +504,36 @@ export async function markNotificationRead(notificationId: string): Promise<void
 export async function fetchDashboardStats(userId: string): Promise<DashboardStats> {
   const supabase = getSupabaseClient();
 
-  // Fetch requests counts by state
+  // Fetch requests counts by status
   const { data: requests } = await supabase
     .from('travel_requests')
-    .select('state')
+    .select('status')
     .eq('user_id', userId);
 
-  const activeStates = ['SUBMITTED', 'MATCHING', 'PROPOSALS_RECEIVED'];
-  const selectionStates = ['PROPOSALS_RECEIVED'];
+  // Support both Supabase schema (lowercase) and Docker schema (uppercase)
+  const activeStates = ['SUBMITTED', 'MATCHING', 'PROPOSALS_RECEIVED', 'open', 'matched', 'proposals_received'];
+  const selectionStates = ['PROPOSALS_RECEIVED', 'proposals_received'];
   
   const activeRequests = (requests || []).filter((r: any) => 
-    activeStates.includes(r.state)
+    activeStates.includes(r.status || r.state)
   ).length;
   
   const awaitingSelection = (requests || []).filter((r: any) => 
-    selectionStates.includes(r.state)
+    selectionStates.includes(r.status || r.state)
   ).length;
 
   // Fetch bookings counts
   const { data: bookings } = await supabase
     .from('bookings')
-    .select('state')
+    .select('status')
     .eq('user_id', userId);
 
   const confirmedBookings = (bookings || []).filter((b: any) => 
-    b.state === 'CONFIRMED'
+    (b.status || b.state) === 'CONFIRMED' || (b.status || b.state) === 'confirmed'
   ).length;
 
   const completedTrips = (bookings || []).filter((b: any) => 
-    b.state === 'COMPLETED'
+    (b.status || b.state) === 'COMPLETED' || (b.status || b.state) === 'completed'
   ).length;
 
   // Fetch unread messages count
@@ -752,9 +753,9 @@ export async function fetchBooking(bookingId: string): Promise<Booking | null> {
     itineraryId: data.itinerary_id,
     userId: data.user_id,
     agentId: data.agent_id,
-    state: data.state,
-    status: data.state, // Alias for UI compatibility
-    paymentState: data.payment_state,
+    state: data.status || data.state, // Support both schemas
+    status: data.status || data.state, // Alias for UI compatibility
+    paymentState: data.payment_state || data.payment_status,
     basePriceCents: data.base_price_cents,
     bookingFeeCents: data.booking_fee_cents,
     platformCommissionCents: data.platform_commission_cents,
