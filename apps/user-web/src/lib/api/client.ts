@@ -19,7 +19,11 @@
  *   /api/reviews/*       → Reviews Service
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+const rawApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+// Normalize: remove trailing slash and /api suffix if present
+const API_BASE_URL = rawApiBaseUrl
+  .replace(/\/+$/, '') // Remove trailing slashes
+  .replace(/\/api$/, ''); // Remove /api suffix if someone added it
 const API_TIMEOUT = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS) || 30000;
 
 // ============================================================================

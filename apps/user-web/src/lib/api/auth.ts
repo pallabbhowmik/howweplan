@@ -19,6 +19,11 @@ if (!API_BASE_URL) {
   );
 }
 
+// Normalize: remove trailing slash and /api suffix if present
+const normalizedBaseUrl = API_BASE_URL
+  .replace(/\/+$/, '') // Remove trailing slashes
+  .replace(/\/api$/, ''); // Remove /api suffix if someone added it
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -77,7 +82,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
  * Login with email and password
  */
 export async function login(params: LoginParams): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/identity/auth/login`, {
+  const response = await fetch(`${normalizedBaseUrl}/api/identity/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -92,7 +97,7 @@ export async function login(params: LoginParams): Promise<AuthResponse> {
  * Register a new user account
  */
 export async function register(params: RegisterParams): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/identity/auth/register`, {
+  const response = await fetch(`${normalizedBaseUrl}/api/identity/auth/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -110,7 +115,7 @@ export async function register(params: RegisterParams): Promise<AuthResponse> {
  * Refresh access token using refresh token
  */
 export async function refreshToken(token: string): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/identity/auth/refresh`, {
+  const response = await fetch(`${normalizedBaseUrl}/api/identity/auth/refresh`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -125,7 +130,7 @@ export async function refreshToken(token: string): Promise<AuthResponse> {
  * Logout and invalidate tokens
  */
 export async function logout(accessToken: string): Promise<void> {
-  await fetch(`${API_BASE_URL}/api/identity/auth/logout`, {
+  await fetch(`${normalizedBaseUrl}/api/identity/auth/logout`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
