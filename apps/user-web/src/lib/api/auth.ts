@@ -2,13 +2,12 @@
  * Authentication API Client
  * 
  * Handles login, registration, and token management
- * with the identity service.
+ * with the identity service via the API gateway.
  */
 
-import { IDENTITY_URL } from './services';
-
-// Use centralized service URL configuration
-const IDENTITY_SERVICE_URL = IDENTITY_URL;
+// Use the API gateway which routes to all backend services
+const API_GATEWAY_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'https://howweplan-gateway.onrender.com';
+const IDENTITY_API_PATH = '/api/identity/api/v1';
 
 export interface AuthUser {
   id: string;
@@ -68,7 +67,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
  * Login with email and password
  */
 export async function login(params: LoginParams): Promise<AuthResponse> {
-  const response = await fetch(`${IDENTITY_SERVICE_URL}/api/v1/auth/login`, {
+  const response = await fetch(`${API_GATEWAY_URL}${IDENTITY_API_PATH}/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -83,7 +82,7 @@ export async function login(params: LoginParams): Promise<AuthResponse> {
  * Register a new user account
  */
 export async function register(params: RegisterParams): Promise<AuthResponse> {
-  const response = await fetch(`${IDENTITY_SERVICE_URL}/api/v1/auth/register`, {
+  const response = await fetch(`${API_GATEWAY_URL}${IDENTITY_API_PATH}/auth/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -101,7 +100,7 @@ export async function register(params: RegisterParams): Promise<AuthResponse> {
  * Refresh access token using refresh token
  */
 export async function refreshToken(token: string): Promise<AuthResponse> {
-  const response = await fetch(`${IDENTITY_SERVICE_URL}/api/v1/auth/refresh`, {
+  const response = await fetch(`${API_GATEWAY_URL}${IDENTITY_API_PATH}/auth/refresh`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -116,7 +115,7 @@ export async function refreshToken(token: string): Promise<AuthResponse> {
  * Logout and invalidate tokens
  */
 export async function logout(accessToken: string): Promise<void> {
-  await fetch(`${IDENTITY_SERVICE_URL}/api/v1/auth/logout`, {
+  await fetch(`${API_GATEWAY_URL}${IDENTITY_API_PATH}/auth/logout`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
