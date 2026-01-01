@@ -72,14 +72,16 @@ const envSchema = z.object({
     .positive()
     .min(365, 'MESSAGE_RETENTION_DAYS must be at least 365 for compliance')
     .default(730),
-  EVIDENCE_ENCRYPTION_KEY: z
-    .string()
-    .default('AES256-ENCRYPTION-KEY-CHANGE-ME!')
-    .transform((val) => val.trim() || 'AES256-ENCRYPTION-KEY-CHANGE-ME!')
-    .refine(
-      (val) => val.length === 32,
-      { message: 'EVIDENCE_ENCRYPTION_KEY must be exactly 32 characters for AES-256' }
-    ),
+  EVIDENCE_ENCRYPTION_KEY: z.preprocess(
+    (val) => {
+      // Handle undefined, null, empty string, or whitespace
+      if (!val || (typeof val === 'string' && val.trim() === '')) {
+        return 'AES256-ENCRYPTION-KEY-CHANGE-ME!';
+      }
+      return val;
+    },
+    z.string().length(32, 'EVIDENCE_ENCRYPTION_KEY must be exactly 32 characters for AES-256')
+  ),
 
   // ---------------------------------------------------------------------------
   // CONTACT MASKING
