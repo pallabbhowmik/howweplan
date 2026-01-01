@@ -20,8 +20,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
 import { login, storeAuthTokens, AuthError } from '@/lib/api/auth';
+import { getSupabaseClient } from '@/lib/supabase/client';
 
-// Show quick start info for new users
+// Storage key for demo user
+const STORAGE_KEY = 'tc_demo_user_id';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,24 +41,53 @@ export default function LoginPage() {
     setError(null);
 
     try {
+      // First try to authenticate with the identity service
       const response = await login({
         email: formData.email,
         password: formData.password,
       });
       
       storeAuthTokens(response);
+      // Also store user ID for session
+      if (response.user?.id) {
+        localStorage.setItem(STORAGE_KEY, response.user.id);
+      }
       router.push('/dashboard');
     } catch (err) {
-      if (err instanceof AuthError) {
-        if (err.code === 'IDENTITY_INVALID_CREDENTIALS') {
-          setError('Invalid email or password. Please try again.');
-        } else if (err.code === 'IDENTITY_ACCOUNT_SUSPENDED') {
-          setError('Your account has been suspended. Please contact support.');
-        } else {
-          setError(err.message);
+      // If identity service fails, try direct Supabase lookup (demo mode)
+      try {
+        const supabase = getSupabaseClient();
+        const { data: user, error: dbError } = await supabase
+          .from('users')
+          .select('id, email, first_name, last_name, role')
+          .eq('email', formData.email.toLowerCase())
+          .eq('role', 'user')
+          .maybeSingle();
+
+        if (dbError) throw dbError;
+        
+        if (user) {
+          // Demo mode: store user ID and redirect
+          localStorage.setItem(STORAGE_KEY, user.id);
+          router.push('/dashboard');
+          return;
         }
-      } else {
-        setError('Unable to connect to the server. Please try again later.');
+        
+        // No user found
+        setError('Invalid email or password. Please try again.');
+      } catch {
+        // Both methods failed
+        if (err instanceof AuthError) {
+          if (err.code === 'IDENTITY_INVALID_CREDENTIALS') {
+            setError('Invalid email or password. Please try again.');
+          } else if (err.code === 'IDENTITY_ACCOUNT_SUSPENDED') {
+            setError('Your account has been suspended. Please contact support.');
+          } else {
+            setError(err.message);
+          }
+        } else {
+          setError('Invalid email or password. Please try again.');
+        }
       }
     } finally {
       setIsLoading(false);

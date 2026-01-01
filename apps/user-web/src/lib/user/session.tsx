@@ -1,7 +1,8 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import { clearAuthData, getStoredUser } from '@/lib/api/auth';
 
 const STORAGE_KEY = 'tc_demo_user_id';
 
@@ -16,6 +17,7 @@ export type UserIdentity = {
 type UserSessionValue = {
   user: UserIdentity | null;
   setUserId: (userId: string) => void;
+  signOut: () => void;
   loading: boolean;
   error: string | null;
 };
@@ -36,6 +38,21 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
       // ignore
     }
   };
+
+  const signOut = useCallback(() => {
+    // Clear demo user
+    setUserIdState(null);
+    setUser(null);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    // Clear auth tokens
+    clearAuthData();
+    // Redirect to login
+    window.location.href = '/login';
+  }, []);
 
   useEffect(() => {
     try {
@@ -59,30 +76,37 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
         if (userId) {
           effectiveUserId = userId;
         } else {
-          // Try to find a user that has conversations first (better demo experience)
-          const { data: convUser, error: convErr } = await supabase
-            .from('conversations')
-            .select('user_id')
-            .limit(1)
-            .maybeSingle();
-          
-          if (!convErr && convUser?.user_id) {
-            effectiveUserId = convUser.user_id;
+          // Check if we have a stored user from auth
+          const storedUser = getStoredUser();
+          if (storedUser?.id) {
+            effectiveUserId = storedUser.id;
+            setUserId(effectiveUserId);
           } else {
-            // Fallback: pick first user by created_at
-            const { data, error: e } = await supabase
-              .from('users')
-              .select('id')
-              .eq('role', 'user')
-              .order('created_at', { ascending: true })
+            // Try to find a user that has conversations first (better demo experience)
+            const { data: convUser, error: convErr } = await supabase
+              .from('conversations')
+              .select('user_id')
               .limit(1)
               .maybeSingle();
+            
+            if (!convErr && convUser?.user_id) {
+              effectiveUserId = convUser.user_id;
+            } else {
+              // Fallback: pick first user by created_at
+              const { data, error: e } = await supabase
+                .from('users')
+                .select('id')
+                .eq('role', 'user')
+                .order('created_at', { ascending: true })
+                .limit(1)
+                .maybeSingle();
 
-            if (e) throw e;
-            if (!data?.id) throw new Error('No demo user found in database');
-            effectiveUserId = data.id;
+              if (e) throw e;
+              if (!data?.id) throw new Error('No demo user found in database');
+              effectiveUserId = data.id;
+            }
+            setUserId(effectiveUserId);
           }
-          setUserId(effectiveUserId);
         }
 
         const { data: u, error: uErr } = await supabase
@@ -103,24 +127,26 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
           lastName: u.last_name,
           avatarUrl: u.avatar_url ?? null,
         });
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? 'Failed to load user');
+      } catch (e: unknown) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load user');
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
     load();
+    return () => { cancelled = true; };
   }, [userId]);
 
   const value = useMemo<UserSessionValue>(
     () => ({
       user,
       setUserId,
+      signOut,
       loading,
       error,
     }),
-    [user, loading, error]
+    [user, signOut, loading, error]
   );
 
   return <UserSessionContext.Provider value={value}>{children}</UserSessionContext.Provider>;

@@ -30,7 +30,7 @@ import { fetchUser, fetchUserRequests, type User as UserType } from '@/lib/data/
 
 export function UserLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user: sessionUser } = useUserSession();
+  const { user: sessionUser, signOut } = useUserSession();
   const [userData, setUserData] = useState<UserType | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -268,7 +268,10 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
                         </Link>
                       </div>
                       <div className="border-t border-gray-100 py-2">
-                        <button className="flex items-center gap-3 w-full px-5 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                        <button 
+                          onClick={signOut}
+                          className="flex items-center gap-3 w-full px-5 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
                           <LogOut className="h-4 w-4" />
                           Sign out
                         </button>
@@ -325,6 +328,18 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
                 <Sparkles className="h-5 w-5" />
                 Plan New Trip
               </Link>
+              <div className="border-t border-gray-100 mt-4 pt-4">
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    signOut();
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all font-medium"
+                >
+                  <LogOut className="h-5 w-5" />
+                  Sign out
+                </button>
+              </div>
             </div>
           </div>
         )}
