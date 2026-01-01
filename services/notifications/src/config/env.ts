@@ -12,31 +12,6 @@ function normalizeEnvString(value: string): string {
   return trimmed;
 }
 
-function canParseLikePgConnectionString(input: string): boolean {
-  // Mirrors pg-connection-string's permissive behavior:
-  // - encodes spaces and malformed % sequences
-  // - attempts URL parsing with a base and fallback dummy-host replacement
-  let str = input;
-
-  if (/ |%[^a-f0-9]|%[a-f0-9][^a-f0-9]/i.test(str)) {
-    str = encodeURI(str).replace(/%25(\d\d)/g, '%$1');
-  }
-
-  try {
-    // eslint-disable-next-line no-new
-    new URL(str, 'postgres://base');
-    return true;
-  } catch {
-    try {
-      // eslint-disable-next-line no-new
-      new URL(str.replace('@/', '@___DUMMY___/'), 'postgres://base');
-      return true;
-    } catch {
-      return false;
-    }
-  }
-}
-
 /**
  * Environment Configuration Schema
  * 
@@ -91,13 +66,6 @@ const envSchema = z.object({
     .refine(
       (url: string) => url.startsWith('postgresql://') || url.startsWith('postgres://'),
       { message: 'DATABASE_URL must be a valid PostgreSQL connection string' }
-    )
-    .refine(
-      (url: string) => canParseLikePgConnectionString(url),
-      {
-        message:
-          'DATABASE_URL is not a valid URL (check encoding, remove quotes, and ensure special chars are percent-encoded)',
-      }
     ),
   DATABASE_POOL_MIN: z.coerce.number().int().min(1).default(2),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).default(10),
