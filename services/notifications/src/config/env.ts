@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 function normalizeEnvString(value: string): string {
-  const trimmed = value.trim();
+  // Render UI copy/paste sometimes introduces newlines; strip them.
+  const trimmed = value.replace(/[\r\n\t]/g, '').trim();
   if (
     (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
     (trimmed.startsWith("'") && trimmed.endsWith("'"))
@@ -9,6 +10,31 @@ function normalizeEnvString(value: string): string {
     return trimmed.slice(1, -1).trim();
   }
   return trimmed;
+}
+
+function canParseLikePgConnectionString(input: string): boolean {
+  // Mirrors pg-connection-string's permissive behavior:
+  // - encodes spaces and malformed % sequences
+  // - attempts URL parsing with a base and fallback dummy-host replacement
+  let str = input;
+
+  if (/ |%[^a-f0-9]|%[a-f0-9][^a-f0-9]/i.test(str)) {
+    str = encodeURI(str).replace(/%25(\d\d)/g, '%$1');
+  }
+
+  try {
+    // eslint-disable-next-line no-new
+    new URL(str, 'postgres://base');
+    return true;
+  } catch {
+    try {
+      // eslint-disable-next-line no-new
+      new URL(str.replace('@/', '@___DUMMY___/'), 'postgres://base');
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 /**
@@ -67,16 +93,7 @@ const envSchema = z.object({
       { message: 'DATABASE_URL must be a valid PostgreSQL connection string' }
     )
     .refine(
-      (url: string) => {
-        try {
-          // Ensure it is parseable by WHATWG URL (used by pg-connection-string)
-          // eslint-disable-next-line no-new
-          new URL(url, 'postgres://base');
-          return true;
-        } catch {
-          return false;
-        }
-      },
+      (url: string) => canParseLikePgConnectionString(url),
       {
         message:
           'DATABASE_URL is not a valid URL (check encoding, remove quotes, and ensure special chars are percent-encoded)',
