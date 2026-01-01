@@ -24,11 +24,13 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!sessionUser?.userId) return;
+    let cancelled = false;
 
     const loadUser = async () => {
       setLoading(true);
       try {
         const data = await fetchUser(sessionUser.userId);
+        if (cancelled) return;
         if (data) {
           setUserData(data);
           setFormData({
@@ -39,13 +41,15 @@ export default function ProfilePage() {
           });
         }
       } catch (error) {
+        if (cancelled) return;
         console.error('Error loading user:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     loadUser();
+    return () => { cancelled = true; };
   }, [sessionUser?.userId]);
 
   const handleSave = async () => {

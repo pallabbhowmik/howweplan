@@ -102,15 +102,20 @@ export function authMiddleware(
   const token = authHeader.slice(7);
 
   try {
-    // Development JWT secret (must match admin-web dev-token.ts)
-    const DEV_JWT_SECRET = 'dev-jwt-secret-minimum-32-characters-long';
-    const DEV_JWT_ISSUER = 'tripcomposer-identity';
-    const DEV_JWT_AUDIENCE = 'tripcomposer-platform';
+    // JWT configuration from environment
+    const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'development' ? 'dev-jwt-secret-minimum-32-characters-long' : '');
+    const JWT_ISSUER = process.env.JWT_ISSUER || 'tripcomposer-identity';
+    const JWT_AUDIENCE = process.env.JWT_AUDIENCE || 'tripcomposer-platform';
+    
+    if (!JWT_SECRET) {
+      res.status(500).json({ error: 'JWT_SECRET not configured' });
+      return;
+    }
     
     // Verify JWT token
-    const decoded = jwt.verify(token, DEV_JWT_SECRET, {
-      issuer: DEV_JWT_ISSUER,
-      audience: DEV_JWT_AUDIENCE,
+    const decoded = jwt.verify(token, JWT_SECRET, {
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
       algorithms: ['HS256'],
     }) as JWTPayload;
 

@@ -16,20 +16,24 @@ export default function BookingsPage() {
 
   useEffect(() => {
     if (!user?.userId) return;
+    let cancelled = false;
 
     const loadBookings = async () => {
       setLoading(true);
       try {
         const data = await fetchUserBookings(user.userId);
+        if (cancelled) return;
         setBookings(data);
       } catch (error) {
+        if (cancelled) return;
         console.error('Error loading bookings:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     loadBookings();
+    return () => { cancelled = true; };
   }, [user?.userId]);
 
   // Calculate stats from bookings

@@ -17,8 +17,12 @@ const eventHistory: any[] = [];
 app.use(helmet());
 app.use(express.json({ limit: '1mb' }));
 
-// CORS configuration
-const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS?.split(',') || ['*'];
+// CORS configuration - only allow specific origins in production
+const isProduction = process.env.NODE_ENV === 'production';
+const defaultOrigins = ['https://howweplan-user.vercel.app', 'https://howweplan-agent.vercel.app', 'https://howweplan-admin.vercel.app'];
+const allowedOrigins = isProduction 
+  ? (process.env.CORS_ALLOWED_ORIGINS?.split(',') || defaultOrigins)
+  : true; // Allow all in development
 app.use(
   cors({
     origin: allowedOrigins,

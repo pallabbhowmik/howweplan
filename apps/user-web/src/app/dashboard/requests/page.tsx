@@ -19,20 +19,24 @@ export default function RequestsPage() {
 
   useEffect(() => {
     if (!user?.userId) return;
+    let cancelled = false;
 
     const loadRequests = async () => {
       setLoading(true);
       try {
         const data = await fetchUserRequests(user.userId);
+        if (cancelled) return;
         setRequests(data);
       } catch (error) {
+        if (cancelled) return;
         console.error('Error loading requests:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     loadRequests();
+    return () => { cancelled = true; };
   }, [user?.userId]);
 
   // Filter requests based on search and status

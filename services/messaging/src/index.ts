@@ -34,9 +34,18 @@ export function createApp(): Express {
 
   // Security middleware
   app.use(helmet());
+  
+  // CORS configuration - restrict origins in production
+  const corsOrigins = config.isDevelopment 
+    ? true // Allow all in development
+    : (process.env['ALLOWED_ORIGINS']?.split(',') || [
+        'https://howweplan-user.vercel.app',
+        'https://howweplan-agent.vercel.app', 
+        'https://howweplan-admin.vercel.app'
+      ]);
   app.use(
     cors({
-      origin: config.isDevelopment ? '*' : process.env['ALLOWED_ORIGINS']?.split(','),
+      origin: corsOrigins,
       credentials: true,
     })
   );

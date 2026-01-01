@@ -11,6 +11,16 @@ import helmet from 'helmet';
 // Environment validation runs on import
 import { config } from './env';
 
+// CORS configuration
+const corsOptions = {
+  origin: config.app.isProduction 
+    ? (process.env.ALLOWED_ORIGINS?.split(',') || ['https://howweplan-user.vercel.app', 'https://howweplan-agent.vercel.app', 'https://howweplan-admin.vercel.app'])
+    : true, // Allow all in development
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+};
+
 // Domain
 import { createRequestRepository } from './domain/request.repository';
 
@@ -77,7 +87,7 @@ async function main() {
 
   // Global middleware
   app.use(helmet());
-  app.use(cors());
+  app.use(cors(corsOptions));
   app.use(express.json());
   app.use(requestIdMiddleware);
   app.use(rateLimitMiddleware);
