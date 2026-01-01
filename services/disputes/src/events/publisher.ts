@@ -71,7 +71,7 @@ function createMetadata(context: EventContext): EventMetadata {
  * Event publisher class that handles publishing to the event bus.
  */
 class EventPublisher {
-  private readonly eventBusUrl: string;
+  private readonly eventBusUrl: string | undefined;
   private readonly serviceName: string;
 
   constructor() {
@@ -86,6 +86,19 @@ class EventPublisher {
     event: T
   ): Promise<PublishResult> {
     const startTime = Date.now();
+
+    if (!this.eventBusUrl) {
+      logger.warn({
+        msg: 'EVENT_BUS_URL not configured; skipping event publish',
+        eventType: event.eventType,
+        eventId: event.eventId,
+      });
+      return {
+        success: false,
+        eventId: event.eventId,
+        error: 'EVENT_BUS_URL not configured',
+      };
+    }
 
     try {
       const response = await fetch(`${this.eventBusUrl}/publish`, {

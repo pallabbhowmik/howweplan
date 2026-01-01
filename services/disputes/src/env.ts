@@ -31,6 +31,24 @@ const commaSeparatedList = z.string().transform((val) => {
   return val.split(',').map((s) => s.trim()).filter(Boolean);
 });
 
+const optionalUrl = z
+  .string()
+  .optional()
+  .transform((val) => {
+    if (typeof val !== 'string') return undefined;
+    const trimmed = val.trim();
+    return trimmed === '' ? undefined : trimmed;
+  })
+  .refine((val) => !val || (() => {
+    try {
+      // eslint-disable-next-line no-new
+      new URL(val);
+      return true;
+    } catch {
+      return false;
+    }
+  })(), { message: 'Invalid url' });
+
 /**
  * Environment variable schema with strict validation.
  * Every variable used by this service MUST be declared here.
@@ -47,7 +65,7 @@ const envSchema = z.object({
   // -------------------------------------------------------------------------
   // API CONNECTIVITY
   // -------------------------------------------------------------------------
-  EVENT_BUS_URL: z.string().url(),
+  EVENT_BUS_URL: optionalUrl,
   BOOKING_SERVICE_URL: z.string().url(),
   PAYMENTS_SERVICE_URL: z.string().url(),
   NOTIFICATION_SERVICE_URL: z.string().url(),
@@ -103,7 +121,7 @@ const envSchema = z.object({
   AUDIT_LOG_ENABLED: stringToBoolean.default('true'),
   AUDIT_LOG_DESTINATION: z.enum(['database', 'stdout', 'file']).default('database'),
   OTEL_ENABLED: stringToBoolean.default('false'),
-  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
+  OTEL_EXPORTER_OTLP_ENDPOINT: optionalUrl,
   OTEL_SERVICE_NAME: z.string().default('disputes'),
   METRICS_ENABLED: stringToBoolean.default('true'),
   METRICS_PORT: stringToNumber.pipe(z.number().min(1).max(65535)).default('9106'),

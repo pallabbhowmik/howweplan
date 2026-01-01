@@ -94,6 +94,11 @@ class EventSubscriber {
       return;
     }
 
+    if (!config.services.eventBus) {
+      logger.warn({ msg: 'EVENT_BUS_URL not configured; skipping event subscriber start' });
+      return;
+    }
+
     this.isRunning = true;
     logger.info({ msg: 'Event subscriber started' });
 
