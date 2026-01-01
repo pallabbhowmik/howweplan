@@ -22,7 +22,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
 import { login, storeAuthTokens, AuthError } from '@/lib/api/auth';
-import { getSupabaseClient } from '@/lib/supabase/client';
 
 const STORAGE_KEY = 'tc_demo_user_id';
 
@@ -53,36 +52,16 @@ export default function LoginPage() {
       }
       router.push('/dashboard');
     } catch (err) {
-      try {
-        const supabase = getSupabaseClient();
-        const { data: user, error: dbError } = await supabase
-          .from('users')
-          .select('id, email, first_name, last_name, role')
-          .eq('email', formData.email.toLowerCase())
-          .eq('role', 'user')
-          .maybeSingle();
-
-        if (dbError) throw dbError;
-        
-        if (user) {
-          localStorage.setItem(STORAGE_KEY, user.id);
-          router.push('/dashboard');
-          return;
-        }
-        
-        setError('Invalid email or password. Please try again.');
-      } catch {
-        if (err instanceof AuthError) {
-          if (err.code === 'IDENTITY_INVALID_CREDENTIALS') {
-            setError('Invalid email or password. Please try again.');
-          } else if (err.code === 'IDENTITY_ACCOUNT_SUSPENDED') {
-            setError('Your account has been suspended. Please contact support.');
-          } else {
-            setError(err.message || 'Failed to sign in. Please try again.');
-          }
+      if (err instanceof AuthError) {
+        if (err.code === 'IDENTITY_INVALID_CREDENTIALS') {
+          setError('Invalid email or password. Please try again.');
+        } else if (err.code === 'IDENTITY_ACCOUNT_SUSPENDED') {
+          setError('Your account has been suspended. Please contact support.');
         } else {
-          setError('Failed to sign in. Please try again.');
+          setError(err.message || 'Failed to sign in. Please try again.');
         }
+      } else {
+        setError('Failed to sign in. Please try again.');
       }
     } finally {
       setIsLoading(false);
