@@ -1,17 +1,52 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Calendar, Users, Clock, MessageSquare, FileText, Loader2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  MapPin,
+  Calendar,
+  Users,
+  Clock,
+  MessageSquare,
+  FileText,
+  Loader2,
+  Wallet,
+  Sparkles,
+  Globe,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  ChevronRight,
+  Star,
+  Palmtree,
+  Mountain,
+  Briefcase,
+  Heart,
+  Camera,
+  Utensils,
+  Share2,
+  Edit,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUserSession } from '@/lib/user/session';
 import { fetchRequest, type TravelRequest } from '@/lib/data/api';
 
+const tripTypeIcons: Record<string, React.ElementType> = {
+  leisure: Palmtree,
+  adventure: Mountain,
+  business: Briefcase,
+  honeymoon: Heart,
+  cultural: Camera,
+  culinary: Utensils,
+};
+
 export default function RequestDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const requestId = params.id as string;
   const { loading: userLoading } = useUserSession();
   const [request, setRequest] = useState<TravelRequest | null>(null);
@@ -36,7 +71,10 @@ export default function RequestDetailPage() {
   if (userLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-slate-500">Loading request details...</p>
+        </div>
       </div>
     );
   }
@@ -44,10 +82,13 @@ export default function RequestDetailPage() {
   if (!request) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <div className="bg-slate-100 rounded-full p-6 mb-4">
+          <AlertCircle className="h-12 w-12 text-slate-400" />
+        </div>
         <h2 className="text-2xl font-bold mb-2">Request Not Found</h2>
-        <p className="text-muted-foreground mb-4">The request you&apos;re looking for doesn&apos;t exist.</p>
+        <p className="text-muted-foreground mb-6">The request you&apos;re looking for doesn&apos;t exist or has been removed.</p>
         <Link href="/dashboard/requests">
-          <Button>
+          <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Requests
           </Button>
@@ -56,136 +97,163 @@ export default function RequestDetailPage() {
     );
   }
 
-  const hasProposals = request.state === 'PROPOSALS_RECEIVED' || (request.agentsResponded && request.agentsResponded > 0);
-  const canEdit = request.state === 'DRAFT';
-  const isActive = !['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(request.state);
+  const hasProposals = request.agentsResponded && request.agentsResponded > 0;
+  const canEdit = ['draft', 'open', 'DRAFT', 'SUBMITTED'].includes(request.state);
+  const isActive = !['completed', 'cancelled', 'expired', 'COMPLETED', 'CANCELLED', 'EXPIRED'].includes(request.state);
+  const tripDuration = getTripDuration(request.departureDate, request.returnDate);
+  const TripIcon = tripTypeIcons[request.travelStyle?.toLowerCase() || 'leisure'] || Globe;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-8">
       {/* Back Button */}
-      <Link href="/dashboard/requests" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4 mr-1" />
+      <Link href="/dashboard/requests" className="inline-flex items-center text-sm text-slate-500 hover:text-slate-900 group">
+        <ArrowLeft className="h-4 w-4 mr-1 group-hover:-translate-x-1 transition-transform" />
         Back to Requests
       </Link>
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold">{getDestinationLabel(request)}</h1>
-            <StatusBadge status={request.state} />
-          </div>
-          <div className="flex flex-wrap gap-4 text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              {formatDateRange(request.departureDate, request.returnDate)}
-            </span>
-            <span className="flex items-center gap-1">
-              <Users className="h-4 w-4" />
-              {getTravelersCount(request.travelers)} travelers
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              Created {formatDate(request.createdAt)}
-            </span>
-          </div>
-        </div>
+      {/* Hero Header */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-3xl p-8 text-white shadow-2xl">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtOS45NCAwLTE4IDguMDYtMTggMThzOC4wNiAxOCAxOCAxOCAxOC04LjA2IDE4LTE4LTguMDYtMTgtMTgtMTh6bTAgMzJjLTcuNzMyIDAtMTQtNi4yNjgtMTQtMTRzNi4yNjgtMTQgMTQtMTQgMTQgNi4yNjggMTQgMTQtNi4yNjggMTQtMTQgMTR6IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9Ii4wNSIvPjwvZz48L3N2Zz4=')] opacity-30" />
+        <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+        
+        <div className="relative">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                  <TripIcon className="h-8 w-8" />
+                </div>
+                <StatusBadge status={request.state} />
+              </div>
+              
+              <h1 className="text-4xl font-bold mb-2">{getDestinationLabel(request)}</h1>
+              
+              <div className="flex flex-wrap gap-6 text-blue-100 mt-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  <span>{formatDateRange(request.departureDate, request.returnDate)}</span>
+                </div>
+                {tripDuration && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    <span>{tripDuration} days</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  <span>{getTravelersCount(request.travelers)} travelers</span>
+                </div>
+              </div>
+            </div>
 
-        <div className="flex gap-2">
-          {canEdit && (
-            <Button variant="outline">
-              <FileText className="h-4 w-4 mr-2" />
-              Edit Request
-            </Button>
-          )}
-          {hasProposals && (
-            <Link href={`/dashboard/requests/${request.id}/proposals`}>
-              <Button>
-                <MessageSquare className="h-4 w-4 mr-2" />
-                View Proposals ({request.agentsResponded || 0})
-              </Button>
-            </Link>
-          )}
+            <div className="flex flex-wrap gap-3">
+              {hasProposals && (
+                <Link href={`/dashboard/requests/${request.id}/proposals`}>
+                  <Button size="lg" variant="secondary" className="shadow-xl group font-semibold">
+                    <MessageSquare className="h-5 w-5 mr-2" />
+                    View {request.agentsResponded} Proposal{request.agentsResponded !== 1 ? 's' : ''}
+                    <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </Link>
+              )}
+              {canEdit && (
+                <Button size="lg" variant="secondary" className="bg-white/10 border-white/20 hover:bg-white/20">
+                  <Edit className="h-5 w-5 mr-2" />
+                  Edit
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Trip Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Trip Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Destination</p>
-                    <p className="font-medium flex items-center gap-1">
-                      <MapPin className="h-4 w-4 text-blue-600" />
-                      {getDestinationLabel(request)}
-                    </p>
-                  </div>
-                  {request.departureLocation && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Departing From</p>
-                      <p className="font-medium">{request.departureLocation.city || 'Not specified'}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm text-muted-foreground">Travel Dates</p>
-                    <p className="font-medium">{formatDateRange(request.departureDate, request.returnDate)}</p>
-                  </div>
+          {/* Trip Details Card */}
+          <Card className="border-0 shadow-lg overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50/50 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <MapPin className="h-5 w-5 text-blue-600" />
                 </div>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Travelers</p>
-                    <p className="font-medium">{getTravelersLabel(request.travelers)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Budget</p>
-                    <p className="font-medium flex items-center gap-1">
-                      {formatBudget(request.budgetMin, request.budgetMax, request.budgetCurrency)}
-                    </p>
-                  </div>
+                Trip Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <DetailItem
+                    icon={<Globe className="h-5 w-5 text-blue-600" />}
+                    label="Destination"
+                    value={getDestinationLabel(request)}
+                  />
+                  <DetailItem
+                    icon={<Calendar className="h-5 w-5 text-purple-600" />}
+                    label="Travel Dates"
+                    value={formatDateRange(request.departureDate, request.returnDate)}
+                    subtext={tripDuration ? `${tripDuration} days trip` : undefined}
+                  />
+                  <DetailItem
+                    icon={<Users className="h-5 w-5 text-green-600" />}
+                    label="Travelers"
+                    value={getTravelersLabel(request.travelers)}
+                  />
+                </div>
+                <div className="space-y-6">
+                  <DetailItem
+                    icon={<Wallet className="h-5 w-5 text-emerald-600" />}
+                    label="Budget"
+                    value={formatBudget(request.budgetMin, request.budgetMax)}
+                    highlight
+                  />
                   {request.travelStyle && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Travel Style</p>
-                      <p className="font-medium">{request.travelStyle}</p>
-                    </div>
+                    <DetailItem
+                      icon={<Sparkles className="h-5 w-5 text-amber-600" />}
+                      label="Travel Style"
+                      value={request.travelStyle.charAt(0).toUpperCase() + request.travelStyle.slice(1)}
+                    />
                   )}
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Description */}
-          {(request.description || request.notes) && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Description</CardTitle>
+          {/* Preferences Card */}
+          {request.preferences && Object.keys(request.preferences).length > 0 && (
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-purple-50/50 border-b">
+                <CardTitle className="flex items-center gap-2">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Star className="h-5 w-5 text-purple-600" />
+                  </div>
+                  Preferences & Interests
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground whitespace-pre-wrap">{request.description || request.notes}</p>
+              <CardContent className="p-6">
+                <div className="flex flex-wrap gap-3">
+                  {renderPreferences(request.preferences)}
+                </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Preferences */}
-          {request.preferences && Object.keys(request.preferences).length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Preferences</CardTitle>
+          {/* Notes Card */}
+          {(request.description || request.notes) && (
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-amber-50/50 border-b">
+                <CardTitle className="flex items-center gap-2">
+                  <div className="p-2 bg-amber-100 rounded-lg">
+                    <FileText className="h-5 w-5 text-amber-600" />
+                  </div>
+                  Special Requirements
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(request.preferences).map(([key, value]) => (
-                    <Badge key={key} variant="secondary">
-                      {typeof value === 'string' ? value : key}
-                    </Badge>
-                  ))}
-                </div>
+              <CardContent className="p-6">
+                <p className="text-slate-600 whitespace-pre-wrap leading-relaxed">
+                  {request.description || request.notes}
+                </p>
               </CardContent>
             </Card>
           )}
@@ -194,50 +262,47 @@ export default function RequestDetailPage() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Status Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Request Status</CardTitle>
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-slate-50">
+            <CardHeader className="border-b bg-slate-50/50">
+              <CardTitle className="text-lg">Request Status</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="p-6 space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Status</span>
+                <span className="text-slate-500">Status</span>
                 <StatusBadge status={request.state} />
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Agents Responded</span>
-                <span className="font-medium">{request.agentsResponded || 0}</span>
+                <span className="text-slate-500">Agents Responded</span>
+                <span className="text-2xl font-bold text-blue-600">{request.agentsResponded || 0}</span>
               </div>
-              {request.expiresAt && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Expires</span>
-                  <span className="font-medium">{formatDate(request.expiresAt)}</span>
-                </div>
-              )}
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Created</span>
+                <span className="font-medium">{formatDate(request.createdAt)}</span>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Actions Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Actions</CardTitle>
+          {/* Quick Actions Card */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="border-b bg-slate-50/50">
+              <CardTitle className="text-lg">Actions</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="p-4 space-y-3">
               {hasProposals && (
                 <Link href={`/dashboard/requests/${request.id}/proposals`} className="block">
-                  <Button className="w-full">
-                    <MessageSquare className="h-4 w-4 mr-2" />
+                  <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-12 font-semibold">
+                    <MessageSquare className="h-5 w-5 mr-2" />
                     View Proposals
                   </Button>
                 </Link>
               )}
-              {canEdit && (
-                <Button variant="outline" className="w-full">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Edit Request
-                </Button>
-              )}
-              {isActive && request.state !== 'DRAFT' && (
-                <Button variant="outline" className="w-full text-red-600 hover:text-red-700">
+              <Button variant="outline" className="w-full h-11">
+                <Share2 className="h-4 w-4 mr-2" />
+                Share Request
+              </Button>
+              {isActive && (
+                <Button variant="outline" className="w-full h-11 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
+                  <XCircle className="h-4 w-4 mr-2" />
                   Cancel Request
                 </Button>
               )}
@@ -245,36 +310,42 @@ export default function RequestDetailPage() {
           </Card>
 
           {/* Timeline Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Timeline</CardTitle>
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="border-b bg-slate-50/50">
+              <CardTitle className="text-lg">Timeline</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex gap-3">
-                  <div className="w-2 h-2 rounded-full bg-blue-600 mt-2" />
-                  <div>
-                    <p className="text-sm font-medium">Request Created</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(request.createdAt)}</p>
-                  </div>
-                </div>
-                {request.state !== 'DRAFT' && (
-                  <div className="flex gap-3">
-                    <div className="w-2 h-2 rounded-full bg-blue-600 mt-2" />
-                    <div>
-                      <p className="text-sm font-medium">Request Submitted</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(request.updatedAt)}</p>
-                    </div>
-                  </div>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <TimelineItem
+                  icon={<CheckCircle className="h-4 w-4" />}
+                  title="Request Created"
+                  date={formatDate(request.createdAt)}
+                  active
+                />
+                {!['draft', 'DRAFT'].includes(request.state) && (
+                  <TimelineItem
+                    icon={<CheckCircle className="h-4 w-4" />}
+                    title="Request Submitted"
+                    date={formatDate(request.updatedAt)}
+                    active
+                  />
                 )}
                 {hasProposals && (
-                  <div className="flex gap-3">
-                    <div className="w-2 h-2 rounded-full bg-green-600 mt-2" />
-                    <div>
-                      <p className="text-sm font-medium">Proposals Received</p>
-                      <p className="text-xs text-muted-foreground">{request.agentsResponded} agent(s) responded</p>
-                    </div>
-                  </div>
+                  <TimelineItem
+                    icon={<MessageSquare className="h-4 w-4" />}
+                    title="Proposals Received"
+                    date={`${request.agentsResponded} agent(s)`}
+                    active
+                    highlight
+                  />
+                )}
+                {!hasProposals && isActive && (
+                  <TimelineItem
+                    icon={<Clock className="h-4 w-4" />}
+                    title="Awaiting Proposals"
+                    date="In progress..."
+                    pending
+                  />
                 )}
               </div>
             </CardContent>
@@ -286,19 +357,184 @@ export default function RequestDetailPage() {
 }
 
 // ============================================================================
+// Components
+// ============================================================================
+
+function DetailItem({ 
+  icon, 
+  label, 
+  value, 
+  subtext,
+  highlight 
+}: { 
+  icon: React.ReactNode; 
+  label: string; 
+  value: string;
+  subtext?: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-4">
+      <div className={`p-2.5 rounded-xl ${highlight ? 'bg-gradient-to-br from-emerald-100 to-green-100' : 'bg-slate-100'}`}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-sm text-slate-500 mb-0.5">{label}</p>
+        <p className={`font-semibold ${highlight ? 'text-emerald-700 text-lg' : 'text-slate-900'}`}>{value}</p>
+        {subtext && <p className="text-xs text-slate-400 mt-0.5">{subtext}</p>}
+      </div>
+    </div>
+  );
+}
+
+function TimelineItem({ 
+  icon, 
+  title, 
+  date, 
+  active, 
+  pending,
+  highlight 
+}: { 
+  icon: React.ReactNode; 
+  title: string; 
+  date: string;
+  active?: boolean;
+  pending?: boolean;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="flex gap-4">
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+        highlight ? 'bg-green-100 text-green-600' :
+        active ? 'bg-blue-100 text-blue-600' : 
+        pending ? 'bg-slate-100 text-slate-400 animate-pulse' : 
+        'bg-slate-100 text-slate-400'
+      }`}>
+        {icon}
+      </div>
+      <div>
+        <p className={`font-medium ${pending ? 'text-slate-400' : 'text-slate-900'}`}>{title}</p>
+        <p className="text-sm text-slate-500">{date}</p>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const normalizedStatus = status.toLowerCase();
+  const config: Record<string, { label: string; className: string; icon: React.ElementType }> = {
+    draft: { label: 'Draft', className: 'bg-slate-100 text-slate-700', icon: FileText },
+    open: { label: 'Open', className: 'bg-blue-100 text-blue-700', icon: Globe },
+    submitted: { label: 'Submitted', className: 'bg-blue-100 text-blue-700', icon: CheckCircle },
+    matched: { label: 'Agents Matched', className: 'bg-purple-100 text-purple-700', icon: Users },
+    proposals_received: { label: 'Proposals Ready', className: 'bg-amber-100 text-amber-700', icon: MessageSquare },
+    accepted: { label: 'Accepted', className: 'bg-green-100 text-green-700', icon: CheckCircle },
+    completed: { label: 'Completed', className: 'bg-green-100 text-green-700', icon: CheckCircle },
+    cancelled: { label: 'Cancelled', className: 'bg-red-100 text-red-700', icon: XCircle },
+    expired: { label: 'Expired', className: 'bg-slate-100 text-slate-500', icon: Clock },
+  };
+
+  const { label, className, icon: Icon } = config[normalizedStatus] || { 
+    label: status, 
+    className: 'bg-slate-100 text-slate-700', 
+    icon: AlertCircle 
+  };
+  
+  return (
+    <Badge className={`${className} px-3 py-1 font-medium gap-1.5`}>
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </Badge>
+  );
+}
+
+function renderPreferences(preferences: Record<string, unknown>): React.ReactNode[] {
+  const badges: React.ReactNode[] = [];
+  
+  // Handle experiences array
+  if (Array.isArray(preferences.experiences)) {
+    preferences.experiences.forEach((exp, i) => {
+      badges.push(
+        <Badge key={`exp-${i}`} variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1.5">
+          {exp}
+        </Badge>
+      );
+    });
+  }
+  
+  // Handle trip type
+  if (preferences.tripType && typeof preferences.tripType === 'string') {
+    badges.push(
+      <Badge key="tripType" className="bg-purple-50 text-purple-700 border-purple-200 px-3 py-1.5">
+        {preferences.tripType}
+      </Badge>
+    );
+  }
+  
+  // Handle budget range
+  if (preferences.budgetRange && typeof preferences.budgetRange === 'string') {
+    badges.push(
+      <Badge key="budget" className="bg-green-50 text-green-700 border-green-200 px-3 py-1.5">
+        {preferences.budgetRange}
+      </Badge>
+    );
+  }
+
+  // Handle traveler breakdown
+  if (preferences.adults) {
+    badges.push(
+      <Badge key="adults" variant="outline" className="px-3 py-1.5">
+        {preferences.adults} Adults
+      </Badge>
+    );
+  }
+  if (preferences.children && Number(preferences.children) > 0) {
+    badges.push(
+      <Badge key="children" variant="outline" className="px-3 py-1.5">
+        {preferences.children} Children
+      </Badge>
+    );
+  }
+  if (preferences.infants && Number(preferences.infants) > 0) {
+    badges.push(
+      <Badge key="infants" variant="outline" className="px-3 py-1.5">
+        {preferences.infants} Infants
+      </Badge>
+    );
+  }
+
+  return badges.length > 0 ? badges : [
+    <span key="none" className="text-slate-500">No specific preferences set</span>
+  ];
+}
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 
 function getDestinationLabel(request: TravelRequest): string {
   if (request.destination) {
+    if (typeof request.destination === 'string') return request.destination;
     return request.destination.label || request.destination.city || request.title || 'Trip';
   }
   return request.title || 'Trip';
 }
 
-function formatDateRange(start: string, end: string): string {
+function getTripDuration(start: string, end: string): number | null {
+  if (!start || !end) return null;
   const startDate = new Date(start);
   const endDate = new Date(end);
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return null;
+  const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  return days > 0 ? days : null;
+}
+
+function formatDateRange(start: string, end: string): string {
+  if (!start || !end) return 'Dates not set';
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return 'Invalid dates';
+  
   const startMonth = startDate.toLocaleDateString('en-US', { month: 'short' });
   const endMonth = endDate.toLocaleDateString('en-US', { month: 'short' });
   
@@ -309,7 +545,10 @@ function formatDateRange(start: string, end: string): string {
 }
 
 function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return 'Invalid date';
+  return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -326,31 +565,16 @@ function getTravelersLabel(travelers: { adults?: number; children?: number; infa
   if (travelers.adults) parts.push(`${travelers.adults} adult${travelers.adults > 1 ? 's' : ''}`);
   if (travelers.children) parts.push(`${travelers.children} child${travelers.children > 1 ? 'ren' : ''}`);
   if (travelers.infants) parts.push(`${travelers.infants} infant${travelers.infants > 1 ? 's' : ''}`);
-  return parts.length > 0 ? parts.join(', ') : `${getTravelersCount(travelers)} traveler(s)`;
+  if (parts.length > 0) return parts.join(', ');
+  const total = getTravelersCount(travelers);
+  return `${total} traveler${total !== 1 ? 's' : ''}`;
 }
 
-function formatBudget(min: number | null, max: number | null, currency: string): string {
-  void currency;
+function formatBudget(min: number | null, max: number | null): string {
   if (min && max) {
     return `₹${min.toLocaleString('en-IN')} - ₹${max.toLocaleString('en-IN')}`;
   }
   if (max) return `Up to ₹${max.toLocaleString('en-IN')}`;
   if (min) return `From ₹${min.toLocaleString('en-IN')}`;
   return 'Flexible';
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const variants: Record<string, { label: string; className: string }> = {
-    DRAFT: { label: 'Draft', className: 'bg-slate-100 text-slate-700' },
-    SUBMITTED: { label: 'Submitted', className: 'bg-blue-100 text-blue-700' },
-    MATCHING: { label: 'Finding Agents', className: 'bg-blue-100 text-blue-700 animate-pulse' },
-    PROPOSALS_RECEIVED: { label: 'Proposals Ready', className: 'bg-amber-100 text-amber-700' },
-    BOOKED: { label: 'Booked', className: 'bg-green-100 text-green-700' },
-    COMPLETED: { label: 'Completed', className: 'bg-green-100 text-green-700' },
-    CANCELLED: { label: 'Cancelled', className: 'bg-red-100 text-red-700' },
-    EXPIRED: { label: 'Expired', className: 'bg-slate-100 text-slate-700' },
-  };
-
-  const config = variants[status] || { label: status, className: 'bg-slate-100 text-slate-700' };
-  return <Badge className={config.className}>{config.label}</Badge>;
 }

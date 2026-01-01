@@ -26,14 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useUserSession } from '@/lib/user/session';
-import { fetchUser, type User as UserType } from '@/lib/data/api';
-
-const navigationItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/dashboard/requests', label: 'My Requests', icon: MapPin, badge: '2' },
-  { href: '/dashboard/bookings', label: 'Bookings', icon: Calendar },
-  { href: '/dashboard/messages', label: 'Messages', icon: MessageSquare, badge: '3' },
-];
+import { fetchUser, fetchUserRequests, type User as UserType } from '@/lib/data/api';
 
 export function UserLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -43,17 +36,33 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [requestCount, setRequestCount] = useState(0);
 
   useEffect(() => {
     if (!sessionUser?.userId) return;
     
-    const loadUser = async () => {
-      const data = await fetchUser(sessionUser.userId);
-      if (data) setUserData(data);
+    const loadData = async () => {
+      const [userData, requests] = await Promise.all([
+        fetchUser(sessionUser.userId),
+        fetchUserRequests(sessionUser.userId),
+      ]);
+      if (userData) setUserData(userData);
+      // Count active requests (not completed/cancelled)
+      const activeRequests = requests.filter(r => 
+        !['completed', 'cancelled', 'COMPLETED', 'CANCELLED'].includes(r.state)
+      );
+      setRequestCount(activeRequests.length);
     };
     
-    loadUser();
+    loadData();
   }, [sessionUser?.userId]);
+
+  const navigationItems = [
+    { href: '/dashboard', label: 'Dashboard', icon: Home },
+    { href: '/dashboard/requests', label: 'My Requests', icon: MapPin, badge: requestCount > 0 ? String(requestCount) : undefined },
+    { href: '/dashboard/bookings', label: 'Bookings', icon: Calendar },
+    { href: '/dashboard/messages', label: 'Messages', icon: MessageSquare, badge: '3' },
+  ];
 
   // Get user display info
   const userDisplay = {
