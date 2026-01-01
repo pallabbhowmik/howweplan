@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -46,7 +46,6 @@ const tripTypeIcons: Record<string, React.ElementType> = {
 
 export default function RequestDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const requestId = params.id as string;
   const { loading: userLoading } = useUserSession();
   const [request, setRequest] = useState<TravelRequest | null>(null);
@@ -484,21 +483,21 @@ function renderPreferences(preferences: Record<string, unknown>): React.ReactNod
   if (preferences.adults) {
     badges.push(
       <Badge key="adults" variant="outline" className="px-3 py-1.5">
-        {preferences.adults} Adults
+        {String(preferences.adults)} Adults
       </Badge>
     );
   }
   if (preferences.children && Number(preferences.children) > 0) {
     badges.push(
       <Badge key="children" variant="outline" className="px-3 py-1.5">
-        {preferences.children} Children
+        {String(preferences.children)} Children
       </Badge>
     );
   }
   if (preferences.infants && Number(preferences.infants) > 0) {
     badges.push(
       <Badge key="infants" variant="outline" className="px-3 py-1.5">
-        {preferences.infants} Infants
+        {String(preferences.infants)} Infants
       </Badge>
     );
   }
