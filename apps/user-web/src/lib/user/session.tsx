@@ -90,30 +90,11 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
             effectiveUserId = storedUser.id;
             setUserId(effectiveUserId);
           } else {
-            // Try to find a user that has conversations first (better demo experience)
-            const { data: convUser, error: convErr } = await supabase
-              .from('conversations')
-              .select('user_id')
-              .limit(1)
-              .maybeSingle();
-            
-            if (!convErr && convUser?.user_id) {
-              effectiveUserId = convUser.user_id;
-            } else {
-              // Fallback: pick first user by created_at
-              const { data, error: e } = await supabase
-                .from('users')
-                .select('id')
-                .eq('role', 'user')
-                .order('created_at', { ascending: true })
-                .limit(1)
-                .maybeSingle();
-
-              if (e) throw e;
-              if (!data?.id) throw new Error('No demo user found in database');
-              effectiveUserId = data.id;
+            // No authenticated user - stop loading and wait for login
+            if (!cancelled) {
+              setLoading(false);
             }
-            setUserId(effectiveUserId);
+            return;
           }
         }
 
