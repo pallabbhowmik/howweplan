@@ -202,7 +202,10 @@ export function isTokenExpired(): boolean {
   if (!token) return true;
   
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const parts = token.split('.');
+    if (parts.length !== 3 || !parts[1]) return true;
+    
+    const payload = JSON.parse(atob(parts[1]));
     const expiresAt = payload.exp * 1000;
     // Return true if token expires in less than 60 seconds
     return Date.now() >= expiresAt - 60000;
