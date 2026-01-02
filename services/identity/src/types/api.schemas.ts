@@ -5,7 +5,6 @@
 
 import { z } from 'zod';
 import {
-  UserRole,
   AccountStatus,
   AgentVerificationStatus,
   ALL_ROLES,
@@ -84,15 +83,18 @@ export type LoginRequest = z.infer<typeof loginRequestSchema>;
 
 /**
  * Registration request schema.
+ * Accepts both uppercase and lowercase role values for compatibility.
  */
 export const registerRequestSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   firstName: nameSchema,
   lastName: nameSchema,
-  role: z.enum([UserRole.USER, UserRole.AGENT] as const, {
-    errorMap: () => ({ message: 'Role must be USER or AGENT' }),
-  }),
+  role: z
+    .enum(['user', 'agent', 'USER', 'AGENT'] as const, {
+      errorMap: () => ({ message: 'Role must be user or agent' }),
+    })
+    .transform((val) => val.toLowerCase() as 'user' | 'agent'),
 });
 
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
