@@ -30,6 +30,12 @@ import {
   Eye,
   Wallet,
   Target,
+  Search,
+  HelpCircle,
+  IndianRupee,
+  Lock,
+  Headphones,
+  RefreshCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -97,6 +103,45 @@ const partnerLogos = [
   { name: 'Booking.com', icon: '🏨' },
   { name: 'IATA Certified', icon: '🛫' },
   { name: 'TAAI Member', icon: '🏛️' },
+];
+
+// Trip types for quick filter
+const tripTypes = [
+  { name: 'Honeymoon', emoji: '💑', color: 'from-pink-500 to-rose-500' },
+  { name: 'Family', emoji: '👨‍👩‍👧‍👦', color: 'from-blue-500 to-cyan-500' },
+  { name: 'Adventure', emoji: '🏔️', color: 'from-orange-500 to-amber-500' },
+  { name: 'Beach', emoji: '🏖️', color: 'from-cyan-500 to-teal-500' },
+  { name: 'Heritage', emoji: '🏰', color: 'from-purple-500 to-indigo-500' },
+  { name: 'Wildlife', emoji: '🐅', color: 'from-green-500 to-emerald-500' },
+];
+
+// FAQ items
+const faqItems = [
+  {
+    question: 'Is it really free to post a trip request?',
+    answer: 'Yes, absolutely! Posting a request and receiving proposals from agents is completely free. You only pay when you decide to book a trip you love.',
+    icon: IndianRupee,
+  },
+  {
+    question: 'How is my payment protected?',
+    answer: 'We hold your payment in secure escrow until your trip is completed. If anything goes wrong, you\'re fully protected with our money-back guarantee.',
+    icon: Lock,
+  },
+  {
+    question: 'What if I\'m not happy with the proposals?',
+    answer: 'You\'re under no obligation to book! If none of the proposals fit, simply let them expire. You can also request modifications or post a new request anytime.',
+    icon: RefreshCcw,
+  },
+  {
+    question: 'How do I know agents are trustworthy?',
+    answer: 'Every agent on HowWePlan is verified and vetted. You can see their ratings, reviews, and track record before choosing. Star agents have proven excellence.',
+    icon: Shield,
+  },
+  {
+    question: 'What support do I get during my trip?',
+    answer: 'Our support team is available 24/7. You can reach your agent directly and our team is always here to help resolve any issues.',
+    icon: Headphones,
+  },
 ];
 
 export default function Home() {
@@ -218,23 +263,53 @@ export default function Home() {
       </nav>
 
       {/* Hero Section - Enhanced Value Proposition */}
-      <section className="relative pt-24 md:pt-32 pb-16 md:pb-20 overflow-hidden">
-        {/* Hero Background with Travel Imagery */}
+      <section className="relative pt-24 md:pt-32 pb-16 md:pb-20 overflow-hidden min-h-[90vh] md:min-h-[85vh] flex items-center">
+        {/* Hero Background with Travel Imagery Mosaic */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50" />
         
-        {/* Decorative travel destination thumbnails - floating */}
-        <div className="absolute top-32 left-4 md:left-10 w-20 h-20 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-orange-400 to-pink-500 shadow-2xl rotate-6 opacity-20 md:opacity-40 flex items-center justify-center text-4xl md:text-5xl overflow-hidden">
-          🏰
+        {/* Animated background gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent z-[1]" />
+        
+        {/* Floating destination cards - creates travel emotion */}
+        <div className="absolute top-24 left-2 md:left-8 w-24 h-32 md:w-36 md:h-44 rounded-2xl overflow-hidden shadow-2xl rotate-6 opacity-40 md:opacity-60 border-4 border-white transform hover:scale-105 transition-transform">
+          <div className="w-full h-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-end p-2 md:p-3">
+            <div className="text-white">
+              <div className="text-3xl md:text-4xl mb-1">🏰</div>
+              <p className="text-xs md:text-sm font-bold">Rajasthan</p>
+            </div>
+          </div>
         </div>
-        <div className="absolute top-48 right-4 md:right-16 w-16 h-16 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 shadow-2xl -rotate-12 opacity-20 md:opacity-40 flex items-center justify-center text-3xl md:text-4xl">
-          🏝️
+        
+        <div className="absolute top-40 md:top-32 right-2 md:right-12 w-20 h-28 md:w-32 md:h-40 rounded-2xl overflow-hidden shadow-2xl -rotate-12 opacity-40 md:opacity-60 border-4 border-white">
+          <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-end p-2 md:p-3">
+            <div className="text-white">
+              <div className="text-2xl md:text-3xl mb-1">🏝️</div>
+              <p className="text-xs md:text-sm font-bold">Andaman</p>
+            </div>
+          </div>
         </div>
-        <div className="absolute bottom-32 left-8 md:left-20 w-14 h-14 md:w-20 md:h-20 rounded-xl bg-gradient-to-br from-green-400 to-emerald-500 shadow-xl rotate-12 opacity-20 md:opacity-40 flex items-center justify-center text-2xl md:text-3xl">
-          🌴
+        
+        <div className="absolute bottom-32 md:bottom-24 left-4 md:left-16 w-20 h-24 md:w-28 md:h-36 rounded-xl overflow-hidden shadow-xl rotate-12 opacity-40 md:opacity-60 border-4 border-white">
+          <div className="w-full h-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-end p-2">
+            <div className="text-white">
+              <div className="text-2xl md:text-3xl mb-1">🌴</div>
+              <p className="text-xs font-bold">Kerala</p>
+            </div>
+          </div>
         </div>
-        <div className="absolute bottom-48 right-8 md:right-24 w-18 h-18 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-purple-400 to-indigo-500 shadow-2xl -rotate-6 opacity-20 md:opacity-40 flex items-center justify-center text-3xl md:text-4xl">
-          🗻
+        
+        <div className="absolute bottom-40 md:bottom-32 right-4 md:right-20 w-22 h-28 md:w-32 md:h-40 rounded-2xl overflow-hidden shadow-2xl -rotate-6 opacity-40 md:opacity-60 border-4 border-white">
+          <div className="w-full h-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-end p-2 md:p-3">
+            <div className="text-white">
+              <div className="text-2xl md:text-3xl mb-1">🏔️</div>
+              <p className="text-xs md:text-sm font-bold">Ladakh</p>
+            </div>
+          </div>
         </div>
+        
+        {/* Additional floating elements for depth */}
+        <div className="absolute top-1/3 left-1/4 w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-orange-400 opacity-20 blur-sm animate-float" />
+        <div className="absolute bottom-1/3 right-1/3 w-20 h-20 rounded-full bg-gradient-to-br from-pink-400 to-rose-400 opacity-20 blur-sm animate-float animation-delay-2000" />
         
         {/* Animated blob backgrounds */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-blue-400/20 rounded-full blur-3xl animate-blob" />
@@ -319,6 +394,23 @@ export default function Home() {
                 <span className="underline-offset-2 group-hover:underline">See how it works</span>
                 <span className="text-gray-400">(90 sec)</span>
               </button>
+            </div>
+            
+            {/* Quick Trip Type Selector - Above the Fold Engagement */}
+            <div className="mb-10">
+              <p className="text-sm text-gray-500 mb-4">Or start with a trip type:</p>
+              <div className="flex flex-wrap justify-center gap-2 md:gap-3">
+                {tripTypes.map((type, i) => (
+                  <Link 
+                    key={i}
+                    href={`/requests/new?type=${type.name.toLowerCase()}`}
+                    className="group flex items-center gap-2 px-4 py-2.5 bg-white rounded-full shadow-md border border-gray-100 hover:shadow-lg hover:border-gray-200 transition-all duration-200 hover:-translate-y-0.5"
+                  >
+                    <span className="text-lg">{type.emoji}</span>
+                    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">{type.name}</span>
+                  </Link>
+                ))}
+              </div>
             </div>
 
             {/* Hero Social Proof - Redesigned */}
@@ -755,6 +847,64 @@ export default function Home() {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section - Address Common Concerns */}
+      <section id="faq" className="py-16 md:py-24 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <Badge className="mb-4 px-4 py-2 bg-amber-100 text-amber-700 border-0">
+              <HelpCircle className="h-4 w-4 mr-2" />
+              Common Questions
+            </Badge>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
+              Questions? We&apos;ve Got Answers
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Everything you need to know before you start planning
+            </p>
+          </div>
+
+          <div className="max-w-3xl mx-auto">
+            <div className="space-y-4">
+              {faqItems.map((faq, i) => (
+                <div 
+                  key={i}
+                  className="bg-gray-50 rounded-2xl p-6 hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white">
+                      <faq.icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg text-gray-900 mb-2">{faq.question}</h3>
+                      <p className="text-gray-600 leading-relaxed">{faq.answer}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Additional help link */}
+            <div className="text-center mt-8">
+              <p className="text-gray-500 mb-4">Still have questions?</p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/help">
+                  <Button variant="outline" className="font-medium">
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    Visit Help Center
+                  </Button>
+                </Link>
+                <Link href="/requests/new">
+                  <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 font-semibold">
+                    Start Planning Free
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>
