@@ -190,7 +190,7 @@ export function createRequestRepository(): RequestRepository {
       const { data, error } = await supabase
         .from('travel_requests')
         .select()
-        .in('state', ['SUBMITTED', 'MATCHING'])
+        .in('state', ['open'])  // Database uses 'open' for submitted/matching requests
         .lt('expires_at', now)
         .limit(limit);
 
@@ -204,13 +204,36 @@ export function createRequestRepository(): RequestRepository {
 }
 
 // Row mapping functions
-// Database uses UPPERCASE enum values, code uses lowercase
+// Database enum: open, matched, proposals_received, accepted, completed, cancelled
+// Code states: draft, submitted, matching, matched, expired, cancelled, completed
+
+// Map code state to database enum value
 function toDbState(state: string): string {
-  return state.toUpperCase();
+  const stateMap: Record<string, string> = {
+    'draft': 'open',        // No draft in DB, treat as open
+    'submitted': 'open',    // submitted maps to open
+    'matching': 'open',     // matching maps to open
+    'matched': 'matched',
+    'proposals_received': 'proposals_received',
+    'accepted': 'accepted',
+    'expired': 'cancelled', // No expired in DB, treat as cancelled
+    'cancelled': 'cancelled',
+    'completed': 'completed',
+  };
+  return stateMap[state.toLowerCase()] ?? 'open';
 }
 
-function fromDbState(state: string): string {
-  return state.toLowerCase();
+// Map database enum value to code state
+function fromDbState(dbState: string): string {
+  const stateMap: Record<string, string> = {
+    'open': 'submitted',    // open maps to submitted (most common)
+    'matched': 'matched',
+    'proposals_received': 'matched', // treat as matched in code
+    'accepted': 'matched',  // treat as matched (booking in progress)
+    'cancelled': 'cancelled',
+    'completed': 'completed',
+  };
+  return stateMap[dbState.toLowerCase()] ?? 'submitted';
 }
 
 function toRow(request: TravelRequest): RequestRow {
