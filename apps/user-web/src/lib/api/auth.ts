@@ -173,6 +173,36 @@ export async function resetPassword(token: string, newPassword: string): Promise
   return handleResponse<{ message: string }>(response);
 }
 
+/**
+ * Verify email using token from welcome email
+ */
+export async function verifyEmail(token: string): Promise<{ message: string }> {
+  const response = await fetch(`${normalizedBaseUrl}/api/identity/auth/verify-email`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ token }),
+  });
+
+  return handleResponse<{ message: string }>(response);
+}
+
+/**
+ * Resend verification email
+ */
+export async function resendVerificationEmail(email: string): Promise<{ message: string }> {
+  const response = await fetch(`${normalizedBaseUrl}/api/identity/auth/resend-verification`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  return handleResponse<{ message: string }>(response);
+}
+
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'tc_access_token';
 const REFRESH_TOKEN_KEY = 'tc_refresh_token';

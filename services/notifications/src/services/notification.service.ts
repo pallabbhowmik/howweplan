@@ -418,7 +418,7 @@ export class NotificationService {
       'dispute-opened-admin': 'URGENT: Dispute Requires Arbitration',
       'dispute-resolved-user': 'Your Dispute Has Been Resolved',
       'dispute-resolved-agent': 'Dispute Resolution Notice',
-      'user-welcome': 'Welcome to HowWePlan!',
+      'user-welcome': 'Welcome to HowWePlan - Please Verify Your Email',
       'password-reset': 'Reset Your Password',
       'email-verified': 'Email Verified Successfully',
     };
@@ -583,10 +583,15 @@ export class NotificationService {
   }
 
   /**
-   * Welcome Email Template
+   * Welcome Email Template with Email Verification
    */
   private renderWelcomeTemplate(variables: Record<string, unknown>): string {
     const firstName = String(variables.firstName || 'there');
+    const verificationToken = variables.verificationToken ? String(variables.verificationToken) : null;
+    
+    const verifyUrl = verificationToken 
+      ? `${env.FRONTEND_URL}/verify-email?token=${encodeURIComponent(verificationToken)}`
+      : null;
 
     const content = `
       <div style="text-align: center; margin-bottom: 30px;">
@@ -598,6 +603,24 @@ export class NotificationService {
       <p style="margin: 0 0 25px 0; font-size: 16px; line-height: 1.6; color: #4b5563; text-align: center;">
         Hi ${firstName}, we're thrilled to have you join our community of travelers!
       </p>
+      
+      ${verifyUrl ? `
+      <!-- Email Verification Section -->
+      <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; padding: 25px; margin-bottom: 30px; text-align: center;">
+        <div style="margin-bottom: 15px;">
+          <span style="font-size: 32px;">📧</span>
+        </div>
+        <h3 style="margin: 0 0 10px 0; font-size: 18px; font-weight: 600; color: #92400e;">
+          Please Verify Your Email
+        </h3>
+        <p style="margin: 0 0 20px 0; font-size: 14px; color: #a16207;">
+          To access all features and keep your account secure, please verify your email address.
+        </p>
+        <a href="${verifyUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 10px; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);">
+          ✓ Verify Email Address
+        </a>
+      </div>
+      ` : ''}
       
       <div style="background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%); border-radius: 12px; padding: 25px; margin-bottom: 30px;">
         <h3 style="margin: 0 0 15px 0; font-size: 18px; font-weight: 600; color: #1e3a5f;">
@@ -615,11 +638,23 @@ export class NotificationService {
         <tr>
           <td align="center">
             <a href="${env.FRONTEND_URL}/dashboard" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 10px; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);">
-              Start Planning Your Trip
+              Go to Dashboard
             </a>
           </td>
         </tr>
       </table>
+      
+      ${verifyUrl ? `
+      <!-- Verification Link Fallback -->
+      <div style="margin-top: 30px; padding-top: 25px; border-top: 1px solid #e5e7eb;">
+        <p style="margin: 0 0 10px 0; font-size: 13px; color: #6b7280; text-align: center;">
+          If the verify button doesn't work, copy and paste this link:
+        </p>
+        <p style="margin: 0; font-size: 11px; color: #3b82f6; word-break: break-all; text-align: center; background-color: #f3f4f6; padding: 10px; border-radius: 6px;">
+          ${verifyUrl}
+        </p>
+      </div>
+      ` : ''}
     `;
 
     return this.wrapEmailTemplate(content);
