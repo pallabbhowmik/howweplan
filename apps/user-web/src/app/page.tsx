@@ -289,55 +289,37 @@ export default function Home() {
           <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center min-h-[70vh]">
             {/* Left side - Text content */}
             <div className="text-left">
-              {/* Live Activity Badge */}
-              <div className="flex flex-wrap items-center gap-3 mb-6">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur border border-green-200 rounded-full text-sm shadow-sm">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-                  </span>
-                  <span className="text-green-700 font-medium">
-                    {activeTravelers} planning trips now
-                  </span>
-                </div>
-              </div>
-              
-              {/* Main Headline - Short, Emotional */}
-              <h1 className="text-4xl sm:text-5xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight tracking-tight">
+              {/* Main Headline - Emotional hook */}
+              <h1 className="text-4xl sm:text-5xl md:text-5xl lg:text-6xl font-bold mb-3 leading-tight tracking-tight">
                 <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                   Where to next?
                 </span>
               </h1>
               
-              {/* Sub-headline - One compelling line */}
-              <p className="text-xl md:text-2xl text-gray-700 mb-6 leading-relaxed">
-                Tell us your dream. <span className="font-bold text-gray-900">Expert agents compete</span> to plan it.
+              {/* Bold benefit line - THE emotional hook */}
+              <p className="text-xl md:text-2xl text-gray-900 font-semibold mb-4">
+                Plan a trip in 10 minutes, not 10 hours.
               </p>
               
-              {/* Value prop - tight */}
-              <div className="flex flex-wrap items-center gap-3 mb-6 text-sm">
-                <span className="px-3 py-1.5 bg-green-100 text-green-700 rounded-full font-medium">✓ Free to use</span>
-                <span className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full font-medium">✓ No obligation</span>
-                <span className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full font-medium">✓ Avg. ₹16,500 saved</span>
-              </div>
+              {/* Contrast line - why this vs DIY */}
+              <p className="text-gray-600 mb-6">
+                Instead of researching alone, <span className="text-gray-900 font-medium">let expert agents compete</span> for your business.
+              </p>
               
-              {/* CTA Button - Single focus */}
+              {/* CTA Button - Intriguing */}
               <Link href="/requests/new">
                 <Button 
                   size="lg" 
                   className="text-lg px-10 py-7 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-2xl shadow-blue-500/30 hover:shadow-blue-500/50 group font-bold transition-all duration-300 hover:scale-105"
                 >
-                  See Experts Plan My Trip
+                  See Travel Experts Compete
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
               
-              {/* Micro-urgency */}
+              {/* Trust line - minimal */}
               <p className="text-sm text-gray-500 mt-4">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
-                  {activeTravelers} travelers planning right now
-                </span>
+                Free to post • No obligation • Avg. ₹16,500 saved
               </p>
             </div>
             
@@ -470,7 +452,7 @@ export default function Home() {
                 size="lg" 
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-xl shadow-blue-500/30 font-bold text-lg px-10 py-6"
               >
-                Start My Free Trip Request
+                See Travel Experts Compete
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
@@ -539,7 +521,7 @@ export default function Home() {
                 size="lg" 
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-xl shadow-blue-500/30 font-bold text-lg px-10 py-6"
               >
-                See Experts Plan My Trip
+                See Travel Experts Compete
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
@@ -818,7 +800,7 @@ export default function Home() {
                 variant="secondary" 
                 className="text-lg px-10 py-7 shadow-xl font-bold hover:scale-105 transition-transform"
               >
-                See Experts Plan My Trip
+                See Travel Experts Compete
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
@@ -896,7 +878,7 @@ export default function Home() {
           <Button 
             className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg font-bold py-5 text-base"
           >
-            See Experts Plan My Trip
+            See Travel Experts Compete
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </Link>
