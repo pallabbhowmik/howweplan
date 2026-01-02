@@ -78,8 +78,8 @@ function getStateConfig(state: UserState, stats: DashboardStats | null, userName
         primaryCTA: { label: 'Create Your First Request', href: '/requests/new', icon: Plus },
         proTips: [
           'Add specific dates for better pricing',
-          'Include your must-have experiences',
-          'Most agents respond within 4 hours',
+          'Include must-have experiences',
+          'Most agents respond in 4 hours',
         ],
         showActivityPlaceholder: true,
       };
@@ -545,7 +545,10 @@ function ActionableStatCard({
   };
 
   const cardContent = (
-    <Card className={`border-2 shadow-sm transition-all ${!isEmpty ? 'cursor-pointer group' : 'cursor-default'} ${colorClasses[color]} ${highlight ? 'ring-2 ring-amber-400 ring-offset-2' : ''}`}>
+    <Card 
+      className={`border-2 shadow-sm transition-all ${!isEmpty ? 'cursor-pointer group' : 'cursor-default'} ${colorClasses[color]} ${highlight ? 'ring-2 ring-amber-400 ring-offset-2' : ''}`}
+      title={isEmpty ? "You'll see updates here once you create a request" : undefined}
+    >
       <CardContent className="p-5">
         <div className="flex items-center justify-between mb-3">
           <div className={`p-2.5 rounded-xl ${iconClasses[color]} ${!isEmpty ? 'group-hover:scale-110' : ''} transition-transform`}>{icon}</div>
@@ -719,7 +722,7 @@ function NewUserEmptyState() {
           <Link href="/requests/new">
             <Button size="lg" className="bg-blue-600 hover:bg-blue-700 shadow-md gap-2 px-8">
               <Plus className="h-5 w-5" />
-              Get Started
+              Create Your First Request
             </Button>
           </Link>
         </div>
@@ -889,28 +892,32 @@ function ActivityPlaceholder() {
       </div>
       
       <div className="space-y-3">
-        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg opacity-60">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Send className="h-4 w-4 text-blue-600" />
+        {/* Step 1 - Current/highlighted */}
+        <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="p-2 bg-blue-600 rounded-lg">
+            <Send className="h-4 w-4 text-white" />
           </div>
           <div>
-            <p className="text-sm text-gray-700">Request sent to agents</p>
+            <p className="text-sm text-blue-800 font-medium">Request sent to agents</p>
+            <p className="text-xs text-blue-600">After you create a request</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg opacity-60">
-          <div className="p-2 bg-purple-100 rounded-lg">
-            <Eye className="h-4 w-4 text-purple-600" />
+        {/* Step 2 - Future/muted */}
+        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg opacity-50">
+          <div className="p-2 bg-gray-200 rounded-lg">
+            <Eye className="h-4 w-4 text-gray-500" />
           </div>
           <div>
-            <p className="text-sm text-gray-700">Agents view & respond</p>
+            <p className="text-sm text-gray-500">Agents view & respond</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg opacity-60">
-          <div className="p-2 bg-amber-100 rounded-lg">
-            <Target className="h-4 w-4 text-amber-600" />
+        {/* Step 3 - Future/muted */}
+        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg opacity-50">
+          <div className="p-2 bg-gray-200 rounded-lg">
+            <Target className="h-4 w-4 text-gray-500" />
           </div>
           <div>
-            <p className="text-sm text-gray-700">Proposals ready to compare</p>
+            <p className="text-sm text-gray-500">Proposals ready to compare</p>
           </div>
         </div>
       </div>
