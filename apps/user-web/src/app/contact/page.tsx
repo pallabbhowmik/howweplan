@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Plane, 
@@ -24,8 +24,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { ContactSettings, defaultContactSettings, getContactSettings } from '@/lib/api/site-settings';
 
 export default function ContactPage() {
+  const [settings, setSettings] = useState<ContactSettings>(defaultContactSettings);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -35,6 +38,21 @@ export default function ContactPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const data = await getContactSettings();
+      setSettings(data);
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +77,20 @@ export default function ContactPage() {
     { value: 'complaint', label: 'Complaint / Dispute' },
   ];
 
+  // Format full address if available
+  const getFullAddress = () => {
+    if (!settings.showAddress) return null;
+    const parts = [
+      settings.addressLine1,
+      settings.addressLine2,
+      [settings.city, settings.state, settings.zipCode].filter(Boolean).join(', '),
+      settings.country,
+    ].filter(Boolean);
+    return parts.length > 0 ? parts : null;
+  };
+
+  const fullAddress = getFullAddress();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       {/* Navigation */}
@@ -68,7 +100,9 @@ export default function ContactPage() {
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow">
               <Plane className="h-6 w-6 text-white" />
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">HowWePlan</span>
+            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              {settings.companyName}
+            </span>
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/login">
@@ -104,9 +138,9 @@ export default function ContactPage() {
                 <Headphones className="h-7 w-7 text-blue-600" />
               </div>
               <h3 className="font-semibold text-lg mb-2">Customer Support</h3>
-              <p className="text-sm text-muted-foreground mb-3">Available 24/7 for urgent travel matters</p>
-              <a href="mailto:support@howweplan.com" className="text-blue-600 font-medium hover:underline">
-                support@howweplan.com
+              <p className="text-sm text-muted-foreground mb-3">Available {settings.supportHours} for urgent travel matters</p>
+              <a href={`mailto:${settings.supportEmail}`} className="text-blue-600 font-medium hover:underline">
+                {settings.supportEmail}
               </a>
             </CardContent>
           </Card>
@@ -117,9 +151,9 @@ export default function ContactPage() {
                 <Phone className="h-7 w-7 text-green-600" />
               </div>
               <h3 className="font-semibold text-lg mb-2">Phone Support</h3>
-              <p className="text-sm text-muted-foreground mb-3">Mon-Fri: 9AM-8PM EST</p>
-              <a href="tel:+1-800-HOWWEPLAN" className="text-blue-600 font-medium hover:underline">
-                +1 (800) HOW-PLAN
+              <p className="text-sm text-muted-foreground mb-3">{settings.businessHours}</p>
+              <a href={`tel:${settings.mainPhone.replace(/[^+\d]/g, '')}`} className="text-blue-600 font-medium hover:underline">
+                {settings.mainPhone}
               </a>
             </CardContent>
           </Card>
@@ -265,39 +299,46 @@ export default function ContactPage() {
 
           {/* Contact Information Sidebar */}
           <div className="space-y-6">
-            {/* Office Address */}
-            <Card className="shadow-lg border-0">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Building2 className="h-5 w-5 text-blue-600" />
-                  Corporate Headquarters
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <MapPin className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium">HowWePlan, Inc.</p>
-                    <p className="text-sm text-muted-foreground">
-                      350 Fifth Avenue, Suite 7820<br />
-                      New York, NY 10118<br />
-                      United States
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Clock className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium">Business Hours</p>
-                    <p className="text-sm text-muted-foreground">
-                      Monday - Friday: 9:00 AM - 6:00 PM EST<br />
-                      Saturday: 10:00 AM - 4:00 PM EST<br />
-                      Sunday: Closed
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Office Info - Only show if address is visible or has business hours */}
+            {(fullAddress || settings.businessHours) && (
+              <Card className="shadow-lg border-0">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Building2 className="h-5 w-5 text-blue-600" />
+                    {settings.companyName}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {fullAddress && (
+                    <div className="flex items-start gap-3">
+                      <MapPin className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium">{settings.companyName}, Inc.</p>
+                        <p className="text-sm text-muted-foreground">
+                          {fullAddress.map((line, i) => (
+                            <span key={i}>
+                              {line}
+                              {i < fullAddress.length - 1 && <br />}
+                            </span>
+                          ))}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {settings.businessHours && (
+                    <div className="flex items-start gap-3">
+                      <Clock className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium">Business Hours</p>
+                        <p className="text-sm text-muted-foreground">
+                          {settings.businessHours}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Department Contacts */}
             <Card className="shadow-lg border-0">
@@ -309,76 +350,92 @@ export default function ContactPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm font-medium">General Support</span>
-                    <a href="mailto:support@howweplan.com" className="text-sm text-blue-600 hover:underline">
-                      support@howweplan.com
-                    </a>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm font-medium">Billing Inquiries</span>
-                    <a href="mailto:billing@howweplan.com" className="text-sm text-blue-600 hover:underline">
-                      billing@howweplan.com
-                    </a>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm font-medium">Agent Support</span>
-                    <a href="mailto:agents@howweplan.com" className="text-sm text-blue-600 hover:underline">
-                      agents@howweplan.com
-                    </a>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm font-medium">Privacy & Data</span>
-                    <a href="mailto:privacy@howweplan.com" className="text-sm text-blue-600 hover:underline">
-                      privacy@howweplan.com
-                    </a>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm font-medium">Legal Department</span>
-                    <a href="mailto:legal@howweplan.com" className="text-sm text-blue-600 hover:underline">
-                      legal@howweplan.com
-                    </a>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm font-medium">Press & Media</span>
-                    <a href="mailto:press@howweplan.com" className="text-sm text-blue-600 hover:underline">
-                      press@howweplan.com
-                    </a>
-                  </div>
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-sm font-medium">Partnerships</span>
-                    <a href="mailto:partners@howweplan.com" className="text-sm text-blue-600 hover:underline">
-                      partners@howweplan.com
-                    </a>
-                  </div>
+                  {settings.supportEmail && (
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-sm font-medium">General Support</span>
+                      <a href={`mailto:${settings.supportEmail}`} className="text-sm text-blue-600 hover:underline">
+                        {settings.supportEmail}
+                      </a>
+                    </div>
+                  )}
+                  {settings.billingEmail && (
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-sm font-medium">Billing Inquiries</span>
+                      <a href={`mailto:${settings.billingEmail}`} className="text-sm text-blue-600 hover:underline">
+                        {settings.billingEmail}
+                      </a>
+                    </div>
+                  )}
+                  {settings.agentEmail && (
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-sm font-medium">Agent Support</span>
+                      <a href={`mailto:${settings.agentEmail}`} className="text-sm text-blue-600 hover:underline">
+                        {settings.agentEmail}
+                      </a>
+                    </div>
+                  )}
+                  {settings.privacyEmail && (
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-sm font-medium">Privacy & Data</span>
+                      <a href={`mailto:${settings.privacyEmail}`} className="text-sm text-blue-600 hover:underline">
+                        {settings.privacyEmail}
+                      </a>
+                    </div>
+                  )}
+                  {settings.legalEmail && (
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-sm font-medium">Legal Department</span>
+                      <a href={`mailto:${settings.legalEmail}`} className="text-sm text-blue-600 hover:underline">
+                        {settings.legalEmail}
+                      </a>
+                    </div>
+                  )}
+                  {settings.pressEmail && (
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-sm font-medium">Press & Media</span>
+                      <a href={`mailto:${settings.pressEmail}`} className="text-sm text-blue-600 hover:underline">
+                        {settings.pressEmail}
+                      </a>
+                    </div>
+                  )}
+                  {settings.partnershipEmail && (
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-sm font-medium">Partnerships</span>
+                      <a href={`mailto:${settings.partnershipEmail}`} className="text-sm text-blue-600 hover:underline">
+                        {settings.partnershipEmail}
+                      </a>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
             {/* Emergency Contact */}
-            <Card className="shadow-lg border-0 bg-gradient-to-br from-red-50 to-orange-50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg text-red-700">
-                  <AlertTriangle className="h-5 w-5" />
-                  Travel Emergency
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  For urgent travel emergencies while on your trip (flight cancellations, stranded travelers, medical emergencies):
-                </p>
-                <a 
-                  href="tel:+1-800-EMERGENCY" 
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
-                >
-                  <Phone className="h-5 w-5" />
-                  +1 (800) 363-7436
-                </a>
-                <p className="text-xs text-center text-muted-foreground mt-2">
-                  Available 24/7 for active travelers
-                </p>
-              </CardContent>
-            </Card>
+            {settings.emergencyPhone && (
+              <Card className="shadow-lg border-0 bg-gradient-to-br from-red-50 to-orange-50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg text-red-700">
+                    <AlertTriangle className="h-5 w-5" />
+                    Travel Emergency
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    For urgent travel emergencies while on your trip (flight cancellations, stranded travelers, medical emergencies):
+                  </p>
+                  <a 
+                    href={`tel:${settings.emergencyPhone.replace(/[^+\d]/g, '')}`}
+                    className="flex items-center justify-center gap-2 w-full py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
+                  >
+                    <Phone className="h-5 w-5" />
+                    {settings.emergencyPhone}
+                  </a>
+                  <p className="text-xs text-center text-muted-foreground mt-2">
+                    Available 24/7 for active travelers
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 
@@ -412,7 +469,7 @@ export default function ContactPage() {
               {
                 icon: FileText,
                 question: 'How do I request my personal data?',
-                answer: 'Email privacy@howweplan.com or submit a request through your account settings. We respond to GDPR/CCPA requests within 30 days.'
+                answer: `Email ${settings.privacyEmail} or submit a request through your account settings. We respond to GDPR/CCPA requests within 30 days.`
               },
             ].map((faq, index) => (
               <Card key={index} className="shadow border-0">
@@ -432,33 +489,41 @@ export default function ContactPage() {
           </div>
         </section>
 
-        {/* Regulatory Information */}
-        <section className="mt-16 bg-slate-50 rounded-2xl p-8">
-          <h2 className="text-2xl font-bold mb-6 text-center">Regulatory & Compliance Information</h2>
-          <div className="grid md:grid-cols-3 gap-6 text-sm">
-            <div>
-              <h3 className="font-semibold mb-2">Business Registration</h3>
-              <p className="text-muted-foreground">
-                HowWePlan, Inc. is a registered corporation in the State of Delaware, USA.
-                EIN: 87-1234567
-              </p>
+        {/* Regulatory Information - Only show if enabled */}
+        {settings.showRegulatoryInfo && (settings.accreditations.length > 0 || settings.licenses.length > 0) && (
+          <section className="mt-16 bg-slate-50 rounded-2xl p-8">
+            <h2 className="text-2xl font-bold mb-6 text-center">Regulatory & Compliance Information</h2>
+            <div className="grid md:grid-cols-3 gap-6 text-sm">
+              <div>
+                <h3 className="font-semibold mb-2">Business Registration</h3>
+                <p className="text-muted-foreground">
+                  {settings.companyName}, Inc. is a registered corporation in the State of Delaware, USA.
+                </p>
+              </div>
+              {settings.licenses.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Travel Seller Registration</h3>
+                  <p className="text-muted-foreground">
+                    {settings.licenses.map((license, i) => (
+                      <span key={i}>
+                        {license}
+                        {i < settings.licenses.length - 1 && <br />}
+                      </span>
+                    ))}
+                  </p>
+                </div>
+              )}
+              {settings.accreditations.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Accreditations</h3>
+                  <p className="text-muted-foreground">
+                    {settings.accreditations.join(' • ')}
+                  </p>
+                </div>
+              )}
             </div>
-            <div>
-              <h3 className="font-semibold mb-2">Travel Seller Registration</h3>
-              <p className="text-muted-foreground">
-                California Seller of Travel: CST #2139153-50<br />
-                Florida Seller of Travel: ST39068
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2">Data Protection</h3>
-              <p className="text-muted-foreground">
-                EU-US Data Privacy Framework Certified<br />
-                GDPR & CCPA Compliant
-              </p>
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
       </main>
 
       {/* Footer */}
@@ -470,10 +535,10 @@ export default function ContactPage() {
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
                   <Plane className="h-5 w-5 text-white" />
                 </div>
-                <span className="font-bold">HowWePlan</span>
+                <span className="font-bold">{settings.companyName}</span>
               </Link>
               <p className="text-sm text-muted-foreground">
-                Connecting travelers with expert travel agents for personalized trip planning.
+                {settings.tagline || 'Connecting travelers with expert travel agents for personalized trip planning.'}
               </p>
             </div>
             <div>
@@ -505,7 +570,7 @@ export default function ContactPage() {
             </div>
           </div>
           <div className="border-t pt-8 text-center text-sm text-muted-foreground">
-            <p>© {new Date().getFullYear()} HowWePlan, Inc. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} {settings.companyName}, Inc. All rights reserved.</p>
           </div>
         </div>
       </footer>
