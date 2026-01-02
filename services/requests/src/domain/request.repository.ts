@@ -12,11 +12,11 @@ import { TravelRequest, TravelStyle, CancelledBy } from './request.entity';
 import { RequestState, OPEN_REQUEST_STATES } from './request.state-machine';
 import { RequestNotFoundError, RepositoryError } from './request.errors';
 
-// Database row type
+// Database row type - state is stored as UPPERCASE in database
 interface RequestRow {
   id: string;
   user_id: string;
-  state: RequestState;
+  state: string;  // Database stores UPPERCASE enum values
   destination: string;
   departure_location: string;
   departure_date: string;
@@ -112,7 +112,7 @@ export function createRequestRepository(): RequestRepository {
         .eq('user_id', userId);
 
       if (options.states && options.states.length > 0) {
-        query = query.in('state', options.states);
+        query = query.in('state', options.states.map(toDbState));
       }
 
       const orderBy = options.orderBy ?? 'created_at';
@@ -158,7 +158,7 @@ export function createRequestRepository(): RequestRepository {
         .from('travel_requests')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .in('state', OPEN_REQUEST_STATES);
+        .in('state', OPEN_REQUEST_STATES.map(toDbState));
 
       if (error) {
         throw new RepositoryError(`Failed to count open requests: ${error.message}`, error);
@@ -190,7 +190,7 @@ export function createRequestRepository(): RequestRepository {
       const { data, error } = await supabase
         .from('travel_requests')
         .select()
-        .in('state', ['submitted', 'matching'])
+        .in('state', ['SUBMITTED', 'MATCHING'])
         .lt('expires_at', now)
         .limit(limit);
 
@@ -204,11 +204,20 @@ export function createRequestRepository(): RequestRepository {
 }
 
 // Row mapping functions
+// Database uses UPPERCASE enum values, code uses lowercase
+function toDbState(state: string): string {
+  return state.toUpperCase();
+}
+
+function fromDbState(state: string): string {
+  return state.toLowerCase();
+}
+
 function toRow(request: TravelRequest): RequestRow {
   return {
     id: request.id,
     user_id: request.userId,
-    state: request.state,
+    state: toDbState(request.state),
     destination: request.destination,
     departure_location: request.departureLocation,
     departure_date: request.departureDate.toISOString(),
@@ -235,7 +244,7 @@ function fromRow(row: RequestRow): TravelRequest {
   return {
     id: row.id,
     userId: row.user_id,
-    state: row.state,
+    state: fromDbState(row.state) as TravelRequest['state'],
     destination: row.destination,
     departureLocation: row.departure_location,
     departureDate: new Date(row.departure_date),
