@@ -3,7 +3,7 @@
  * Handles user CRUD operations and account management.
  */
 
-import { nanoid } from 'nanoid';
+import { randomUUID } from 'crypto';
 import { getDbClient } from './database.js';
 import { hashPassword, verifyPassword, needsRehash } from './password.service.js';
 import { createTokenPair, revokeAllUserRefreshTokens } from './token.service.js';
@@ -215,8 +215,8 @@ export async function registerUser(
   // Hash the password
   const passwordHash = await hashPassword(password);
 
-  // Create the user
-  const userId = nanoid();
+  // Create the user with a proper UUID
+  const userId = randomUUID();
   const { data, error } = await db
     .from('users')
     .insert({
