@@ -5,6 +5,7 @@ import { getSupabaseClient } from '@/lib/supabase/client';
 import { clearAuthData, getStoredUser, getAccessToken, logout } from '@/lib/api/auth';
 
 const STORAGE_KEY = 'tc_demo_user_id';
+const AUTH_USER_KEY = 'tc_user';
 
 export type UserIdentity = {
   userId: string;
@@ -20,6 +21,7 @@ type UserSessionValue = {
   signOut: () => void;
   loading: boolean;
   error: string | null;
+  refreshSession: () => void;
 };
 
 const UserSessionContext = createContext<UserSessionValue | null>(null);
@@ -29,6 +31,12 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
   const [user, setUser] = useState<UserIdentity | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Function to manually trigger session refresh (called after login)
+  const refreshSession = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
 
   const setUserId = (nextUserId: string) => {
     setUserIdState(nextUserId);
@@ -60,6 +68,19 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
     document.cookie = 'tc-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     // Redirect to landing page
     window.location.href = '/';
+  }, []);
+
+  // Listen for storage changes (e.g., after login in same tab or another tab)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === AUTH_USER_KEY || e.key === STORAGE_KEY) {
+        // Trigger session refresh when auth data changes
+        setRefreshTrigger(prev => prev + 1);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   useEffect(() => {
@@ -137,7 +158,7 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
 
     load();
     return () => { cancelled = true; };
-  }, [userId]); // Re-run when userId changes (e.g., after login)
+  }, [userId, refreshTrigger]); // Re-run when userId changes or when session refresh is triggered
 
   const value = useMemo<UserSessionValue>(
     () => ({
@@ -146,8 +167,9 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
       signOut,
       loading,
       error,
+      refreshSession,
     }),
-    [user, signOut, loading, error]
+    [user, signOut, loading, error, refreshSession]
   );
 
   return <UserSessionContext.Provider value={value}>{children}</UserSessionContext.Provider>;

@@ -23,9 +23,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
 import { register, storeAuthTokens, AuthError } from '@/lib/api/auth';
+import { useUserSession } from '@/lib/user/session';
+
+const STORAGE_KEY = 'tc_demo_user_id';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { setUserId, refreshSession } = useUserSession();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -90,8 +94,13 @@ export default function RegisterPage() {
       storeAuthTokens(response);
       // Set auth cookie with access token for middleware validation
       if (response.user?.id && response.accessToken) {
+        localStorage.setItem(STORAGE_KEY, response.user.id);
         const expires = new Date(Date.now() + response.expiresIn * 1000).toUTCString();
         document.cookie = `tc-auth-token=${response.accessToken}; path=/; expires=${expires}; SameSite=Lax; Secure`;
+        // Update session context with new user ID
+        setUserId(response.user.id);
+        // Trigger session refresh to load user data
+        refreshSession();
       }
       router.push('/dashboard');
     } catch (err) {
