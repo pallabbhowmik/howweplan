@@ -400,7 +400,7 @@ router.post(
           success: false,
           error: {
             code: 'INVALID_TOKEN',
-            message: 'This password reset link is invalid or has expired.',
+            message: result.error || 'This password reset link is invalid or has expired.',
           },
           requestId: authReq.correlationId,
           timestamp: new Date().toISOString(),

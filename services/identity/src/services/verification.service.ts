@@ -18,9 +18,9 @@ export enum VerificationType {
 }
 
 const TOKEN_CONFIG: Record<VerificationType, { expiryMinutes: number; maxAttempts: number }> = {
-  [VerificationType.EMAIL]: { expiryMinutes: 30, maxAttempts: 5 },
+  [VerificationType.EMAIL]: { expiryMinutes: 1440, maxAttempts: 5 }, // 24 hours for email verification
   [VerificationType.PHONE]: { expiryMinutes: 10, maxAttempts: 5 },
-  [VerificationType.PASSWORD_RESET]: { expiryMinutes: 15, maxAttempts: 3 },
+  [VerificationType.PASSWORD_RESET]: { expiryMinutes: 60, maxAttempts: 3 }, // 1 hour for password reset
   [VerificationType.EMAIL_CHANGE]: { expiryMinutes: 30, maxAttempts: 3 },
 };
 
@@ -163,35 +163,44 @@ export async function verifyToken(
   const tokenHash = hashToken(tokenOrCode);
   const now = new Date().toISOString();
   
-  // Try to find by token hash first, then by code hash
-  let query = db
+  // First, check if token exists at all (without expiry/used checks)
+  const { data: existingToken } = await db
     .from('verification_tokens')
     .select('*')
     .eq('type', type)
-    .is('used_at', null)
-    .is('revoked_at', null)
-    .gt('expires_at', now);
+    .eq('token_hash', tokenHash)
+    .single();
   
-  // Check if it's a numeric code (phone verification)
-  if (/^\d{6}$/.test(tokenOrCode)) {
-    query = query.eq('code_hash', tokenHash);
-  } else {
-    query = query.eq('token_hash', tokenHash);
+  if (!existingToken) {
+    console.log(`Token verification failed: Token not found for type ${type}`);
+    return { valid: false, error: 'Invalid verification token' };
   }
   
-  const { data: tokenData, error } = await query.single();
+  // Check if already used
+  if (existingToken.used_at) {
+    console.log(`Token verification failed: Token already used at ${existingToken.used_at}`);
+    return { valid: false, error: 'This link has already been used' };
+  }
   
-  if (error || !tokenData) {
-    return { valid: false, error: 'Invalid or expired verification code' };
+  // Check if revoked
+  if (existingToken.revoked_at) {
+    console.log(`Token verification failed: Token was revoked at ${existingToken.revoked_at}`);
+    return { valid: false, error: 'This link has been revoked' };
+  }
+  
+  // Check if expired
+  if (new Date(existingToken.expires_at) < new Date()) {
+    console.log(`Token verification failed: Token expired at ${existingToken.expires_at}`);
+    return { valid: false, error: 'This link has expired. Please request a new one.' };
   }
   
   // Check max attempts
-  if (tokenData.attempts >= tokenData.max_attempts) {
+  if (existingToken.attempts >= existingToken.max_attempts) {
     // Revoke the token
     await db
       .from('verification_tokens')
       .update({ revoked_at: now })
-      .eq('id', tokenData.id);
+      .eq('id', existingToken.id);
     
     return { valid: false, error: 'Maximum verification attempts exceeded' };
   }
@@ -199,19 +208,21 @@ export async function verifyToken(
   // Increment attempt count
   await db
     .from('verification_tokens')
-    .update({ attempts: tokenData.attempts + 1 })
-    .eq('id', tokenData.id);
+    .update({ attempts: existingToken.attempts + 1 })
+    .eq('id', existingToken.id);
   
   // Mark as used (single-use token)
   await db
     .from('verification_tokens')
     .update({ used_at: now })
-    .eq('id', tokenData.id);
+    .eq('id', existingToken.id);
+  
+  console.log(`Token verification successful for user ${existingToken.user_id}`);
   
   return {
     valid: true,
-    userId: tokenData.user_id,
-    target: tokenData.target,
+    userId: existingToken.user_id,
+    target: existingToken.target,
   };
 }
 

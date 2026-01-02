@@ -78,10 +78,16 @@ function ResetPasswordContent() {
     } catch (err) {
       console.error('Reset password error:', err);
       if (err instanceof Error) {
-        if (err.message.includes('expired')) {
+        // Use the server's error message directly as it's now more specific
+        const message = err.message.toLowerCase();
+        if (message.includes('already been used')) {
+          setError('This reset link has already been used. Please request a new one.');
+        } else if (message.includes('expired')) {
           setError('This reset link has expired. Please request a new one.');
-        } else if (err.message.includes('invalid')) {
-          setError('Invalid reset token. Please request a new password reset link.');
+        } else if (message.includes('revoked')) {
+          setError('This reset link is no longer valid. Please request a new one.');
+        } else if (message.includes('invalid')) {
+          setError('Invalid reset link. Please request a new password reset.');
         } else {
           setError(err.message || 'Failed to reset password. Please try again.');
         }
