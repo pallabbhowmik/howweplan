@@ -149,8 +149,8 @@ export default function Home() {
             </span>
           </Link>
 
-          {/* Desktop Navigation - Simplified */}
-          <div className="hidden lg:flex items-center gap-6">
+          {/* Desktop Navigation - Only show after scroll */}
+          <div className={`hidden lg:flex items-center gap-6 transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
             <Link href="#how-it-works" className="text-gray-600 hover:text-gray-900 font-medium transition-colors text-sm">
               How It Works
             </Link>
@@ -219,8 +219,24 @@ export default function Home() {
 
       {/* Hero Section - Enhanced Value Proposition */}
       <section className="relative pt-24 md:pt-32 pb-16 md:pb-20 overflow-hidden">
-        {/* Background Effects - Animated */}
+        {/* Hero Background with Travel Imagery */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50" />
+        
+        {/* Decorative travel destination thumbnails - floating */}
+        <div className="absolute top-32 left-4 md:left-10 w-20 h-20 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-orange-400 to-pink-500 shadow-2xl rotate-6 opacity-20 md:opacity-40 flex items-center justify-center text-4xl md:text-5xl overflow-hidden">
+          🏰
+        </div>
+        <div className="absolute top-48 right-4 md:right-16 w-16 h-16 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 shadow-2xl -rotate-12 opacity-20 md:opacity-40 flex items-center justify-center text-3xl md:text-4xl">
+          🏝️
+        </div>
+        <div className="absolute bottom-32 left-8 md:left-20 w-14 h-14 md:w-20 md:h-20 rounded-xl bg-gradient-to-br from-green-400 to-emerald-500 shadow-xl rotate-12 opacity-20 md:opacity-40 flex items-center justify-center text-2xl md:text-3xl">
+          🌴
+        </div>
+        <div className="absolute bottom-48 right-8 md:right-24 w-18 h-18 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-purple-400 to-indigo-500 shadow-2xl -rotate-6 opacity-20 md:opacity-40 flex items-center justify-center text-3xl md:text-4xl">
+          🗻
+        </div>
+        
+        {/* Animated blob backgrounds */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-blue-400/20 rounded-full blur-3xl animate-blob" />
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl animate-blob animation-delay-2000" />
         <div className="absolute top-40 right-1/4 w-64 h-64 bg-pink-400/10 rounded-full blur-3xl animate-blob animation-delay-4000" />
@@ -249,13 +265,18 @@ export default function Home() {
               </span>
             </h1>
             
-            {/* Sub-headline - How it works in one line */}
-            <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-4 max-w-3xl mx-auto leading-relaxed">
-              Post your dream trip → <span className="text-blue-600 font-semibold">Verified agents compete</span> → Compare anonymous proposals → <span className="text-green-600 font-semibold">Save 15-30%</span>
+            {/* Sub-headline - Quantified benefit */}
+            <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-3 max-w-3xl mx-auto leading-relaxed">
+              Travelers save an average of <span className="text-green-600 font-bold">₹16,500</span> per trip when agents compete for their business.
+            </p>
+            
+            {/* How it works in one line */}
+            <p className="text-base text-gray-500 mb-6 max-w-2xl mx-auto">
+              Post your trip → Agents compete → Compare anonymously → Book with confidence
             </p>
             
             {/* Trust indicators under headline */}
-            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500 mb-10">
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500 mb-8">
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
                 <span>No upfront payment</span>
@@ -270,28 +291,34 @@ export default function Home() {
               </div>
             </div>
             
-            {/* CTA Buttons - Primary Dominant */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+            {/* CTA Buttons - Single Primary Focus */}
+            <div className="flex flex-col items-center gap-4 mb-8">
+              {/* Directional Arrow */}
+              <div className="hidden md:flex flex-col items-center text-blue-500 animate-bounce-slow">
+                <span className="text-sm font-medium mb-1">Get started here</span>
+                <ArrowRight className="h-5 w-5 rotate-90" />
+              </div>
+              
               <Link href="/requests/new">
                 <Button 
                   size="lg" 
-                  className="w-full sm:w-auto text-base md:text-lg px-8 md:px-10 py-6 md:py-7 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-2xl shadow-blue-500/40 hover:shadow-blue-500/60 group font-semibold transition-all duration-300 hover:scale-105"
+                  className="text-base md:text-lg px-10 md:px-14 py-7 md:py-8 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-2xl shadow-blue-500/40 hover:shadow-blue-500/60 group font-bold transition-all duration-300 hover:scale-105 animate-pulse-subtle"
                 >
-                  <MapPin className="mr-2 h-5 w-5" />
+                  <MapPin className="mr-2 h-6 w-6" />
                   Start Planning — It&apos;s Free
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="w-full sm:w-auto text-base md:text-lg px-8 py-6 md:py-7 border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 group font-medium"
+              
+              {/* Secondary CTA - Much quieter text link */}
+              <button 
                 onClick={() => setIsVideoPlaying(true)}
+                className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors text-sm group mt-2"
               >
-                <Play className="mr-2 h-5 w-5 text-blue-600" />
-                See How It Works
-                <span className="ml-2 text-xs text-gray-400">90 sec</span>
-              </Button>
+                <Play className="h-4 w-4 text-gray-400 group-hover:text-blue-500" />
+                <span className="underline-offset-2 group-hover:underline">See how it works</span>
+                <span className="text-gray-400">(90 sec)</span>
+              </button>
             </div>
 
             {/* Hero Social Proof - Redesigned */}
@@ -530,6 +557,20 @@ export default function Home() {
               gradient="from-rose-500 to-pink-500"
             />
           </div>
+          
+          {/* CTA after Features */}
+          <div className="text-center mt-12">
+            <Link href="/requests/new">
+              <Button 
+                size="lg" 
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-xl shadow-blue-500/30 font-semibold text-lg px-8 py-6"
+              >
+                Get Your Custom Proposals
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+            <p className="text-sm text-gray-500 mt-3">Average ₹16,500 saved per trip</p>
+          </div>
         </div>
       </section>
 
@@ -699,6 +740,21 @@ export default function Home() {
                 </div>
               </div>
             ))}
+          </div>
+          
+          {/* CTA after Testimonials */}
+          <div className="text-center mt-12">
+            <p className="text-gray-600 mb-4">Ready to save on your next trip?</p>
+            <Link href="/requests/new">
+              <Button 
+                size="lg" 
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-xl shadow-blue-500/30 font-semibold text-lg px-8 py-6"
+              >
+                <MapPin className="mr-2 h-5 w-5" />
+                Start Your Free Request
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
