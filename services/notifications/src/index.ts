@@ -19,7 +19,7 @@
 
 import express, { Express } from 'express';
 import { env, logConfigSummary } from './config/env';
-import { createHealthRouter } from './routes';
+import { createHealthRouter, createWebhookRouter } from './routes';
 import { EventConsumer } from './events';
 import { NotificationService, AuditService, RateLimiterService } from './services';
 import { DeliveryLogRepository } from './repositories';
@@ -66,6 +66,11 @@ class Application {
 
   private configureRoutes(): void {
     this.app.use(createHealthRouter());
+    // Webhook endpoint for receiving events from HTTP-based event bus
+    this.app.use('/webhook', createWebhookRouter(
+      this.notificationService,
+      this.auditService
+    ));
   }
 
   async start(): Promise<void> {

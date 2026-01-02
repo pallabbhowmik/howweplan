@@ -13,6 +13,62 @@ const PORT = process.env.PORT || 4000;
 const subscriptions: Map<string, Set<(event: any) => void>> = new Map();
 const eventHistory: any[] = [];
 
+// Webhook subscribers - services that want to receive events via HTTP
+const webhookSubscribers: Array<{
+  url: string;
+  eventTypes: string[] | '*'; // '*' means all events
+  apiKey?: string;
+}> = [];
+
+// Load webhook subscribers from environment
+const NOTIFICATIONS_WEBHOOK_URL = process.env.NOTIFICATIONS_WEBHOOK_URL;
+if (NOTIFICATIONS_WEBHOOK_URL) {
+  webhookSubscribers.push({
+    url: NOTIFICATIONS_WEBHOOK_URL,
+    eventTypes: '*', // Notifications service handles all events
+    apiKey: process.env.EVENT_BUS_API_KEY,
+  });
+  console.log(`📡 Registered webhook subscriber: ${NOTIFICATIONS_WEBHOOK_URL}`);
+}
+
+/**
+ * Forward event to webhook subscribers
+ */
+async function forwardToWebhooks(event: any): Promise<void> {
+  for (const subscriber of webhookSubscribers) {
+    // Check if subscriber wants this event type
+    if (subscriber.eventTypes !== '*' && !subscriber.eventTypes.includes(event.eventType)) {
+      continue;
+    }
+
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (subscriber.apiKey) {
+        headers['Authorization'] = `Bearer ${subscriber.apiKey}`;
+      }
+
+      const response = await fetch(subscriber.url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(event),
+      });
+
+      if (!response.ok) {
+        console.error(`Webhook delivery failed to ${subscriber.url}:`, {
+          status: response.status,
+          eventType: event.eventType,
+        });
+      } else {
+        console.log(`📨 Event forwarded to ${subscriber.url}:`, event.eventType);
+      }
+    } catch (error) {
+      console.error(`Webhook delivery error to ${subscriber.url}:`, error);
+    }
+  }
+}
+
 // Middleware
 app.use(helmet());
 app.use(express.json({ limit: '1mb' }));
@@ -86,7 +142,12 @@ app.post('/publish', authenticate, async (req, res) => {
     eventHistory.push(event);
     if (eventHistory.length > 1000) eventHistory.shift();
 
-    // Notify subscribers
+    // Forward to webhook subscribers (async, don't wait)
+    forwardToWebhooks(event).catch(err => {
+      console.error('Error forwarding to webhooks:', err);
+    });
+
+    // Notify in-memory subscribers
     const handlers = subscriptions.get(eventType) || new Set();
     let handlersInvoked = 0;
     
@@ -146,7 +207,12 @@ app.post('/publish/batch', authenticate, async (req, res) => {
       eventHistory.push(event);
       if (eventHistory.length > 1000) eventHistory.shift();
 
-      // Notify subscribers
+      // Forward to webhook subscribers (async, don't wait)
+      forwardToWebhooks(event).catch(err => {
+        console.error('Error forwarding to webhooks:', err);
+      });
+
+      // Notify in-memory subscribers
       const handlers = subscriptions.get(event.eventType) || new Set();
       let handlersInvoked = 0;
       

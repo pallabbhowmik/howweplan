@@ -92,10 +92,14 @@ const envSchema = z.object({
     .string()
     .optional()
     .refine(
-      (val) => !val || val.trim() === '' || /^(amqp|redis|kafka):/.test(val),
-      { message: 'EVENT_BUS_URL must be a valid AMQP/Redis/Kafka URL if provided' }
+      (val) => !val || val.trim() === '' || /^(amqp|redis|kafka|https?):/.test(val),
+      { message: 'EVENT_BUS_URL must be a valid AMQP/Redis/Kafka/HTTP URL if provided' }
     )
     .describe('AMQP connection URL for event bus (optional)'),
+  EVENT_BUS_API_KEY: z
+    .string()
+    .optional()
+    .describe('API key for webhook authentication'),
   EVENT_BUS_EXCHANGE: z
     .string()
     .min(1)
