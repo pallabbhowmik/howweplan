@@ -4,15 +4,16 @@
  * Initializes and starts the matching service with:
  * - Environment validation
  * - Event bus connection
- * - Event handler registration
+ * - HTTP server with webhook endpoint
  * - Graceful shutdown handling
  */
 
 import { env, isProduction } from './config/index.js';
 import { logger } from './lib/logger.js';
 import { getEventBus } from './events/index.js';
-import { registerEventHandlers } from './handlers/index.js';
+import { createEventHandlers } from './handlers/index.js';
 import { createMatchingEngine } from './engine/index.js';
+import { startServer, initWebhookRouter } from './routes/index.js';
 
 /**
  * Service state
@@ -38,9 +39,14 @@ async function start(): Promise<void> {
     // Create matching engine
     const matchingEngine = createMatchingEngine();
 
-    // Register event handlers
-    await registerEventHandlers();
+    // Create and register event handlers with webhook router
+    const eventHandlers = createEventHandlers(matchingEngine);
+    initWebhookRouter(eventHandlers);
     logger.info('Event handlers registered');
+
+    // Start HTTP server
+    await startServer();
+    logger.info({ port: env.PORT }, 'HTTP server started');
 
     // Set up periodic cleanup
     const cleanupInterval = setInterval(() => {

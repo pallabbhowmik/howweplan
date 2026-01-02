@@ -1,1 +1,1 @@
-export { EventHandlers, registerEventHandlers, createEventHandlers } from './event-handlers.js';
+export { EventHandlers, createEventHandlers } from './event-handlers.js';

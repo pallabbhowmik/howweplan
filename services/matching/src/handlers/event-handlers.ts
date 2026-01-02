@@ -15,7 +15,6 @@ import { getAgentRepository } from '../repositories/index.js';
 import { getEventBus, createEventMetadata } from '../events/index.js';
 import { eventPublisher } from '../events/event-publisher.js';
 import {
-  EVENT_CHANNELS,
   type RequestCreatedEvent,
   type AgentAvailabilityChangedEvent,
   type AgentRespondedToMatchEvent,
@@ -332,42 +331,6 @@ export class EventHandlers {
 
     return DeclineReason.AGENT_DECLINED;
   }
-}
-
-/**
- * Register all event handlers with the event bus
- */
-export async function registerEventHandlers(handlers?: EventHandlers): Promise<void> {
-  const eventBus = getEventBus();
-  const eventHandlers = handlers ?? new EventHandlers();
-
-  // Subscribe to inbound events
-  await eventBus.subscribe<RequestCreatedEvent>(
-    EVENT_CHANNELS.REQUEST_CREATED,
-    (event) => eventHandlers.handleRequestCreated(event)
-  );
-
-  await eventBus.subscribe<AgentAvailabilityChangedEvent>(
-    EVENT_CHANNELS.AGENT_AVAILABILITY_CHANGED,
-    (event) => eventHandlers.handleAgentAvailabilityChanged(event)
-  );
-
-  await eventBus.subscribe<AgentRespondedToMatchEvent>(
-    EVENT_CHANNELS.AGENT_RESPONDED_TO_MATCH,
-    (event) => eventHandlers.handleAgentRespondedToMatch(event)
-  );
-
-  await eventBus.subscribe<AdminOverrideRequestedEvent>(
-    EVENT_CHANNELS.ADMIN_OVERRIDE_REQUESTED,
-    (event) => eventHandlers.handleAdminOverrideRequested(event)
-  );
-
-  await eventBus.subscribe<MatchingTimeoutExpiredEvent>(
-    EVENT_CHANNELS.MATCHING_TIMEOUT_EXPIRED,
-    (event) => eventHandlers.handleMatchingTimeoutExpired(event)
-  );
-
-  logger.info('All event handlers registered');
 }
 
 /**

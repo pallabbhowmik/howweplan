@@ -1,20 +1,18 @@
 /**
  * Event Bus Implementation
  * 
- * Redis-based pub/sub event bus for inter-service communication.
+ * HTTP-based event bus for inter-service communication.
  * All modules communicate ONLY via shared contracts and event bus.
  * 
  * ARCHITECTURE: Event-driven workflows with strong typing.
  */
 
-import Redis from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
-import { env, redisConfig } from '../config/index.js';
+import { env, eventBusConfig } from '../config/index.js';
 import { logger } from '../lib/logger.js';
 import type { 
   BaseEvent, 
   EventMetadata,
-  InboundEvent,
   OutboundEvent,
 } from '../types/events.js';
 import { createEventId, type EventId } from '../types/index.js';
@@ -25,73 +23,50 @@ import { createEventId, type EventId } from '../types/index.js';
 export type EventHandler<T extends BaseEvent> = (event: T) => Promise<void>;
 
 /**
- * Event Bus class for pub/sub messaging
+ * Event Bus class for HTTP-based messaging
  */
 export class EventBus {
-  private readonly publisher: Redis;
-  private readonly subscriber: Redis;
-  private readonly subscriptions: Map<string, EventHandler<BaseEvent>[]>;
+  private readonly baseUrl: string;
+  private readonly apiKey: string;
   private isConnected: boolean = false;
 
   constructor() {
-    this.publisher = new Redis(redisConfig);
-    this.subscriber = new Redis(redisConfig);
-    this.subscriptions = new Map();
-
-    this.setupErrorHandlers();
+    this.baseUrl = eventBusConfig.url;
+    this.apiKey = eventBusConfig.apiKey;
   }
 
   /**
-   * Set up error handlers for Redis connections
-   */
-  private setupErrorHandlers(): void {
-    this.publisher.on('error', (err) => {
-      logger.error({ err }, 'Redis publisher error');
-    });
-
-    this.subscriber.on('error', (err) => {
-      logger.error({ err }, 'Redis subscriber error');
-    });
-
-    this.publisher.on('connect', () => {
-      logger.info('Redis publisher connected');
-    });
-
-    this.subscriber.on('connect', () => {
-      logger.info('Redis subscriber connected');
-    });
-  }
-
-  /**
-   * Connect to Redis
+   * Connect to Event Bus (validates connectivity)
    */
   async connect(): Promise<void> {
     if (this.isConnected) {
       return;
     }
 
-    await Promise.all([
-      this.publisher.connect(),
-      this.subscriber.connect(),
-    ]);
+    try {
+      const response = await fetch(`${this.baseUrl}/health`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-    this.isConnected = true;
-    logger.info('Event bus connected');
+      if (!response.ok) {
+        throw new Error(`Event Bus health check failed: ${response.status}`);
+      }
+
+      this.isConnected = true;
+      logger.info({ url: this.baseUrl }, 'Event bus connected');
+    } catch (error) {
+      logger.error({ error, url: this.baseUrl }, 'Failed to connect to Event Bus');
+      throw error;
+    }
   }
 
   /**
-   * Disconnect from Redis
+   * Disconnect from Event Bus
    */
   async disconnect(): Promise<void> {
-    if (!this.isConnected) {
-      return;
-    }
-
-    await Promise.all([
-      this.publisher.quit(),
-      this.subscriber.quit(),
-    ]);
-
     this.isConnected = false;
     logger.info('Event bus disconnected');
   }
@@ -113,73 +88,40 @@ export class EventBus {
       source: env.SERVICE_NAME,
     };
 
-    const serialized = JSON.stringify(fullEvent);
-    
-    await this.publisher.publish(channel, serialized);
-    
-    logger.debug({ 
-      channel, 
-      eventId, 
-      eventType: event.eventType 
-    }, 'Event published');
-
-    return eventId;
-  }
-
-  /**
-   * Subscribe to a channel with a handler
-   */
-  async subscribe<T extends InboundEvent>(
-    channel: string,
-    handler: EventHandler<T>
-  ): Promise<void> {
-    const handlers = this.subscriptions.get(channel) ?? [];
-    handlers.push(handler as EventHandler<BaseEvent>);
-    this.subscriptions.set(channel, handlers);
-
-    await this.subscriber.subscribe(channel);
-
-    // Set up message handler if not already done
-    if (handlers.length === 1) {
-      this.subscriber.on('message', async (msgChannel, message) => {
-        if (msgChannel !== channel) {
-          return;
-        }
-
-        try {
-          const event = JSON.parse(message) as T;
-          const channelHandlers = this.subscriptions.get(channel) ?? [];
-          
-          await Promise.all(
-            channelHandlers.map(async (h) => {
-              try {
-                await h(event);
-              } catch (err) {
-                logger.error({ 
-                  err, 
-                  channel, 
-                  eventId: event.eventId,
-                  eventType: event.eventType,
-                }, 'Event handler error');
-              }
-            })
-          );
-        } catch (err) {
-          logger.error({ err, channel, message }, 'Failed to parse event');
-        }
+    try {
+      const response = await fetch(`${this.baseUrl}/publish`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': this.apiKey,
+        },
+        body: JSON.stringify({
+          channel,
+          event: fullEvent,
+        }),
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to publish event: ${response.status} - ${errorText}`);
+      }
+
+      logger.debug({ 
+        channel, 
+        eventId, 
+        eventType: event.eventType 
+      }, 'Event published');
+
+      return eventId;
+    } catch (error) {
+      logger.error({ 
+        error, 
+        channel, 
+        eventId,
+        eventType: event.eventType 
+      }, 'Failed to publish event');
+      throw error;
     }
-
-    logger.info({ channel }, 'Subscribed to channel');
-  }
-
-  /**
-   * Unsubscribe from a channel
-   */
-  async unsubscribe(channel: string): Promise<void> {
-    this.subscriptions.delete(channel);
-    await this.subscriber.unsubscribe(channel);
-    logger.info({ channel }, 'Unsubscribed from channel');
   }
 
   /**

@@ -3,7 +3,7 @@ export {
   type Env,
   isProduction, 
   isDevelopment,
-  redisConfig,
+  eventBusConfig,
   matchingConfig,
   peakSeasonConfig,
   featureFlags,

@@ -21,15 +21,15 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3003),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 
-  // Event Bus (Redis)
-  REDIS_HOST: z.string().min(1).default('localhost'),
-  REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
-  REDIS_PASSWORD: z.string().default(''),
-  REDIS_DB: z.coerce.number().int().min(0).max(15).default(0),
-  REDIS_CONNECT_TIMEOUT: z.coerce.number().int().min(1000).default(10000),
+  // Event Bus (HTTP-based)
+  EVENT_BUS_URL: z.string().url().default('http://localhost:3010'),
+  EVENT_BUS_API_KEY: z.string().min(16),
 
-  // Database
-  DATABASE_URL: z.string().url().startsWith('postgresql://'),
+  // Database (accepts both postgres:// and postgresql://)
+  DATABASE_URL: z.string().refine(
+    (url) => url.startsWith('postgres://') || url.startsWith('postgresql://'),
+    { message: 'Must be a valid PostgreSQL connection string starting with postgres:// or postgresql://' }
+  ),
   DATABASE_POOL_MIN: z.coerce.number().int().min(1).default(2),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).default(10),
 
@@ -146,17 +146,12 @@ export const isProduction = env.NODE_ENV === 'production';
 export const isDevelopment = env.NODE_ENV === 'development';
 
 /**
- * Redis configuration object
+ * Event Bus configuration object
  */
-export const redisConfig = {
-  host: env.REDIS_HOST,
-  port: env.REDIS_PORT,
-  ...(env.REDIS_PASSWORD ? { password: env.REDIS_PASSWORD } : {}),
-  db: env.REDIS_DB,
-  connectTimeout: env.REDIS_CONNECT_TIMEOUT,
-  lazyConnect: true,
-  maxRetriesPerRequest: 3,
-};
+export const eventBusConfig = {
+  url: env.EVENT_BUS_URL,
+  apiKey: env.EVENT_BUS_API_KEY,
+} as const;
 
 /**
  * Matching engine configuration object
