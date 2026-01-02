@@ -26,6 +26,14 @@ const API_BASE_URL = rawApiBaseUrl
   .replace(/\/api$/, ''); // Remove /api suffix if someone added it
 const API_TIMEOUT = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS) || 30000;
 
+// Request deduplication cache to prevent duplicate requests
+const requestCache = new Map<string, Promise<any>>();
+const CACHE_DURATION = 1000; // 1 second
+
+// Rate limiting protection
+const rateLimitMap = new Map<string, number[]>();
+const MAX_REQUESTS_PER_MINUTE = 60;
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -64,29 +72,63 @@ async function getAuthHeader(): Promise<Record<string, string>> {
 }
 
 /**
- * Make an API request through the gateway
+ * Check rate limiting
+ */
+function checkRateLimit(endpoint: string): boolean {
+  const now = Date.now();
+  const requests = rateLimitMap.get(endpoint) || [];
+  
+  // Remove requests older than 1 minute
+  const recentRequests = requests.filter(time => now - time < 60000);
+  
+  if (recentRequests.length >= MAX_REQUESTS_PER_MINUTE) {
+    return false;
+  }
+  
+  recentRequests.push(now);
+  rateLimitMap.set(endpoint, recentRequests);
+  return true;
+}
+
+/**
+ * Make an API request through the gateway with deduplication and rate limiting
  */
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  // Rate limiting check
+  if (!checkRateLimit(endpoint)) {
+    throw new Error('Too many requests. Please slow down.');
+  }
+
+  // Request deduplication for GET requests
+  const cacheKey = `${endpoint}-${JSON.stringify(options)}`;
+  if (options.method === 'GET' || !options.method) {
+    const cachedRequest = requestCache.get(cacheKey);
+    if (cachedRequest) {
+      return cachedRequest;
+    }
+  }
+
   const authHeader = await getAuthHeader();
   
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
   
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeader,
-        ...options.headers,
-      },
-      signal: controller.signal,
-    });
-    
-    clearTimeout(timeoutId);
+  const requestPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeader,
+          ...options.headers,
+        },
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
     
     // Handle 401 - redirect to login
     if (response.status === 401) {
@@ -107,19 +149,30 @@ async function apiRequest<T>(
       throw error;
     }
     
-    // Parse response
-    const data = await response.json();
-    return data;
-    
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-    
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout');
+      // Parse response
+      const data = await response.json();
+      return data;
+      
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout');
+      }
+      
+      throw error;
+    } finally {
+      // Clean up cache after a short delay
+      setTimeout(() => requestCache.delete(cacheKey), CACHE_DURATION);
     }
-    
-    throw error;
+  })();
+
+  // Store in cache for GET requests
+  if (options.method === 'GET' || !options.method) {
+    requestCache.set(cacheKey, requestPromise);
   }
+
+  return requestPromise;
 }
 
 // ============================================================================

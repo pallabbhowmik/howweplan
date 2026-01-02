@@ -463,7 +463,7 @@ export default function MessagesPage() {
           filter: `conversation_id=eq.${selectedConversationId}`,
         },
         (payload) => {
-          console.log('[user-web] Realtime message received:', payload);
+          // Message received via realtime
           const row: any = payload.new;
           const next: ConversationMessage = {
             id: row.id,
@@ -484,7 +484,7 @@ export default function MessagesPage() {
         }
       )
       .subscribe((status) => {
-        console.log('[user-web] Realtime subscription status:', status);
+        // Realtime subscription status updated
       });
 
     return () => {

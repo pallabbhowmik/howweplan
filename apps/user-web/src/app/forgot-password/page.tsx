@@ -18,7 +18,7 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
     
     // Simulate API call
-    console.log('Password reset requested for:', email);
+    // Password reset requested
     
     setTimeout(() => {
       setIsLoading(false);

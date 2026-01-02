@@ -21,6 +21,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useUserSession } from '@/lib/user/session';
 import { fetchUserRequests, type TravelRequest } from '@/lib/data/api';
+import { useDebounce } from '@/lib/utils/debounce';
 
 export default function RequestsPage() {
   const { user, loading: userLoading } = useUserSession();
@@ -28,6 +29,9 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  
+  // Debounce search query for better performance
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   useEffect(() => {
     if (!user?.userId) return;
@@ -51,12 +55,12 @@ export default function RequestsPage() {
     return () => { cancelled = true; };
   }, [user?.userId]);
 
-  // Filter requests based on search and status
+  // Filter requests based on debounced search and status
   const filteredRequests = requests.filter(request => {
-    const matchesSearch = searchQuery === '' || 
+    const matchesSearch = debouncedSearchQuery === '' || 
       (request.destination?.label || request.destination?.city || request.title || '')
         .toLowerCase()
-        .includes(searchQuery.toLowerCase());
+        .includes(debouncedSearchQuery.toLowerCase());
     
     const normalizedState = normalizeStatus(request.state);
     const matchesStatus = filterStatus === 'all' || 
