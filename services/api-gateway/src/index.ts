@@ -199,6 +199,7 @@ function createProxyOptions(serviceName: string, serviceUrl: string): Options {
     },
     timeout: config.proxyTimeout,
     proxyTimeout: config.proxyTimeout,
+    // Handle body that was already parsed by express.json()
     onProxyReq: (proxyReq, req: Request) => {
       // Forward request ID
       if (req.requestId) {
@@ -216,6 +217,14 @@ function createProxyOptions(serviceName: string, serviceUrl: string): Options {
       const clientIp = req.ip || req.socket?.remoteAddress;
       if (clientIp) {
         proxyReq.setHeader('X-Forwarded-For', clientIp);
+      }
+
+      // Re-stream body if it was parsed by express.json()
+      if (req.body && Object.keys(req.body).length > 0) {
+        const bodyData = JSON.stringify(req.body);
+        proxyReq.setHeader('Content-Type', 'application/json');
+        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+        proxyReq.write(bodyData);
       }
 
       logger.debug({
