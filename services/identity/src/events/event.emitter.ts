@@ -70,7 +70,12 @@ async function publishEvents(events: IdentityEvent[]): Promise<void> {
   }
 
   try {
-    const response = await fetch(env.EVENT_BUS_URL, {
+    // Use the batch endpoint for multiple events
+    const url = env.EVENT_BUS_URL.endsWith('/publish/batch') 
+      ? env.EVENT_BUS_URL 
+      : `${env.EVENT_BUS_URL.replace(/\/$/, '')}/publish/batch`;
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -84,9 +89,12 @@ async function publishEvents(events: IdentityEvent[]): Promise<void> {
       const errorText = await response.text();
       console.error('Failed to publish events to event bus:', {
         status: response.status,
-        error: errorText,
+        error: errorText.substring(0, 200),
         eventCount: events.length,
       });
+    } else {
+      const result = await response.json();
+      console.log(`📨 Published ${events.length} events to event bus:`, result);
     }
   } catch (error) {
     // Log but don't throw - event publishing should not break the main flow

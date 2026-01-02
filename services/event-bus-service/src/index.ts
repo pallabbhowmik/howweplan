@@ -113,6 +113,75 @@ app.post('/publish', authenticate, async (req, res) => {
   }
 });
 
+// Batch publish events (used by identity service)
+app.post('/publish/batch', authenticate, async (req, res) => {
+  try {
+    const { events } = req.body;
+
+    if (!events || !Array.isArray(events) || events.length === 0) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'events array is required',
+      });
+    }
+
+    const results = [];
+    
+    for (const evt of events) {
+      const event = {
+        eventId: evt.eventId || `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        eventType: evt.eventType,
+        payload: evt.payload,
+        metadata: {
+          source: evt.source,
+          correlationId: evt.correlationId,
+          actorId: evt.actorId,
+          actorRole: evt.actorRole,
+          occurredAt: evt.occurredAt,
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      // Store in history
+      eventHistory.push(event);
+      if (eventHistory.length > 1000) eventHistory.shift();
+
+      // Notify subscribers
+      const handlers = subscriptions.get(event.eventType) || new Set();
+      let handlersInvoked = 0;
+      
+      for (const handler of handlers) {
+        try {
+          await handler(event);
+          handlersInvoked++;
+        } catch (error) {
+          console.error('Handler error:', error);
+        }
+      }
+
+      results.push({
+        eventId: event.eventId,
+        eventType: event.eventType,
+        handlersInvoked,
+      });
+    }
+
+    console.log(`📨 Processed ${events.length} events from batch`);
+
+    res.json({
+      success: true,
+      processed: results.length,
+      results,
+    });
+  } catch (error: any) {
+    console.error('Error publishing batch events:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message,
+    });
+  }
+});
+
 // Subscribe to events (long-polling or webhook callback)
 app.post('/subscribe', authenticate, (req, res) => {
   try {
