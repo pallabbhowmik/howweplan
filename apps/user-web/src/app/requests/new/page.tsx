@@ -40,12 +40,21 @@ import { useUserSession } from '@/lib/user/session';
 import { createTravelRequest } from '@/lib/data/api';
 
 const popularDestinations = [
-  { name: 'Goa', emoji: '🏖️', type: 'Beach Paradise' },
-  { name: 'Manali', emoji: '🏔️', type: 'Mountain Escape' },
-  { name: 'Jaipur', emoji: '🏰', type: 'Royal Heritage' },
-  { name: 'Kerala', emoji: '🌴', type: 'Backwaters' },
-  { name: 'Ladakh', emoji: '🏔️', type: 'Adventure' },
-  { name: 'Udaipur', emoji: '🌊', type: 'Lake City' },
+  { name: 'Goa', emoji: '🏖️', type: 'Beach Paradise', image: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=200&h=150&fit=crop', color: 'from-cyan-400 to-blue-500' },
+  { name: 'Manali', emoji: '🏔️', type: 'Mountain Escape', image: 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=200&h=150&fit=crop', color: 'from-slate-400 to-slate-600' },
+  { name: 'Jaipur', emoji: '🏰', type: 'Royal Heritage', image: 'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=200&h=150&fit=crop', color: 'from-pink-400 to-rose-500' },
+  { name: 'Kerala', emoji: '🌴', type: 'Backwaters', image: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=200&h=150&fit=crop', color: 'from-green-400 to-emerald-500' },
+  { name: 'Ladakh', emoji: '🏔️', type: 'Adventure', image: 'https://images.unsplash.com/photo-1626621331169-5f34be280ed9?w=200&h=150&fit=crop', color: 'from-amber-400 to-orange-500' },
+  { name: 'Udaipur', emoji: '🌊', type: 'Lake City', image: 'https://images.unsplash.com/photo-1568495248636-6432b97bd949?w=200&h=150&fit=crop', color: 'from-purple-400 to-indigo-500' },
+];
+
+// Destination suggestions for auto-complete
+const allDestinations = [
+  'Goa', 'Manali', 'Jaipur', 'Kerala', 'Ladakh', 'Udaipur', 'Mumbai', 'Delhi', 
+  'Agra', 'Varanasi', 'Rishikesh', 'Shimla', 'Darjeeling', 'Ooty', 'Munnar',
+  'Andaman', 'Lakshadweep', 'Coorg', 'Hampi', 'Mysore', 'Pondicherry', 'Jaisalmer',
+  'Ranthambore', 'Jim Corbett', 'Kaziranga', 'Sundarbans', 'Spiti Valley', 'Meghalaya',
+  'Sikkim', 'Arunachal Pradesh', 'Kashmir', 'Amritsar', 'Chandigarh', 'Lonavala',
 ];
 
 const tripTypes = [
@@ -99,6 +108,27 @@ export default function NewRequestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
+  const [destinationSuggestions, setDestinationSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Filter destinations as user types
+  const handleDestinationChange = (value: string) => {
+    updateForm('destination', value);
+    if (value.length >= 2) {
+      const filtered = allDestinations.filter(d => 
+        d.toLowerCase().includes(value.toLowerCase())
+      ).slice(0, 5);
+      setDestinationSuggestions(filtered);
+      setShowSuggestions(filtered.length > 0);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectDestination = (dest: string) => {
+    updateForm('destination', dest);
+    setShowSuggestions(false);
+  };
   const [formData, setFormData] = useState<FormData>({
     destination: '',
     startDate: '',
@@ -412,9 +442,24 @@ export default function NewRequestPage() {
         </div>
       </div>
 
-      {/* Progress Steps */}
+      {/* Progress Steps with Visual Progress Bar */}
       <div className="max-w-4xl mx-auto px-4 -mt-6 relative z-10">
         <div className="bg-white rounded-2xl shadow-xl p-6 border">
+          {/* Progress Bar */}
+          <div className="mb-6">
+            <div className="flex justify-between text-sm mb-2">
+              <span className="font-medium text-slate-700">Step {step} of 3</span>
+              <span className="text-blue-600 font-semibold">{Math.round((step / 3) * 100)}% complete</span>
+            </div>
+            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${(step / 3) * 100}%` }}
+              />
+            </div>
+          </div>
+          
+          {/* Step Indicators */}
           <div className="flex items-center justify-between">
             {steps.map((s, i) => (
               <div key={s.num} className="flex items-center">
@@ -437,9 +482,11 @@ export default function NewRequestPage() {
                   </div>
                   <div className="hidden sm:block">
                     <p className={`font-semibold ${step === s.num ? 'text-blue-600' : step > s.num ? 'text-green-600' : 'text-slate-400'}`}>
-                      Step {s.num}
+                      {s.title}
                     </p>
-                    <p className="text-sm text-slate-500">{s.title}</p>
+                    <p className="text-xs text-slate-500">
+                      {s.num === 1 ? 'Where & when' : s.num === 2 ? 'Style & budget' : 'Confirm details'}
+                    </p>
                   </div>
                 </button>
                 {i < steps.length - 1 && (
@@ -469,33 +516,68 @@ export default function NewRequestPage() {
                   <CardDescription>Enter your dream destination or select from popular choices</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Destination input with auto-suggest */}
                   <div className="relative">
                     <Input
-                      placeholder="e.g., Goa, Kerala, Manali..."
+                      placeholder="Type a destination (e.g., Goa, Manali, Kerala...)"
                       value={formData.destination}
-                      onChange={(e) => updateForm('destination', e.target.value)}
+                      onChange={(e) => handleDestinationChange(e.target.value)}
+                      onFocus={() => formData.destination.length >= 2 && setShowSuggestions(destinationSuggestions.length > 0)}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                       className="text-lg py-6 pl-12"
                     />
                     <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    
+                    {/* Auto-suggest dropdown */}
+                    {showSuggestions && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-xl shadow-lg z-20 overflow-hidden">
+                        {destinationSuggestions.map((dest) => (
+                          <button
+                            key={dest}
+                            type="button"
+                            onMouseDown={() => selectDestination(dest)}
+                            className="w-full px-4 py-3 text-left hover:bg-blue-50 flex items-center gap-3 border-b last:border-0"
+                          >
+                            <MapPin className="h-4 w-4 text-blue-500" />
+                            <span className="font-medium">{dest}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   
+                  {/* Visual destination cards */}
                   <div className="pt-2">
-                    <p className="text-sm text-slate-500 mb-3">Popular destinations</p>
+                    <p className="text-sm text-slate-500 mb-3">🔥 Popular destinations</p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       {popularDestinations.map((dest) => (
                         <button
                           key={dest.name}
                           type="button"
-                          onClick={() => updateForm('destination', dest.name)}
-                          className={`p-4 rounded-xl border-2 text-left transition-all hover:shadow-md ${
+                          onClick={() => selectDestination(dest.name)}
+                          className={`relative overflow-hidden rounded-xl border-2 transition-all hover:shadow-lg group ${
                             formData.destination === dest.name
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-slate-200 hover:border-blue-300'
+                              ? 'border-blue-500 ring-2 ring-blue-200'
+                              : 'border-transparent hover:border-blue-300'
                           }`}
                         >
-                          <span className="text-2xl">{dest.emoji}</span>
-                          <p className="font-semibold mt-1">{dest.name}</p>
-                          <p className="text-xs text-slate-500">{dest.type}</p>
+                          {/* Background gradient as fallback */}
+                          <div className={`absolute inset-0 bg-gradient-to-br ${dest.color} opacity-90`} />
+                          
+                          {/* Content */}
+                          <div className="relative p-4 text-white">
+                            <span className="text-3xl drop-shadow-md">{dest.emoji}</span>
+                            <p className="font-bold mt-2 text-lg drop-shadow-sm">{dest.name}</p>
+                            <p className="text-xs text-white/80">{dest.type}</p>
+                            {formData.destination === dest.name && (
+                              <div className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center">
+                                <Check className="h-4 w-4 text-blue-600" />
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Hover overlay */}
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                         </button>
                       ))}
                     </div>
@@ -887,20 +969,20 @@ export default function NewRequestPage() {
             </div>
           )}
 
-          {/* Navigation */}
-          <div className="flex justify-between items-center mt-8 p-6 bg-white rounded-2xl shadow-lg border">
+          {/* Navigation - Desktop */}
+          <div className="hidden md:flex justify-between items-center mt-8 p-6 bg-white rounded-2xl shadow-lg border">
             {step > 1 ? (
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={() => setStep(step - 1)}
-                className="gap-2"
+                className="gap-2 h-12"
               >
-                <ArrowLeft className="h-4 w-4" /> Back
+                <ArrowLeft className="h-4 w-4" /> Back to {steps[step - 2]?.title}
               </Button>
             ) : (
               <Link href="/dashboard">
-                <Button type="button" variant="ghost" className="gap-2">
+                <Button type="button" variant="ghost" className="gap-2 h-12">
                   <ArrowLeft className="h-4 w-4" /> Cancel
                 </Button>
               </Link>
@@ -911,16 +993,16 @@ export default function NewRequestPage() {
                 type="button"
                 onClick={() => setStep(step + 1)}
                 disabled={!canProceed()}
-                className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-12 px-8 text-base font-semibold"
               >
-                Continue <ArrowRight className="h-4 w-4" />
+                Next: {steps[step]?.title} <ArrowRight className="h-4 w-4" />
               </Button>
             ) : (
               <Button
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting || userLoading}
-                className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 px-8"
+                className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 h-12 px-8 text-base font-semibold"
               >
                 {isSubmitting ? (
                   <>
@@ -930,12 +1012,67 @@ export default function NewRequestPage() {
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4" />
-                    Submit Request
+                    Submit Request & Get Proposals
                   </>
                 )}
               </Button>
             )}
           </div>
+          
+          {/* Spacer for mobile sticky nav */}
+          <div className="h-24 md:hidden" />
+        </div>
+      </div>
+      
+      {/* Mobile Sticky Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-2xl md:hidden z-50">
+        <div className="flex gap-3">
+          {step > 1 ? (
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setStep(step - 1)}
+              className="flex-shrink-0 h-14 px-4"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          ) : (
+            <Link href="/dashboard" className="flex-shrink-0">
+              <Button type="button" variant="outline" className="h-14 px-4">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+          )}
+
+          {step < 3 ? (
+            <Button
+              type="button"
+              onClick={() => setStep(step + 1)}
+              disabled={!canProceed()}
+              className="flex-1 gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-14 text-base font-semibold"
+            >
+              Next: {steps[step]?.title} <ArrowRight className="h-5 w-5" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting || userLoading}
+              className="flex-1 gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 h-14 text-base font-semibold"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-5 w-5" />
+                  Submit Request
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
     </div>
