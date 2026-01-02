@@ -63,8 +63,8 @@ const envSchema = z.object({
   // ─────────────────────────────────────────────────────────────
   // AUDIT / OBSERVABILITY
   // ─────────────────────────────────────────────────────────────
-  EVENT_BUS_URL: z.string().url('EVENT_BUS_URL must be a valid URL'),
-  EVENT_BUS_API_KEY: z.string().min(1, 'EVENT_BUS_API_KEY is required'),
+  EVENT_BUS_URL: z.string().url('EVENT_BUS_URL must be a valid URL').optional().default(''),
+  EVENT_BUS_API_KEY: z.string().optional().default(''),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
 

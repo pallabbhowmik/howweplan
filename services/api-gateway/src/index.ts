@@ -269,6 +269,13 @@ function createProxyOptions(serviceName: string, serviceUrl: string): Options {
       circuitBreaker.recordFailure(serviceName, err.message);
 
       if (!res.headersSent) {
+        // Add CORS headers to error response
+        const origin = req.headers.origin;
+        if (origin && config.cors.allowedOrigins.includes(origin)) {
+          res.setHeader('Access-Control-Allow-Origin', origin);
+          res.setHeader('Access-Control-Allow-Credentials', 'true');
+        }
+        
         res.status(502).json({
           error: 'Bad Gateway',
           message: `Service ${serviceName} is unavailable`,

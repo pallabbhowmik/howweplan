@@ -61,6 +61,14 @@ const MAX_BUFFER_SIZE = 50;
 async function publishEvents(events: IdentityEvent[]): Promise<void> {
   if (events.length === 0) return;
 
+  // Skip if event bus is not configured
+  if (!env.EVENT_BUS_URL || env.EVENT_BUS_URL === '') {
+    if (env.NODE_ENV === 'development') {
+      console.log('Event bus not configured, skipping event publish:', events.map(e => e.eventType));
+    }
+    return;
+  }
+
   try {
     const response = await fetch(env.EVENT_BUS_URL, {
       method: 'POST',
