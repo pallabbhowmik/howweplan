@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -101,7 +101,19 @@ interface FormData {
   specialRequests: string;
 }
 
-export default function NewRequestPage() {
+// Loading fallback for Suspense
+function NewRequestLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+        <p className="text-slate-600">Loading trip planner...</p>
+      </div>
+    </div>
+  );
+}
+
+function NewRequestPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: userLoading } = useUserSession();
@@ -1176,6 +1188,15 @@ export default function NewRequestPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Main export wrapped in Suspense for useSearchParams
+export default function NewRequestPage() {
+  return (
+    <Suspense fallback={<NewRequestLoading />}>
+      <NewRequestPageContent />
+    </Suspense>
   );
 }
 
