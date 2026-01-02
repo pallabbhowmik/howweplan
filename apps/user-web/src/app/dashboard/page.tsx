@@ -347,6 +347,13 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* Helper text for new users */}
+      {userState === 'new_user' && (
+        <p className="text-center text-xs text-gray-400 -mt-2">
+          These update automatically once you create a request.
+        </p>
+      )}
+
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Travel Requests - Takes 2 columns */}
@@ -491,19 +498,6 @@ export default function DashboardPage() {
               </Link>
             </CardContent>
           </Card>
-
-          {/* Light Personalization Widget */}
-          {(stats?.completedTrips || 0) === 0 && activeRequests.length === 0 && (
-            <Card className="shadow-lg border-0 border-l-4 border-l-blue-500 bg-blue-50/50">
-              <CardContent className="p-4">
-                <p className="text-sm text-blue-800 font-medium flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  127 travelers just like you planned trips this week
-                </p>
-                <p className="text-xs text-blue-600 mt-1">Most choose an agent within 24 hours</p>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
     </div>
@@ -668,7 +662,7 @@ function getRequestStageIndex(state: string): number {
 
 function NewUserEmptyState() {
   const steps = [
-    { num: 1, label: 'Create request', icon: Send, color: 'blue', active: true },
+    { num: 1, label: 'Create your request', icon: Send, color: 'blue', active: true },
     { num: 2, label: 'Agents respond', icon: Users, color: 'purple', active: false },
     { num: 3, label: 'Compare proposals', icon: Target, color: 'amber', active: false },
     { num: 4, label: 'Book your trip', icon: CheckCircle, color: 'green', active: false },
@@ -725,6 +719,12 @@ function NewUserEmptyState() {
               Create Your First Request
             </Button>
           </Link>
+          
+          {/* Social proof - tied to CTA */}
+          <div className="mt-4 inline-flex items-center gap-2 text-sm text-gray-500 bg-white/80 px-4 py-2 rounded-full border border-gray-100">
+            <Users className="h-4 w-4 text-blue-500" />
+            <span>127 travelers planned trips this week</span>
+          </div>
         </div>
       </div>
     </div>
