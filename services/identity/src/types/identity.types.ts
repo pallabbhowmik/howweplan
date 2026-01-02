@@ -12,14 +12,16 @@
 
 /**
  * Platform roles with strict hierarchy.
- * - USER: End consumer who books travel
- * - AGENT: Travel professional who creates itineraries
- * - ADMIN: Platform operator with elevated privileges
+ * - user: End consumer who books travel
+ * - agent: Travel professional who creates itineraries
+ * - admin: Platform operator with elevated privileges
+ * 
+ * Note: Uses lowercase to match Supabase user_role enum
  */
 export const UserRole = {
-  USER: 'USER',
-  AGENT: 'AGENT',
-  ADMIN: 'ADMIN',
+  USER: 'user',
+  AGENT: 'agent',
+  ADMIN: 'admin',
 } as const;
 
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];

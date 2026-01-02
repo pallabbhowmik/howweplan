@@ -26,6 +26,7 @@ import {
 } from '../services/token.service.js';
 import { EventFactory, EventContext } from '../events/index.js';
 import { IdentityError } from '../services/errors.js';
+import { UserRole } from '../types/identity.types.js';
 import {
   loginRequestSchema,
   registerRequestSchema,
@@ -567,7 +568,7 @@ router.post(
         {
           userId: user.id,
           email: user.email,
-          role: 'USER', // Doesn't matter for verification email
+          role: UserRole.USER, // Doesn't matter for verification email
           firstName: user.first_name,
           verificationToken: token,
         },
