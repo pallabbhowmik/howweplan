@@ -500,6 +500,28 @@ export default function NewRequestPage() {
 
       {/* Form Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Emotional context message per step */}
+        <div className="mb-6 text-center">
+          {step === 1 && (
+            <p className="text-slate-600 flex items-center justify-center gap-2">
+              <span className="text-xl">✈️</span>
+              <span>Let&apos;s start planning your adventure! This helps agents understand your trip.</span>
+            </p>
+          )}
+          {step === 2 && (
+            <p className="text-slate-600 flex items-center justify-center gap-2">
+              <span className="text-xl">✨</span>
+              <span>Great choices! Now let&apos;s personalize your experience.</span>
+            </p>
+          )}
+          {step === 3 && (
+            <p className="text-emerald-600 font-medium flex items-center justify-center gap-2">
+              <span className="text-xl">🎉</span>
+              <span>You&apos;re almost there! Review and send to travel experts.</span>
+            </p>
+          )}
+        </div>
+        
         <div>
           {/* Step 1: Trip Details */}
           {step === 1 && (
@@ -970,53 +992,66 @@ export default function NewRequestPage() {
           )}
 
           {/* Navigation - Desktop */}
-          <div className="hidden md:flex justify-between items-center mt-8 p-6 bg-white rounded-2xl shadow-lg border">
-            {step > 1 ? (
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setStep(step - 1)}
-                className="gap-2 h-12"
-              >
-                <ArrowLeft className="h-4 w-4" /> Back to {steps[step - 2]?.title}
-              </Button>
-            ) : (
-              <Link href="/dashboard">
-                <Button type="button" variant="ghost" className="gap-2 h-12">
-                  <ArrowLeft className="h-4 w-4" /> Cancel
+          <div className="hidden md:block mt-8 p-6 bg-white rounded-2xl shadow-lg border">
+            <div className="flex justify-between items-center">
+              {step > 1 ? (
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setStep(step - 1)}
+                  className="gap-2 h-12"
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back to {steps[step - 2]?.title}
                 </Button>
-              </Link>
-            )}
+              ) : (
+                <Link href="/dashboard">
+                  <Button type="button" variant="ghost" className="gap-2 h-12">
+                    <ArrowLeft className="h-4 w-4" /> Cancel
+                  </Button>
+                </Link>
+              )}
 
-            {step < 3 ? (
-              <Button
-                type="button"
-                onClick={() => setStep(step + 1)}
-                disabled={!canProceed()}
-                className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-12 px-8 text-base font-semibold"
-              >
-                Next: {steps[step]?.title} <ArrowRight className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                onClick={handleSubmit}
-                disabled={isSubmitting || userLoading}
-                className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 h-12 px-8 text-base font-semibold"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4" />
-                    Submit Request & Get Proposals
-                  </>
-                )}
-              </Button>
-            )}
+              {step < 3 ? (
+                <Button
+                  type="button"
+                  onClick={() => setStep(step + 1)}
+                  disabled={!canProceed()}
+                  className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-12 px-8 text-base font-semibold"
+                >
+                  Next: {steps[step]?.title} <ArrowRight className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || userLoading}
+                  className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 h-12 px-8 text-base font-semibold"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Sending to experts...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Send to Travel Experts
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+            
+            {/* Reassurance micro-copy */}
+            <div className="text-center mt-4 text-sm text-slate-500">
+              {step === 1 && "Takes about 2 minutes • No account needed yet"}
+              {step === 2 && "The more details, the better proposals you’ll get"}
+              {step === 3 && (
+                <span className="text-emerald-600 font-medium">
+                  ✓ Free to submit • No booking required • Get proposals in 24hrs
+                </span>
+              )}
+            </div>
           </div>
           
           {/* Spacer for mobile sticky nav */}
@@ -1025,8 +1060,15 @@ export default function NewRequestPage() {
       </div>
       
       {/* Mobile Sticky Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-2xl md:hidden z-50">
-        <div className="flex gap-3">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-2xl md:hidden z-50">
+        {/* Reassurance text */}
+        <div className="text-center py-2 text-xs text-slate-500 border-b bg-slate-50">
+          {step === 1 && "Takes about 2 minutes"}
+          {step === 2 && "Almost done! One more step."}
+          {step === 3 && <span className="text-emerald-600 font-medium">✓ Free to submit • No booking required</span>}
+        </div>
+        
+        <div className="flex gap-3 p-4">
           {step > 1 ? (
             <Button 
               type="button" 
@@ -1063,12 +1105,12 @@ export default function NewRequestPage() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Submitting...
+                  Sending...
                 </>
               ) : (
                 <>
                   <Sparkles className="h-5 w-5" />
-                  Submit Request
+                  Send to Experts
                 </>
               )}
             </Button>
