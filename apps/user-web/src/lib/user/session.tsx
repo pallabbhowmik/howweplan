@@ -63,15 +63,6 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) setUserIdState(stored);
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
@@ -80,21 +71,42 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
       try {
         const supabase = getSupabaseClient();
 
+        // First check stored user from auth (primary source after login)
+        const storedUser = getStoredUser();
+        
+        // Then check legacy demo storage or current state
+        let storedDemoId: string | null = null;
+        try {
+          storedDemoId = localStorage.getItem(STORAGE_KEY);
+        } catch {
+          // ignore
+        }
+
         let effectiveUserId: string;
-        if (userId) {
+        if (storedUser?.id) {
+          // Prefer auth stored user
+          effectiveUserId = storedUser.id;
+        } else if (userId) {
+          // Use current state if set
           effectiveUserId = userId;
+        } else if (storedDemoId) {
+          // Fall back to demo storage
+          effectiveUserId = storedDemoId;
         } else {
-          // Check if we have a stored user from auth
-          const storedUser = getStoredUser();
-          if (storedUser?.id) {
-            effectiveUserId = storedUser.id;
-            setUserId(effectiveUserId);
-          } else {
-            // No authenticated user - stop loading and wait for login
-            if (!cancelled) {
-              setLoading(false);
-            }
-            return;
+          // No authenticated user - stop loading and wait for login
+          if (!cancelled) {
+            setLoading(false);
+          }
+          return;
+        }
+        
+        // Sync the user ID to state and storage
+        if (effectiveUserId !== userId) {
+          setUserIdState(effectiveUserId);
+          try {
+            localStorage.setItem(STORAGE_KEY, effectiveUserId);
+          } catch {
+            // ignore
           }
         }
 
@@ -125,7 +137,7 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
 
     load();
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId]); // Re-run when userId changes (e.g., after login)
 
   const value = useMemo<UserSessionValue>(
     () => ({
