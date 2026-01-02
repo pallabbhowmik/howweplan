@@ -1,17 +1,33 @@
 /**
- * Password hashing service using secure algorithms.
- * Uses built-in Node.js crypto for Argon2-like security.
+ * Password hashing service using Argon2id (recommended for 2024+).
+ * Provides secure password hashing with timing-safe comparison.
  */
 
+import * as argon2 from 'argon2';
 import { scrypt, randomBytes, timingSafeEqual, ScryptOptions } from 'crypto';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CONFIGURATION
+// ARGON2ID CONFIGURATION (PRIMARY - RECOMMENDED)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Password hashing configuration.
- * Using scrypt with recommended parameters for 2024.
+ * Argon2id configuration following OWASP recommendations.
+ * These parameters provide strong security while remaining practical.
+ */
+const ARGON2_CONFIG: argon2.Options = {
+  type: argon2.argon2id,        // Argon2id variant (best for password hashing)
+  memoryCost: 65536,            // 64 MB memory
+  timeCost: 3,                  // 3 iterations
+  parallelism: 4,               // 4 parallel threads
+  hashLength: 32,               // 32 byte output
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCRYPT CONFIGURATION (FALLBACK FOR LEGACY HASHES)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Scrypt configuration (kept for verifying legacy hashes).
  */
 const SCRYPT_CONFIG = {
   /** Length of the derived key in bytes */
@@ -44,40 +60,99 @@ function scryptAsync(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PASSWORD HASHING
+// COMMON PASSWORD CHECK
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Hashes a password using scrypt.
- * Returns a string in the format: $scrypt$params$salt$hash
+ * Top 1000 most common passwords (abbreviated list - in production, use a file).
+ */
+const COMMON_PASSWORDS = new Set([
+  '123456', 'password', '12345678', 'qwerty', '123456789', '12345', '1234',
+  '111111', '1234567', 'dragon', '123123', 'baseball', 'iloveyou', 'trustno1',
+  'sunshine', 'princess', 'football', 'welcome', 'shadow', 'superman', 'michael',
+  'master', 'jennifer', 'letmein', 'login', 'admin', 'passw0rd', 'hello',
+  'monkey', 'abc123', 'starwars', 'whatever', 'qwerty123', 'password123',
+  'password1', 'qwertyuiop', 'asdfghjkl', 'zxcvbnm', '0987654321',
+]);
+
+/**
+ * Checks if a password is in the common passwords list.
+ */
+export function isCommonPassword(password: string): boolean {
+  return COMMON_PASSWORDS.has(password.toLowerCase());
+}
+
+/**
+ * Validates password strength (not just length).
+ */
+export function validatePasswordStrength(password: string): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  if (password.length < 10) {
+    errors.push('Password must be at least 10 characters long');
+  }
+
+  if (password.length > 128) {
+    errors.push('Password must be less than 128 characters');
+  }
+
+  if (isCommonPassword(password)) {
+    errors.push('This password is too common and easily guessable');
+  }
+
+  // Check for at least one letter and one number (not overly strict)
+  if (!/[a-zA-Z]/.test(password)) {
+    errors.push('Password must contain at least one letter');
+  }
+
+  if (!/\d/.test(password)) {
+    errors.push('Password must contain at least one number');
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PASSWORD HASHING (ARGON2ID)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Hashes a password using Argon2id.
+ * Returns a PHC-formatted string that includes algorithm, parameters, and hash.
  */
 export async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(SCRYPT_CONFIG.saltLength);
-
-  const derivedKey = await scryptAsync(password, salt, SCRYPT_CONFIG.keyLength, {
-    N: SCRYPT_CONFIG.cost,
-    r: SCRYPT_CONFIG.blockSize,
-    p: SCRYPT_CONFIG.parallelization,
-  });
-
-  // Encode parameters for future-proofing (allows changing parameters)
-  const params = Buffer.from(
-    JSON.stringify({
-      N: SCRYPT_CONFIG.cost,
-      r: SCRYPT_CONFIG.blockSize,
-      p: SCRYPT_CONFIG.parallelization,
-      kl: SCRYPT_CONFIG.keyLength,
-    })
-  ).toString('base64url');
-
-  return `$scrypt$${params}$${salt.toString('base64url')}$${derivedKey.toString('base64url')}`;
+  try {
+    return await argon2.hash(password, ARGON2_CONFIG);
+  } catch (error) {
+    throw new Error(`Password hashing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 /**
  * Verifies a password against a hash.
- * Uses timing-safe comparison to prevent timing attacks.
+ * Supports both Argon2 and legacy scrypt hashes.
  */
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  try {
+    // Check if this is a legacy scrypt hash
+    if (hash.startsWith('$scrypt$')) {
+      return await verifyScryptPassword(password, hash);
+    }
+
+    // Argon2 verification (handles $argon2id$ prefix)
+    return await argon2.verify(hash, password);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Verifies a password against a legacy scrypt hash.
+ */
+async function verifyScryptPassword(password: string, hash: string): Promise<boolean> {
   try {
     const parts = hash.split('$');
     if (parts.length !== 5 || parts[1] !== 'scrypt') {
@@ -117,32 +192,17 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
 /**
  * Checks if a password hash needs to be rehashed.
- * Returns true if the hash was created with outdated parameters.
+ * Returns true if using legacy algorithm or outdated parameters.
  */
 export function needsRehash(hash: string): boolean {
   try {
-    const parts = hash.split('$');
-    if (parts.length !== 5 || parts[1] !== 'scrypt') {
+    // Legacy scrypt hashes should be upgraded
+    if (hash.startsWith('$scrypt$')) {
       return true;
     }
 
-    const paramsStr = parts[2];
-    if (!paramsStr) return true;
-
-    const params = JSON.parse(Buffer.from(paramsStr, 'base64url').toString()) as {
-      N: number;
-      r: number;
-      p: number;
-      kl: number;
-    };
-
-    // Check if parameters match current configuration
-    return (
-      params.N < SCRYPT_CONFIG.cost ||
-      params.r !== SCRYPT_CONFIG.blockSize ||
-      params.p !== SCRYPT_CONFIG.parallelization ||
-      params.kl !== SCRYPT_CONFIG.keyLength
-    );
+    // Check if Argon2 parameters need updating
+    return argon2.needsRehash(hash, ARGON2_CONFIG);
   } catch {
     return true;
   }

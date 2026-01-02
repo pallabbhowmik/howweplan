@@ -55,12 +55,14 @@ interface AccessTokenPayload {
   role: UserRole;
   status: AccountStatus;
   agentVerificationStatus: AgentVerificationStatus | null;
+  ver: number; // Token version for revocation
   type: 'access';
 }
 
 interface RefreshTokenPayload {
   sub: string;
   jti: string; // Unique token ID for revocation
+  ver: number; // Token version for revocation
   type: 'refresh';
 }
 
@@ -70,18 +72,21 @@ interface RefreshTokenPayload {
 
 /**
  * Creates an access token for a user.
+ * Includes token version for instant revocation capability.
  */
 export function createAccessToken(
   userId: string,
   role: UserRole,
   status: AccountStatus,
-  agentVerificationStatus: AgentVerificationStatus | null
+  agentVerificationStatus: AgentVerificationStatus | null,
+  tokenVersion: number = 1
 ): string {
   const payload: AccessTokenPayload = {
     sub: userId,
     role,
     status,
     agentVerificationStatus,
+    ver: tokenVersion,
     type: 'access',
   };
 

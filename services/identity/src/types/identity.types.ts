@@ -38,12 +38,14 @@ export const ALL_ROLES: readonly UserRole[] = Object.values(UserRole);
  * - PENDING_VERIFICATION: Initial state, awaiting email verification
  * - ACTIVE: Full access granted
  * - SUSPENDED: Read-only access, no write operations allowed
+ * - BANNED: Permanently blocked, no access allowed
  * - DEACTIVATED: Account closed by user or admin
  */
 export const AccountStatus = {
   PENDING_VERIFICATION: 'PENDING_VERIFICATION',
   ACTIVE: 'ACTIVE',
   SUSPENDED: 'SUSPENDED',
+  BANNED: 'BANNED',
   DEACTIVATED: 'DEACTIVATED',
 } as const;
 
@@ -54,8 +56,9 @@ export type AccountStatus = (typeof AccountStatus)[keyof typeof AccountStatus];
  */
 export const ACCOUNT_STATUS_TRANSITIONS: Record<AccountStatus, readonly AccountStatus[]> = {
   [AccountStatus.PENDING_VERIFICATION]: [AccountStatus.ACTIVE, AccountStatus.DEACTIVATED],
-  [AccountStatus.ACTIVE]: [AccountStatus.SUSPENDED, AccountStatus.DEACTIVATED],
-  [AccountStatus.SUSPENDED]: [AccountStatus.ACTIVE, AccountStatus.DEACTIVATED],
+  [AccountStatus.ACTIVE]: [AccountStatus.SUSPENDED, AccountStatus.BANNED, AccountStatus.DEACTIVATED],
+  [AccountStatus.SUSPENDED]: [AccountStatus.ACTIVE, AccountStatus.BANNED, AccountStatus.DEACTIVATED],
+  [AccountStatus.BANNED]: [], // Terminal state - only admin can override
   [AccountStatus.DEACTIVATED]: [], // Terminal state
 } as const;
 
