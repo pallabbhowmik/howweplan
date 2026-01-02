@@ -35,6 +35,11 @@ if (NOTIFICATIONS_WEBHOOK_URL) {
  * Forward event to webhook subscribers
  */
 async function forwardToWebhooks(event: any): Promise<void> {
+  if (webhookSubscribers.length === 0) {
+    console.log('⚠️ No webhook subscribers configured, event not forwarded:', event.eventType);
+    return;
+  }
+
   for (const subscriber of webhookSubscribers) {
     // Check if subscriber wants this event type
     if (subscriber.eventTypes !== '*' && !subscriber.eventTypes.includes(event.eventType)) {
@@ -49,6 +54,8 @@ async function forwardToWebhooks(event: any): Promise<void> {
         headers['Authorization'] = `Bearer ${subscriber.apiKey}`;
       }
 
+      console.log(`📤 Forwarding event to ${subscriber.url}:`, event.eventType);
+
       const response = await fetch(subscriber.url, {
         method: 'POST',
         headers,
@@ -56,15 +63,18 @@ async function forwardToWebhooks(event: any): Promise<void> {
       });
 
       if (!response.ok) {
-        console.error(`Webhook delivery failed to ${subscriber.url}:`, {
+        const errorBody = await response.text();
+        console.error(`❌ Webhook delivery failed to ${subscriber.url}:`, {
           status: response.status,
           eventType: event.eventType,
+          error: errorBody.substring(0, 500),
         });
       } else {
-        console.log(`📨 Event forwarded to ${subscriber.url}:`, event.eventType);
+        const result = await response.json();
+        console.log(`✅ Event forwarded to ${subscriber.url}:`, event.eventType, result);
       }
     } catch (error) {
-      console.error(`Webhook delivery error to ${subscriber.url}:`, error);
+      console.error(`❌ Webhook delivery error to ${subscriber.url}:`, error);
     }
   }
 }
@@ -112,6 +122,8 @@ app.get('/health', (req, res) => {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    webhookSubscribers: webhookSubscribers.length,
+    webhookUrls: webhookSubscribers.map(s => s.url),
   });
 });
 
