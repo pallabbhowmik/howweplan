@@ -129,6 +129,7 @@ export async function createRefreshToken(userId: string): Promise<string> {
   const payload: RefreshTokenPayload = {
     sub: userId,
     jti: tokenId,
+    ver: 1,
     type: 'refresh',
   };
 

@@ -327,13 +327,7 @@ export const EventFactory = {
     context: EventContext
   ) => emitEvent('identity.profile.updated', payload, context),
 
-  emailVerified: (
-    payload: {
-      userId: string;
-      email: string;
-    },
-    context: EventContext
-  ) => emitEvent('identity.email.verified', payload, context),
+  // Note: emailVerified is defined above with 'identity.user.email_verified' type
 
   agentVerificationSubmitted: (
     payload: {

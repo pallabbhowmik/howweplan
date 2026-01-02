@@ -5,7 +5,6 @@
 
 import { createHash, randomBytes } from 'crypto';
 import { getDbClient } from './database.js';
-import { env } from '../env.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIGURATION

@@ -93,6 +93,26 @@ export interface TokenRefreshedEvent extends IdentityEventBase {
   };
 }
 
+export interface PasswordResetRequestedEvent extends IdentityEventBase {
+  readonly eventType: 'identity.user.password_reset_requested';
+  readonly payload: {
+    readonly userId: string;
+    readonly email: string;
+    readonly firstName: string;
+    readonly resetToken: string;
+    readonly expiresAt: string;
+  };
+}
+
+export interface UserEmailVerifiedEvent extends IdentityEventBase {
+  readonly eventType: 'identity.user.email_verified';
+  readonly payload: {
+    readonly userId: string;
+    readonly email: string;
+    readonly firstName: string;
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ACCOUNT STATUS EVENTS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -269,6 +289,8 @@ export type IdentityEvent =
   | LoginFailedEvent
   | PasswordChangedEvent
   | TokenRefreshedEvent
+  | PasswordResetRequestedEvent
+  | UserEmailVerifiedEvent
   | AccountStatusChangedEvent
   | AccountSuspendedEvent
   | AccountReactivatedEvent
@@ -293,6 +315,8 @@ export const IdentityEventType = {
   LOGIN_FAILED: 'identity.user.login_failed',
   PASSWORD_CHANGED: 'identity.user.password_changed',
   TOKEN_REFRESHED: 'identity.user.token_refreshed',
+  PASSWORD_RESET_REQUESTED: 'identity.user.password_reset_requested',
+  USER_EMAIL_VERIFIED: 'identity.user.email_verified',
   ACCOUNT_STATUS_CHANGED: 'identity.account.status_changed',
   ACCOUNT_SUSPENDED: 'identity.account.suspended',
   ACCOUNT_REACTIVATED: 'identity.account.reactivated',

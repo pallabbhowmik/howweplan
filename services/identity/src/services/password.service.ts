@@ -4,7 +4,7 @@
  */
 
 import * as argon2 from 'argon2';
-import { scrypt, randomBytes, timingSafeEqual, ScryptOptions } from 'crypto';
+import { scrypt, timingSafeEqual, ScryptOptions } from 'crypto';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ARGON2ID CONFIGURATION (PRIMARY - RECOMMENDED)
@@ -26,21 +26,14 @@ const ARGON2_CONFIG: argon2.Options = {
 // SCRYPT CONFIGURATION (FALLBACK FOR LEGACY HASHES)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Scrypt configuration (kept for verifying legacy hashes).
+/*
+ * Scrypt configuration reference (kept for documentation):
+ * - keyLength: 64 bytes
+ * - saltLength: 32 bytes  
+ * - cost (N): 16384 (power of 2)
+ * - blockSize (r): 8
+ * - parallelization (p): 1
  */
-const SCRYPT_CONFIG = {
-  /** Length of the derived key in bytes */
-  keyLength: 64,
-  /** Salt length in bytes */
-  saltLength: 32,
-  /** CPU/memory cost parameter (N) - must be power of 2 */
-  cost: 16384,
-  /** Block size (r) */
-  blockSize: 8,
-  /** Parallelization (p) */
-  parallelization: 1,
-} as const;
 
 /**
  * Promisified scrypt function with proper typing.
@@ -125,7 +118,13 @@ export function validatePasswordStrength(password: string): { valid: boolean; er
  */
 export async function hashPassword(password: string): Promise<string> {
   try {
-    return await argon2.hash(password, ARGON2_CONFIG);
+    return await argon2.hash(password, {
+      type: argon2.argon2id,
+      memoryCost: 65536,
+      timeCost: 3,
+      parallelism: 4,
+      hashLength: 32,
+    });
   } catch (error) {
     throw new Error(`Password hashing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
