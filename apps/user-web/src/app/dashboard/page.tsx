@@ -79,8 +79,7 @@ function getStateConfig(state: UserState, stats: DashboardStats | null, userName
         proTips: [
           'Add specific dates for better pricing',
           'Include your must-have experiences',
-          'Agents respond within 4-6 hours',
-          'Compare proposals before deciding',
+          'Most agents respond within 4 hours',
         ],
         showActivityPlaceholder: true,
       };
@@ -94,7 +93,6 @@ function getStateConfig(state: UserState, stats: DashboardStats | null, userName
         proTips: [
           'Most agents respond within 4 hours',
           'You\'ll get notified when proposals arrive',
-          'You can message agents with questions',
           'No obligation to accept any proposal',
         ],
         showActivityPlaceholder: false,
@@ -110,7 +108,6 @@ function getStateConfig(state: UserState, stats: DashboardStats | null, userName
           'Compare at least 3 proposals',
           'Check agent ratings and reviews',
           'Message agents with questions',
-          'Don\'t rush — take your time to decide',
         ],
         showActivityPlaceholder: false,
       };
@@ -123,9 +120,8 @@ function getStateConfig(state: UserState, stats: DashboardStats | null, userName
         secondaryCTA: { label: 'Plan Next Adventure', href: '/requests/new' },
         proTips: [
           'Keep your itinerary downloaded offline',
-          'Message your agent for last-minute changes',
-          'Don\'t forget to leave a review after your trip',
-          'Check weather forecast before packing',
+          'Message your agent for changes',
+          'Leave a review after your trip',
         ],
         showActivityPlaceholder: false,
       };
@@ -137,10 +133,9 @@ function getStateConfig(state: UserState, stats: DashboardStats | null, userName
         primaryCTA: { label: 'Plan New Adventure', href: '/requests/new', icon: Sparkles },
         secondaryCTA: { label: 'View Past Trips', href: '/dashboard/bookings' },
         proTips: [
-          'Agents love working with experienced travelers',
           'Try a new destination type this time',
           'Your reviews help other travelers',
-          'Loyalty gets you priority agent matching',
+          'Priority agent matching for loyal users',
         ],
         showActivityPlaceholder: false,
       };
@@ -532,45 +527,55 @@ function ActionableStatCard({
   highlight?: boolean;
   isEmpty?: boolean;
 }) {
+  // Muted styles for empty state, vibrant for has-value state
   const colorClasses = {
-    blue: 'bg-blue-50 text-blue-600 border-blue-100 hover:border-blue-300',
-    green: 'bg-green-50 text-green-600 border-green-100 hover:border-green-300',
-    amber: 'bg-amber-50 text-amber-600 border-amber-100 hover:border-amber-300',
-    red: 'bg-red-50 text-red-600 border-red-100 hover:border-red-300',
-    purple: 'bg-purple-50 text-purple-600 border-purple-100 hover:border-purple-300',
+    blue: isEmpty ? 'bg-gray-50 text-gray-400 border-gray-200' : 'bg-blue-50 text-blue-600 border-blue-200 hover:border-blue-400 hover:shadow-lg',
+    green: isEmpty ? 'bg-gray-50 text-gray-400 border-gray-200' : 'bg-green-50 text-green-600 border-green-200 hover:border-green-400 hover:shadow-lg',
+    amber: isEmpty ? 'bg-gray-50 text-gray-400 border-gray-200' : 'bg-amber-50 text-amber-600 border-amber-200 hover:border-amber-400 hover:shadow-lg',
+    red: isEmpty ? 'bg-gray-50 text-gray-400 border-gray-200' : 'bg-red-50 text-red-600 border-red-200 hover:border-red-400 hover:shadow-lg',
+    purple: isEmpty ? 'bg-gray-50 text-gray-400 border-gray-200' : 'bg-purple-50 text-purple-600 border-purple-200 hover:border-purple-400 hover:shadow-lg',
   };
 
   const iconClasses = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    amber: 'bg-amber-100 text-amber-600',
-    red: 'bg-red-100 text-red-600',
-    purple: 'bg-purple-100 text-purple-600',
+    blue: isEmpty ? 'bg-gray-100 text-gray-400' : 'bg-blue-100 text-blue-600',
+    green: isEmpty ? 'bg-gray-100 text-gray-400' : 'bg-green-100 text-green-600',
+    amber: isEmpty ? 'bg-gray-100 text-gray-400' : 'bg-amber-100 text-amber-600',
+    red: isEmpty ? 'bg-gray-100 text-gray-400' : 'bg-red-100 text-red-600',
+    purple: isEmpty ? 'bg-gray-100 text-gray-400' : 'bg-purple-100 text-purple-600',
   };
 
-  return (
-    <Link href={href}>
-      <Card className={`border-2 shadow-sm hover:shadow-lg transition-all cursor-pointer group ${colorClasses[color]} ${highlight ? 'ring-2 ring-amber-400 ring-offset-2' : ''}`}>
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className={`p-2.5 rounded-xl ${iconClasses[color]} group-hover:scale-110 transition-transform`}>{icon}</div>
-            {highlight && (
-              <Badge className="bg-amber-500 text-white border-0 animate-pulse text-xs">
-                Action needed
-              </Badge>
-            )}
-          </div>
-          <p className="text-3xl font-bold mb-1">{value}</p>
-          <p className="text-sm font-medium opacity-80">{title}</p>
-          {subtitle && <p className="text-xs font-semibold mt-1">{subtitle}</p>}
+  const cardContent = (
+    <Card className={`border-2 shadow-sm transition-all ${!isEmpty ? 'cursor-pointer group' : 'cursor-default'} ${colorClasses[color]} ${highlight ? 'ring-2 ring-amber-400 ring-offset-2' : ''}`}>
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className={`p-2.5 rounded-xl ${iconClasses[color]} ${!isEmpty ? 'group-hover:scale-110' : ''} transition-transform`}>{icon}</div>
+          {highlight && (
+            <Badge className="bg-amber-500 text-white border-0 animate-pulse text-xs">
+              Action needed
+            </Badge>
+          )}
+          {!isEmpty && !highlight && (
+            <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-current group-hover:translate-x-1 transition-all" />
+          )}
+        </div>
+        <p className={`text-3xl font-bold mb-1 ${isEmpty ? 'text-gray-300' : ''}`}>{value}</p>
+        <p className={`text-sm font-medium ${isEmpty ? 'text-gray-400' : 'opacity-80'}`}>{title}</p>
+        {subtitle && <p className="text-xs font-semibold mt-1">{subtitle}</p>}
+        {!isEmpty && (
           <div className="mt-3 flex items-center text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-            <span>{isEmpty ? 'Get started' : actionText}</span>
-            <ChevronRight className="h-3 w-3 ml-1 group-hover:translate-x-1 transition-transform" />
+            <span>{actionText}</span>
           </div>
-        </CardContent>
-      </Card>
-    </Link>
+        )}
+      </CardContent>
+    </Card>
   );
+
+  // Non-empty cards are interactive, empty cards are informational
+  if (isEmpty) {
+    return cardContent;
+  }
+
+  return <Link href={href}>{cardContent}</Link>;
 }
 
 // ============================================================================
@@ -659,53 +664,64 @@ function getRequestStageIndex(state: string): number {
 // ============================================================================
 
 function NewUserEmptyState() {
+  const steps = [
+    { num: 1, label: 'Create request', icon: Send, color: 'blue', active: true },
+    { num: 2, label: 'Agents respond', icon: Users, color: 'purple', active: false },
+    { num: 3, label: 'Compare proposals', icon: Target, color: 'amber', active: false },
+    { num: 4, label: 'Book your trip', icon: CheckCircle, color: 'green', active: false },
+  ];
+
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 py-16 px-8">
-      <div className="max-w-lg mx-auto text-center">
-        <div className="relative inline-block mb-6">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur-xl opacity-30 animate-pulse" />
-          <div className="relative w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto shadow-xl">
-            <Plane className="h-12 w-12 text-white" />
+    <div className="bg-gradient-to-br from-slate-50 to-blue-50/50 py-10 px-8">
+      <div className="max-w-2xl mx-auto">
+        {/* Procedural header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-100 rounded-2xl mb-4">
+            <Plus className="h-7 w-7 text-blue-600" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-800 mb-2">
+            Create your first trip request
+          </h3>
+          <p className="text-gray-500">
+            Tell us where you want to go — agents will take it from there.
+          </p>
+        </div>
+
+        {/* 4-Step Progress Visualization */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+          <div className="flex items-center justify-between">
+            {steps.map((step, i) => (
+              <div key={step.num} className="flex items-center">
+                <div className="flex flex-col items-center">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                    step.active 
+                      ? 'bg-blue-600 text-white shadow-lg ring-4 ring-blue-100' 
+                      : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    <step.icon className="h-5 w-5" />
+                  </div>
+                  <span className={`text-xs mt-2 font-medium ${
+                    step.active ? 'text-blue-600' : 'text-gray-400'
+                  }`}>
+                    {step.label}
+                  </span>
+                </div>
+                {i < steps.length - 1 && (
+                  <div className="flex-1 h-0.5 bg-gray-200 mx-3 mt-[-20px] min-w-[40px]" />
+                )}
+              </div>
+            ))}
           </div>
         </div>
         
-        <h3 className="text-2xl font-bold text-gray-800 mb-3">
-          Your next adventure starts here ✈️
-        </h3>
-        <p className="text-gray-600 mb-2 text-lg">
-          Expert travel agents compete to plan your dream trip
-        </p>
-        <p className="text-gray-500 mb-8 text-sm">
-          Free • No commitment • No hidden fees
-        </p>
-        
-        <Link href="/requests/new">
-          <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg gap-2 text-lg px-8 py-6">
-            <Sparkles className="h-5 w-5" />
-            Create Your First Request
-          </Button>
-        </Link>
-
-        {/* How it works */}
-        <div className="mt-12 grid grid-cols-3 gap-4 text-center">
-          <div>
-            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
-              <Send className="h-5 w-5 text-blue-600" />
-            </div>
-            <p className="text-xs text-gray-600 font-medium">Share your dream</p>
-          </div>
-          <div>
-            <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
-              <Users className="h-5 w-5 text-purple-600" />
-            </div>
-            <p className="text-xs text-gray-600 font-medium">Agents compete</p>
-          </div>
-          <div>
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-              <Heart className="h-5 w-5 text-green-600" />
-            </div>
-            <p className="text-xs text-gray-600 font-medium">Pick your favorite</p>
-          </div>
+        {/* CTA */}
+        <div className="text-center">
+          <Link href="/requests/new">
+            <Button size="lg" className="bg-blue-600 hover:bg-blue-700 shadow-md gap-2 px-8">
+              <Plus className="h-5 w-5" />
+              Get Started
+            </Button>
+          </Link>
         </div>
       </div>
     </div>
@@ -863,33 +879,38 @@ function ActivityFeedItem({ item }: { item: SystemActivity }) {
 
 function ActivityPlaceholder() {
   return (
-    <div className="p-6 text-center">
+    <div className="p-5">
+      {/* Explicit label for clarity */}
+      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
+        <Clock className="h-4 w-4 text-gray-400" />
+        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+          What happens next
+        </span>
+      </div>
+      
       <div className="space-y-3">
-        <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg opacity-50">
+        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg opacity-60">
           <div className="p-2 bg-blue-100 rounded-lg">
             <Send className="h-4 w-4 text-blue-600" />
           </div>
           <div>
-            <p className="text-sm text-gray-600">Request sent to agents</p>
-            <p className="text-xs text-gray-400">After you create a request</p>
+            <p className="text-sm text-gray-700">Request sent to agents</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg opacity-50">
+        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg opacity-60">
           <div className="p-2 bg-purple-100 rounded-lg">
             <Eye className="h-4 w-4 text-purple-600" />
           </div>
           <div>
-            <p className="text-sm text-gray-600">Agents viewing your trip</p>
-            <p className="text-xs text-gray-400">Real-time updates</p>
+            <p className="text-sm text-gray-700">Agents view & respond</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 text-left p-3 bg-gray-50 rounded-lg opacity-50">
-          <div className="p-2 bg-green-100 rounded-lg">
-            <Target className="h-4 w-4 text-green-600" />
+        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg opacity-60">
+          <div className="p-2 bg-amber-100 rounded-lg">
+            <Target className="h-4 w-4 text-amber-600" />
           </div>
           <div>
-            <p className="text-sm text-gray-600">Proposals ready</p>
-            <p className="text-xs text-gray-400">Usually within 4-6 hours</p>
+            <p className="text-sm text-gray-700">Proposals ready to compare</p>
           </div>
         </div>
       </div>
