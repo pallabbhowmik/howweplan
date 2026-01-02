@@ -31,7 +31,20 @@ import {
   registerRequestSchema,
   refreshTokenRequestSchema,
   changePasswordRequestSchema,
+  forgotPasswordRequestSchema,
+  resetPasswordRequestSchema,
+  verifyEmailRequestSchema,
+  resendVerificationRequestSchema,
 } from '../types/api.schemas.js';
+import {
+  createPasswordResetToken,
+  verifyPasswordResetToken,
+  createEmailVerificationToken,
+  verifyToken,
+  VerificationType,
+} from '../services/verification.service.js';
+import { getDbClient } from '../services/database.js';
+import { hashPassword } from '../services/password.service.js';
 
 const router = Router();
 
@@ -292,6 +305,306 @@ router.post(
         return;
       }
       throw error;
+    }
+  }
+);
+
+/**
+ * POST /auth/forgot-password
+ * Request a password reset email.
+ */
+router.post(
+  '/forgot-password',
+  strictRateLimit(3, 60000), // 3 requests per minute
+  validateBody(forgotPasswordRequestSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const body = req.body as z.infer<typeof forgotPasswordRequestSchema>;
+
+    try {
+      const db = getDbClient();
+
+      // Find user by email
+      const { data: user, error } = await db
+        .from('users')
+        .select('id, email, first_name, status')
+        .eq('email', body.email.toLowerCase())
+        .single();
+
+      // Always return success to prevent email enumeration
+      if (error || !user || user.status === 'DEACTIVATED') {
+        sendSuccess(
+          res,
+          { message: 'If an account exists with this email, you will receive a password reset link.' },
+          authReq.correlationId
+        );
+        return;
+      }
+
+      // Create password reset token
+      const { token, expiresAt } = await createPasswordResetToken(user.id, user.email);
+
+      // Emit event to trigger email
+      const eventContext = createEventContext(req);
+      await EventFactory.passwordResetRequested(
+        {
+          userId: user.id,
+          email: user.email,
+          firstName: user.first_name,
+          resetToken: token,
+          expiresAt: expiresAt.toISOString(),
+        },
+        eventContext
+      );
+
+      sendSuccess(
+        res,
+        { message: 'If an account exists with this email, you will receive a password reset link.' },
+        authReq.correlationId
+      );
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      // Log but don't expose internal errors
+      console.error('Forgot password error:', error);
+      sendSuccess(
+        res,
+        { message: 'If an account exists with this email, you will receive a password reset link.' },
+        authReq.correlationId
+      );
+    }
+  }
+);
+
+/**
+ * POST /auth/reset-password
+ * Reset password using a token from the email.
+ */
+router.post(
+  '/reset-password',
+  strictRateLimit(5, 60000), // 5 attempts per minute
+  validateBody(resetPasswordRequestSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const body = req.body as z.infer<typeof resetPasswordRequestSchema>;
+
+    try {
+      // Verify token
+      const result = await verifyPasswordResetToken(body.token);
+
+      if (!result.valid || !result.userId) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_TOKEN',
+            message: 'This password reset link is invalid or has expired.',
+          },
+          requestId: authReq.correlationId,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Hash new password
+      const passwordHash = await hashPassword(body.newPassword);
+
+      // Update user's password
+      const db = getDbClient();
+      const { error } = await db
+        .from('users')
+        .update({
+          password_hash: passwordHash,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', result.userId);
+
+      if (error) {
+        throw new Error(`Failed to update password: ${error.message}`);
+      }
+
+      // Revoke all refresh tokens for security
+      await revokeAllUserRefreshTokens(result.userId);
+
+      // Emit password changed event
+      const eventContext = createEventContext(req, result.userId);
+      await EventFactory.passwordChanged(
+        {
+          userId: result.userId,
+          initiatedBy: 'USER',
+        },
+        eventContext
+      );
+
+      sendSuccess(res, { message: 'Password has been reset successfully. Please log in with your new password.' }, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      throw error;
+    }
+  }
+);
+
+/**
+ * POST /auth/verify-email
+ * Verify email address using a token from the email.
+ */
+router.post(
+  '/verify-email',
+  strictRateLimit(10, 60000), // 10 attempts per minute
+  validateBody(verifyEmailRequestSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const body = req.body as z.infer<typeof verifyEmailRequestSchema>;
+
+    try {
+      // Verify token
+      const result = await verifyToken(body.token, VerificationType.EMAIL);
+
+      if (!result.valid || !result.userId) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_TOKEN',
+            message: 'This verification link is invalid or has expired.',
+          },
+          requestId: authReq.correlationId,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Update user's email_verified status
+      const db = getDbClient();
+      const { data: user, error } = await db
+        .from('users')
+        .update({
+          email_verified_at: new Date().toISOString(),
+          status: 'ACTIVE', // Activate account upon email verification
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', result.userId)
+        .select('id, email, first_name')
+        .single();
+
+      if (error || !user) {
+        throw new Error(`Failed to verify email: ${error?.message || 'User not found'}`);
+      }
+
+      // Emit email verified event
+      const eventContext = createEventContext(req, result.userId);
+      await EventFactory.emailVerified(
+        {
+          userId: user.id,
+          email: user.email,
+          firstName: user.first_name,
+        },
+        eventContext
+      );
+
+      sendSuccess(res, { message: 'Email verified successfully.' }, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      throw error;
+    }
+  }
+);
+
+/**
+ * POST /auth/resend-verification
+ * Resend the email verification link.
+ */
+router.post(
+  '/resend-verification',
+  strictRateLimit(2, 60000), // 2 requests per minute
+  validateBody(resendVerificationRequestSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const body = req.body as z.infer<typeof resendVerificationRequestSchema>;
+
+    try {
+      const db = getDbClient();
+
+      // Find user by email
+      const { data: user, error } = await db
+        .from('users')
+        .select('id, email, first_name, email_verified_at, status')
+        .eq('email', body.email.toLowerCase())
+        .single();
+
+      // Always return success to prevent email enumeration
+      if (error || !user || user.status === 'DEACTIVATED') {
+        sendSuccess(
+          res,
+          { message: 'If an account exists with this email and is not verified, you will receive a verification link.' },
+          authReq.correlationId
+        );
+        return;
+      }
+
+      // If already verified, return success but don't send email
+      if (user.email_verified_at) {
+        sendSuccess(
+          res,
+          { message: 'If an account exists with this email and is not verified, you will receive a verification link.' },
+          authReq.correlationId
+        );
+        return;
+      }
+
+      // Create new verification token
+      const { token } = await createEmailVerificationToken(user.id, user.email);
+
+      // Emit event to trigger email (reuse userRegistered event for verification email)
+      const eventContext = createEventContext(req);
+      await EventFactory.userRegistered(
+        {
+          userId: user.id,
+          email: user.email,
+          role: 'USER', // Doesn't matter for verification email
+          firstName: user.first_name,
+          verificationToken: token,
+        },
+        eventContext
+      );
+
+      sendSuccess(
+        res,
+        { message: 'If an account exists with this email and is not verified, you will receive a verification link.' },
+        authReq.correlationId
+      );
+    } catch (error) {
+      // Handle rate limiting from verification service
+      if (error instanceof Error && error.message.includes('wait')) {
+        res.status(429).json({
+          success: false,
+          error: {
+            code: 'RATE_LIMITED',
+            message: error.message,
+          },
+          requestId: authReq.correlationId,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      // Log but don't expose internal errors
+      console.error('Resend verification error:', error);
+      sendSuccess(
+        res,
+        { message: 'If an account exists with this email and is not verified, you will receive a verification link.' },
+        authReq.correlationId
+      );
     }
   }
 );

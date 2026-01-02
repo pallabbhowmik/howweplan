@@ -196,6 +196,7 @@ export const EventFactory = {
       email: string;
       role: UserRole;
       firstName: string;
+      verificationToken?: string;
     },
     context: EventContext
   ) => emitEvent('identity.user.registered', payload, context),
@@ -232,6 +233,26 @@ export const EventFactory = {
 
   tokenRefreshed: (payload: { userId: string }, context: EventContext) =>
     emitEvent('identity.user.token_refreshed', payload, context),
+
+  passwordResetRequested: (
+    payload: {
+      userId: string;
+      email: string;
+      firstName: string;
+      resetToken: string;
+      expiresAt: string;
+    },
+    context: EventContext
+  ) => emitEventImmediate('identity.user.password_reset_requested', payload, context),
+
+  emailVerified: (
+    payload: {
+      userId: string;
+      email: string;
+      firstName: string;
+    },
+    context: EventContext
+  ) => emitEventImmediate('identity.user.email_verified', payload, context),
 
   accountStatusChanged: (
     payload: {

@@ -272,10 +272,10 @@ export const EventTypes = {
   DISPUTE_OPENED: 'dispute.opened',
   DISPUTE_RESOLVED: 'dispute.resolved',
 
-  // User events
-  USER_REGISTERED: 'user.registered',
-  PASSWORD_RESET_REQUESTED: 'user.password_reset_requested',
-  EMAIL_VERIFIED: 'user.email_verified',
+  // User events (from identity service)
+  USER_REGISTERED: 'identity.user.registered',
+  PASSWORD_RESET_REQUESTED: 'identity.user.password_reset_requested',
+  EMAIL_VERIFIED: 'identity.user.email_verified',
 } as const;
 
 export type EventType = (typeof EventTypes)[keyof typeof EventTypes];

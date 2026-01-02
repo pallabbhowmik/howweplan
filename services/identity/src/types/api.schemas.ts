@@ -60,6 +60,14 @@ export const adminReasonSchema = z
   .min(10, 'Reason must be at least 10 characters')
   .max(1000, 'Reason must be less than 1000 characters');
 
+/**
+ * Verification token schema.
+ */
+export const verificationTokenSchema = z
+  .string()
+  .min(32, 'Invalid verification token')
+  .max(128, 'Invalid verification token');
+
 // ─────────────────────────────────────────────────────────────────────────────
 // AUTHENTICATION SCHEMAS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -142,6 +150,43 @@ export const changePasswordRequestSchema = z.object({
 });
 
 export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>;
+
+/**
+ * Forgot password request schema.
+ */
+export const forgotPasswordRequestSchema = z.object({
+  email: emailSchema,
+});
+
+export type ForgotPasswordRequest = z.infer<typeof forgotPasswordRequestSchema>;
+
+/**
+ * Reset password request schema.
+ */
+export const resetPasswordRequestSchema = z.object({
+  token: verificationTokenSchema,
+  newPassword: passwordSchema,
+});
+
+export type ResetPasswordRequest = z.infer<typeof resetPasswordRequestSchema>;
+
+/**
+ * Verify email request schema.
+ */
+export const verifyEmailRequestSchema = z.object({
+  token: verificationTokenSchema,
+});
+
+export type VerifyEmailRequest = z.infer<typeof verifyEmailRequestSchema>;
+
+/**
+ * Resend verification email request schema.
+ */
+export const resendVerificationRequestSchema = z.object({
+  email: emailSchema,
+});
+
+export type ResendVerificationRequest = z.infer<typeof resendVerificationRequestSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AGENT VERIFICATION SCHEMAS

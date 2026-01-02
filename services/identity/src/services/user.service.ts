@@ -7,6 +7,7 @@ import { nanoid } from 'nanoid';
 import { getDbClient } from './database.js';
 import { hashPassword, verifyPassword, needsRehash } from './password.service.js';
 import { createTokenPair, revokeAllUserRefreshTokens } from './token.service.js';
+import { createEmailVerificationToken } from './verification.service.js';
 import { EventFactory, EventContext } from '../events/index.js';
 import {
   User,
@@ -262,13 +263,24 @@ export async function registerUser(
     role === UserRole.AGENT ? AgentVerificationStatus.NOT_SUBMITTED : null
   );
 
-  // Emit registration event
+  // Create email verification token
+  let verificationToken: string | undefined;
+  try {
+    const verificationResult = await createEmailVerificationToken(user.id, user.email);
+    verificationToken = verificationResult.token;
+  } catch (err) {
+    // Log but don't fail registration if verification token creation fails
+    console.error('Failed to create verification token:', err);
+  }
+
+  // Emit registration event with verification token
   await EventFactory.userRegistered(
     {
       userId: user.id,
       email: user.email,
       role: user.role,
       firstName: user.firstName,
+      verificationToken,
     },
     eventContext
   );
