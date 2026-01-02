@@ -79,6 +79,9 @@ async function forwardToWebhooks(event: any): Promise<void> {
   }
 }
 
+// Trust proxy for services behind reverse proxies (Render, Heroku, etc.)
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(helmet());
 app.use(express.json({ limit: '1mb' }));
