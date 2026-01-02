@@ -36,30 +36,70 @@ export class EventBus {
   }
 
   /**
-   * Connect to Event Bus (validates connectivity)
+   * Sleep helper for retry delays
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Connect to Event Bus (validates connectivity with retries)
    */
   async connect(): Promise<void> {
     if (this.isConnected) {
       return;
     }
 
-    try {
-      const response = await fetch(`${this.baseUrl}/health`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+    const maxRetries = 5;
+    const retryDelayMs = 3000;
 
-      if (!response.ok) {
-        throw new Error(`Event Bus health check failed: ${response.status}`);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        logger.info({ url: this.baseUrl, attempt, maxRetries }, 'Attempting to connect to Event Bus');
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+        const response = await fetch(`${this.baseUrl}/health`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`Event Bus health check failed: ${response.status}`);
+        }
+
+        this.isConnected = true;
+        logger.info({ url: this.baseUrl }, 'Event bus connected');
+        return;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorName = error instanceof Error ? error.name : 'Unknown';
+        
+        logger.warn({ 
+          errorMessage, 
+          errorName,
+          url: this.baseUrl, 
+          attempt, 
+          maxRetries 
+        }, 'Failed to connect to Event Bus, retrying...');
+
+        if (attempt === maxRetries) {
+          logger.error({ 
+            errorMessage, 
+            errorName,
+            url: this.baseUrl 
+          }, 'Failed to connect to Event Bus after all retries');
+          throw new Error(`Failed to connect to Event Bus: ${errorMessage}`);
+        }
+
+        await this.sleep(retryDelayMs);
       }
-
-      this.isConnected = true;
-      logger.info({ url: this.baseUrl }, 'Event bus connected');
-    } catch (error) {
-      logger.error({ error, url: this.baseUrl }, 'Failed to connect to Event Bus');
-      throw error;
     }
   }
 
@@ -114,8 +154,9 @@ export class EventBus {
 
       return eventId;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error({ 
-        error, 
+        errorMessage, 
         channel, 
         eventId,
         eventType: event.eventType 
