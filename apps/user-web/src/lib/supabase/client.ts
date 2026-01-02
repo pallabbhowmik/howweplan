@@ -69,3 +69,13 @@ export function getSupabaseClient(): SupabaseClient {
 
   return client;
 }
+
+/**
+ * Get the current session access token for API calls
+ * Returns null if no session exists
+ */
+export async function getSessionToken(): Promise<string | null> {
+  const supabase = getSupabaseClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token || null;
+}

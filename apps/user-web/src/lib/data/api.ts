@@ -1,4 +1,5 @@
-import { getSupabaseClient } from '@/lib/supabase/client';
+import { getSupabaseClient, getSessionToken } from '@/lib/supabase/client';
+import { apiConfig } from '@/config';
 
 // ============================================================================
 // ⚠️ ARCHITECTURE VIOLATION WARNING ⚠️
@@ -410,6 +411,61 @@ export async function changeUserPassword(userId: string, currentPassword: string
 // ============================================================================
 
 export async function fetchUserRequests(userId: string): Promise<TravelRequest[]> {
+  const token = await getSessionToken();
+  
+  // If not authenticated, try Supabase fallback for read-only data
+  if (!token) {
+    return fetchUserRequestsFromSupabase(userId);
+  }
+
+  try {
+    const response = await fetch(`${apiConfig.baseUrl}/api/requests/requests`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.warn('Gateway request failed, falling back to Supabase');
+      return fetchUserRequestsFromSupabase(userId);
+    }
+
+    const result = await response.json();
+    const requests = result.data || [];
+
+    return requests.map((r: any) => ({
+      id: r.id,
+      userId: r.userId,
+      title: `${r.destination} Trip`,
+      description: r.notes,
+      destination: typeof r.destination === 'string' 
+        ? { city: r.destination, label: r.destination }
+        : (r.destination || {}),
+      departureLocation: r.departureLocation ? { city: r.departureLocation } : null,
+      departureDate: r.departureDate,
+      returnDate: r.returnDate,
+      travelers: r.travelers || {},
+      budgetMin: r.budgetRange?.minAmount || null,
+      budgetMax: r.budgetRange?.maxAmount || null,
+      budgetCurrency: r.budgetRange?.currency || 'INR',
+      travelStyle: r.travelStyle,
+      preferences: {},
+      notes: r.notes,
+      state: r.state,
+      expiresAt: r.expiresAt,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      agentsResponded: r.agentsResponded || 0,
+    }));
+  } catch (error) {
+    console.warn('Gateway request error, falling back to Supabase:', error);
+    return fetchUserRequestsFromSupabase(userId);
+  }
+}
+
+// Fallback function for when gateway is unavailable
+async function fetchUserRequestsFromSupabase(userId: string): Promise<TravelRequest[]> {
   const supabase = getSupabaseClient();
 
   const { data: requests, error } = await supabase
@@ -478,6 +534,52 @@ export async function fetchUserRequests(userId: string): Promise<TravelRequest[]
 }
 
 export async function fetchRequest(requestId: string): Promise<TravelRequest | null> {
+  const token = await getSessionToken();
+  
+  // Try gateway first if authenticated
+  if (token) {
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}/api/requests/requests/${requestId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const data = result.data;
+        
+        return {
+          id: data.id,
+          userId: data.userId,
+          title: `${data.destination} Trip`,
+          description: data.notes,
+          destination: typeof data.destination === 'string' 
+            ? { city: data.destination, label: data.destination }
+            : (data.destination || {}),
+          departureLocation: data.departureLocation ? { city: data.departureLocation } : null,
+          departureDate: data.departureDate,
+          returnDate: data.returnDate,
+          travelers: data.travelers || {},
+          budgetMin: data.budgetRange?.minAmount || null,
+          budgetMax: data.budgetRange?.maxAmount || null,
+          budgetCurrency: data.budgetRange?.currency || 'INR',
+          travelStyle: data.travelStyle,
+          preferences: {},
+          notes: data.notes,
+          state: data.state,
+          expiresAt: data.expiresAt,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+        };
+      }
+    } catch (error) {
+      console.warn('Gateway request error, falling back to Supabase:', error);
+    }
+  }
+
+  // Fallback to Supabase
   const supabase = getSupabaseClient();
 
   const { data, error } = await supabase
@@ -532,6 +634,7 @@ export async function fetchRequest(requestId: string): Promise<TravelRequest | n
 export interface CreateTravelRequestInput {
   userId: string;
   destination: string;
+  departureLocation?: string;
   startDate: string;
   endDate: string;
   adults: number;
@@ -547,67 +650,84 @@ export interface CreateTravelRequestInput {
 }
 
 export async function createTravelRequest(input: CreateTravelRequestInput): Promise<TravelRequest> {
-  const supabase = getSupabaseClient();
+  // Get auth token for API gateway
+  const token = await getSessionToken();
+  if (!token) {
+    throw new Error('Not authenticated. Please log in to create a request.');
+  }
 
-  // Generate a title from destination and dates
-  const startDate = new Date(input.startDate);
-  const title = `${input.destination} Trip - ${startDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}`;
+  // Map tripType to travelStyle enum expected by the API
+  const travelStyleMap: Record<string, string> = {
+    'adventure': 'mid-range',
+    'relaxation': 'mid-range',
+    'cultural': 'mid-range',
+    'romantic': 'luxury',
+    'family': 'mid-range',
+    'budget': 'budget',
+    'luxury': 'luxury',
+    'mid-range': 'mid-range',
+    'ultra-luxury': 'ultra-luxury',
+  };
 
-  // Supabase schema uses different column names than Docker schema
-  const insertData = {
-    user_id: input.userId,
-    title,
+  // Prepare the request body for the gateway API
+  const requestBody = {
     destination: input.destination,
-    start_date: input.startDate,
-    end_date: input.endDate,
-    budget_min: input.budgetMin,
-    budget_max: input.budgetMax,
-    travelers_count: input.adults + input.children + input.infants,
-    preferences: {
-      tripType: input.tripType,
-      experiences: input.experiences,
-      budgetRange: input.budgetRange,
+    departureLocation: input.departureLocation || 'Not specified',
+    departureDate: new Date(input.startDate).toISOString(),
+    returnDate: new Date(input.endDate).toISOString(),
+    travelers: {
       adults: input.adults,
       children: input.children,
       infants: input.infants,
-      notes: input.preferences,
     },
-    special_requirements: input.specialRequests || null,
-    state: 'SUBMITTED',
+    travelStyle: travelStyleMap[input.tripType] || 'mid-range',
+    budgetRange: {
+      minAmount: input.budgetMin,
+      maxAmount: input.budgetMax,
+      currency: 'INR',
+    },
+    notes: [input.preferences, input.specialRequests].filter(Boolean).join('\n') || null,
   };
 
-  const { data, error } = await supabase
-    .from('travel_requests')
-    .insert(insertData)
-    .select()
-    .single();
+  const response = await fetch(`${apiConfig.baseUrl}/api/requests/requests`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(requestBody),
+  });
 
-  if (error) {
-    console.error('Error creating travel request:', error);
-    throw new Error(`Failed to create travel request: ${error.message}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error('Error creating travel request:', errorData);
+    throw new Error(errorData.error?.message || errorData.message || `Failed to create travel request: ${response.status}`);
   }
 
-  // Map Supabase schema to our interface
+  const result = await response.json();
+  const data = result.data;
+
+  // Map API response to our interface
   return {
     id: data.id,
-    userId: data.user_id,
-    title: data.title,
-    description: data.special_requirements,
+    userId: data.userId,
+    title: `${input.destination} Trip`,
+    description: data.notes,
     destination: { city: data.destination, label: data.destination },
-    departureLocation: data.departure_city ? { city: data.departure_city } : null,
-    departureDate: data.start_date,
-    returnDate: data.end_date,
-    travelers: data.preferences || { total: data.travelers_count },
-    budgetMin: data.budget_min ? parseFloat(data.budget_min) : null,
-    budgetMax: data.budget_max ? parseFloat(data.budget_max) : null,
-    budgetCurrency: 'INR',
-    travelStyle: data.preferences?.tripType || null,
-    preferences: data.preferences || {},
-    notes: data.special_requirements,
-    state: data.status,
-    expiresAt: null,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+    departureLocation: data.departureLocation ? { city: data.departureLocation } : null,
+    departureDate: data.departureDate,
+    returnDate: data.returnDate,
+    travelers: data.travelers || { adults: input.adults, children: input.children, infants: input.infants },
+    budgetMin: data.budgetRange?.minAmount || input.budgetMin,
+    budgetMax: data.budgetRange?.maxAmount || input.budgetMax,
+    budgetCurrency: data.budgetRange?.currency || 'INR',
+    travelStyle: data.travelStyle,
+    preferences: {},
+    notes: data.notes,
+    state: data.state,
+    expiresAt: data.expiresAt,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
   };
 }
 
@@ -626,65 +746,31 @@ export interface UpdateTravelRequestInput {
   preferences?: Record<string, unknown>;
 }
 
-export async function updateTravelRequest(requestId: string, input: UpdateTravelRequestInput): Promise<void> {
-  const supabase = getSupabaseClient();
-
-  const updateData: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
-  };
-
-  if (input.destination !== undefined) {
-    updateData.destination = input.destination;
-    updateData.title = `Trip to ${input.destination}`;
-  }
-  if (input.startDate !== undefined) {
-    updateData.start_date = input.startDate;
-  }
-  if (input.endDate !== undefined) {
-    updateData.end_date = input.endDate;
-  }
-  if (input.travelersCount !== undefined) {
-    updateData.travelers_count = input.travelersCount;
-  }
-  if (input.budgetMin !== undefined) {
-    updateData.budget_min = input.budgetMin;
-  }
-  if (input.budgetMax !== undefined) {
-    updateData.budget_max = input.budgetMax;
-  }
-  if (input.specialRequests !== undefined) {
-    updateData.special_requirements = input.specialRequests;
-  }
-  if (input.preferences !== undefined) {
-    updateData.preferences = input.preferences;
-  }
-
-  const { error } = await supabase
-    .from('travel_requests')
-    .update(updateData)
-    .eq('id', requestId);
-
-  if (error) {
-    console.error('Error updating travel request:', error);
-    throw new Error(`Failed to update travel request: ${error.message}`);
-  }
+export async function updateTravelRequest(_requestId: string, _input: UpdateTravelRequestInput): Promise<void> {
+  // TODO: Implement via gateway API when endpoint is available
+  // For now, updates are not supported - users should cancel and create new requests
+  throw new Error('Request updates are not currently supported. Please cancel and create a new request.');
 }
 
 // Cancel a travel request
 export async function cancelTravelRequest(requestId: string): Promise<void> {
-  const supabase = getSupabaseClient();
+  const token = await getSessionToken();
+  if (!token) {
+    throw new Error('Not authenticated. Please log in to cancel a request.');
+  }
 
-  const { error } = await supabase
-    .from('travel_requests')
-    .update({
-      state: 'CANCELLED',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', requestId);
+  const response = await fetch(`${apiConfig.baseUrl}/api/requests/requests/${requestId}/cancel`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
 
-  if (error) {
-    console.error('Error cancelling travel request:', error);
-    throw new Error(`Failed to cancel travel request: ${error.message}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error('Error cancelling travel request:', errorData);
+    throw new Error(errorData.error?.message || errorData.message || `Failed to cancel request: ${response.status}`);
   }
 }
 
@@ -873,27 +959,32 @@ export async function markNotificationRead(notificationId: string): Promise<void
 // ============================================================================
 
 export async function fetchDashboardStats(userId: string): Promise<DashboardStats> {
-  const supabase = getSupabaseClient();
+  const token = await getSessionToken();
+  
+  // Try to get requests from gateway
+  let requests: TravelRequest[] = [];
+  if (token) {
+    try {
+      requests = await fetchUserRequests(userId);
+    } catch {
+      // Fallback handled inside fetchUserRequests
+    }
+  }
 
-  // Fetch requests counts by state
-  const { data: requests } = await supabase
-    .from('travel_requests')
-    .select('state')
-    .eq('user_id', userId);
-
-  // Support both Supabase schema (UPPERCASE) and Docker schema (lowercase)
-  const activeStates = ['SUBMITTED', 'MATCHING', 'PROPOSALS_RECEIVED', 'AGENTS_MATCHED', 'open', 'matched', 'proposals_received'];
+  // Calculate stats from requests
+  const activeStates = ['SUBMITTED', 'MATCHING', 'PROPOSALS_RECEIVED', 'AGENTS_MATCHED', 'DRAFT', 'open', 'matched', 'proposals_received'];
   const selectionStates = ['PROPOSALS_RECEIVED', 'AGENTS_MATCHED', 'proposals_received'];
   
-  const activeRequests = (requests || []).filter((r: any) => 
+  const activeRequests = requests.filter(r => 
     activeStates.includes(r.state)
   ).length;
   
-  const awaitingSelection = (requests || []).filter((r: any) => 
+  const awaitingSelection = requests.filter(r => 
     selectionStates.includes(r.state)
   ).length;
 
-  // Fetch bookings counts (table may not exist in Supabase)
+  // Fetch bookings counts from Supabase (table may not exist)
+  const supabase = getSupabaseClient();
   let confirmedBookings = 0;
   let completedTrips = 0;
   try {
