@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Send,
   Search,
@@ -365,7 +365,8 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showQuickReplies, setShowQuickReplies] = useState(true);
-  const [isTyping, setIsTyping] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isTyping, _setIsTyping] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -393,8 +394,8 @@ export default function MessagesPage() {
       setConversations(list);
       const first = list[0];
       if (!selectedConversationId && first) setSelectedConversationId(first.id);
-    } catch (e: any) {
-      setConversationsError(e?.message ?? 'Failed to load conversations');
+    } catch (e: unknown) {
+      setConversationsError((e as Error)?.message ?? 'Failed to load conversations');
     } finally {
       setConversationsLoading(false);
     }
@@ -429,9 +430,9 @@ export default function MessagesPage() {
         if (cancelled) return;
         setMessages(msgs);
         loadConversations();
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cancelled) return;
-        setMessagesError(e?.message ?? 'Failed to load messages');
+        setMessagesError((e as Error)?.message ?? 'Failed to load messages');
       } finally {
         if (!cancelled) setMessagesLoading(false);
       }
@@ -550,7 +551,7 @@ export default function MessagesPage() {
       const msgs = await listMessages(selectedConversationId);
       setMessages(msgs);
       loadConversations();
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Remove optimistic message on failure
       setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
       setNewMessage(content); // Restore input

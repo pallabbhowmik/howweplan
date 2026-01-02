@@ -26,7 +26,7 @@ const PUBLIC_ROUTES = [
 ];
 
 // API routes that should be protected
-const PROTECTED_API_ROUTES = ['/api/'];
+const _PROTECTED_API_ROUTES = ['/api/'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

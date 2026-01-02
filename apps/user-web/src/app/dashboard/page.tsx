@@ -465,7 +465,7 @@ function formatDateRange(start: string, end: string): string {
   return `${startMonth} ${startDate.getDate()} - ${endMonth} ${endDate.getDate()}, ${endDate.getFullYear()}`;
 }
 
-function formatBudget(min: number | null, max: number | null, currency: string): string {
+function formatBudget(min: number | null, max: number | null, _currency: string): string {
   if (min && max) {
     return `₹${min.toLocaleString('en-IN')} - ₹${max.toLocaleString('en-IN')}`;
   }

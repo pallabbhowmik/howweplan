@@ -1,36 +1,30 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Plane,
-  Calendar,
   MessageSquare,
   CreditCard,
   Star,
   Shield,
   ChevronRight,
-  Globe,
   Users,
   Award,
   Sparkles,
   MapPin,
-  CheckCircle2,
   ArrowRight,
   Play,
   Quote,
   Zap,
   Heart,
   TrendingUp,
-  Clock,
   Menu,
   X,
   ChevronDown,
   Eye,
   Wallet,
   Target,
-  Search,
   HelpCircle,
   IndianRupee,
   Lock,
@@ -101,7 +95,7 @@ const stats = [
 ];
 
 // Partner logos for trust section
-const partnerLogos = [
+const _partnerLogos = [
   { name: 'TripAdvisor', icon: '⭐' },
   { name: 'MakeMyTrip', icon: '✈️' },
   { name: 'Booking.com', icon: '🏨' },
@@ -152,7 +146,7 @@ export default function Home() {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [activeTravelers, setActiveTravelers] = useState(127);
+  const [, setActiveTravelers] = useState(127);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 
   // Handle scroll for sticky nav enhancement
@@ -471,7 +465,7 @@ export default function Home() {
               Travel Planning, Reimagined
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              We've solved the biggest problems in travel booking
+              We&apos;ve solved the biggest problems in travel booking
             </p>
           </div>
 

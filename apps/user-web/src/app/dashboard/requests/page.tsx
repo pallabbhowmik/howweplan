@@ -342,7 +342,7 @@ function normalizeStatus(status: string): string {
   return statusMap[status] || status.toUpperCase();
 }
 
-function getStatusLabel(status: string): string {
+function _getStatusLabel(status: string): string {
   const normalized = normalizeStatus(status);
   const labels: Record<string, string> = {
     OPEN: 'Open',

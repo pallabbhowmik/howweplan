@@ -461,7 +461,7 @@ function isPendingPayment(status: string): boolean {
   return pendingStatuses.includes(status);
 }
 
-function StatusBadge({ status, config }: { status: string; config: ReturnType<typeof getStatusConfig> }) {
+function StatusBadge({ config }: { status: string; config: ReturnType<typeof getStatusConfig> }) {
   return (
     <span className={`
       inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold shadow-md

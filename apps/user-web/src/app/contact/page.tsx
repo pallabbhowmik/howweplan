@@ -28,7 +28,7 @@ import { ContactSettings, defaultContactSettings, getContactSettings } from '@/l
 
 export default function ContactPage() {
   const [settings, setSettings] = useState<ContactSettings>(defaultContactSettings);
-  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [, setIsLoadingSettings] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     email: '',

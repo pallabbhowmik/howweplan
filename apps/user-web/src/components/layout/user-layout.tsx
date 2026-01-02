@@ -18,7 +18,6 @@ import {
   HelpCircle,
   Plane,
   Sparkles,
-  Search,
   Gift,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,7 +34,6 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [searchFocused, setSearchFocused] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
 
   useEffect(() => {

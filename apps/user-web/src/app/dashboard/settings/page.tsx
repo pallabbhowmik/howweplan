@@ -29,7 +29,6 @@ import {
   Zap,
   Heart,
   Star,
-  Crown,
   Fingerprint,
   Laptop,
   AlertCircle,

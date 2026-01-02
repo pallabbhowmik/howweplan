@@ -2,9 +2,9 @@
  * Site Settings API
  * 
  * Fetches public site settings like contact information, company details, etc.
+ * Since these are public settings that don't exist on the backend yet,
+ * we return defaults. This can be connected to a real API endpoint later.
  */
-
-import { apiClient } from './client';
 
 // ============================================================================
 // TYPES
@@ -121,28 +121,21 @@ export const defaultContactSettings: ContactSettings = {
 // ============================================================================
 
 /**
- * Fetch contact settings from the API
- * Falls back to defaults if API is unavailable
+ * Fetch contact settings
+ * Currently returns defaults - can be connected to a real API endpoint later
  */
 export async function getContactSettings(): Promise<ContactSettings> {
-  try {
-    const response = await apiClient.get<{ data: ContactSettings }>('/api/settings/contact');
-    return response.data || defaultContactSettings;
-  } catch (error) {
-    console.warn('Failed to fetch contact settings, using defaults:', error);
-    return defaultContactSettings;
-  }
+  // TODO: Connect to real API when backend endpoint is available
+  // For now, return defaults
+  return defaultContactSettings;
 }
 
 /**
  * Fetch all site settings
+ * Currently returns defaults - can be connected to a real API endpoint later
  */
 export async function getSiteSettings(): Promise<SiteSettings> {
-  try {
-    const response = await apiClient.get<{ data: SiteSettings }>('/api/settings/site');
-    return response.data || { contact: defaultContactSettings };
-  } catch (error) {
-    console.warn('Failed to fetch site settings, using defaults:', error);
-    return { contact: defaultContactSettings };
-  }
+  // TODO: Connect to real API when backend endpoint is available
+  // For now, return defaults
+  return { contact: defaultContactSettings };
 }
