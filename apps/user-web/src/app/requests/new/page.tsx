@@ -1,7 +1,7 @@
-'use client';
+﻿'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   MapPin,
@@ -103,6 +103,7 @@ interface FormData {
 
 export default function NewRequestPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: userLoading } = useUserSession();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,6 +111,7 @@ export default function NewRequestPage() {
   const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
   const [destinationSuggestions, setDestinationSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [urlDestinationApplied, setUrlDestinationApplied] = useState(false);
 
   // Filter destinations as user types
   const handleDestinationChange = (value: string) => {
@@ -143,6 +145,21 @@ export default function NewRequestPage() {
     preferences: '',
     specialRequests: '',
   });
+
+  // Pre-populate destination from URL parameter
+  useEffect(() => {
+    if (!urlDestinationApplied) {
+      const urlDestination = searchParams.get('destination');
+      if (urlDestination) {
+        // Capitalize first letter for display
+        const formatted = urlDestination.charAt(0).toUpperCase() + urlDestination.slice(1).toLowerCase();
+        // Check if it's a known destination for exact match
+        const knownDest = allDestinations.find(d => d.toLowerCase() === urlDestination.toLowerCase());
+        setFormData(prev => ({ ...prev, destination: knownDest || formatted }));
+        setUrlDestinationApplied(true);
+      }
+    }
+  }, [searchParams, urlDestinationApplied]);
 
   const updateForm = <K extends keyof FormData>(field: K, value: FormData[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -503,22 +520,35 @@ export default function NewRequestPage() {
         {/* Emotional context message per step */}
         <div className="mb-6 text-center">
           {step === 1 && (
-            <p className="text-slate-600 flex items-center justify-center gap-2">
-              <span className="text-xl">✈️</span>
-              <span>Let&apos;s start planning your adventure! This helps agents understand your trip.</span>
-            </p>
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-100">
+              <p className="text-slate-700 flex items-center justify-center gap-2 font-medium">
+                <span className="text-2xl">✈️</span>
+                {formData.destination ? (
+                  <span>Your custom <span className="text-blue-600 font-bold">{formData.destination}</span> itinerary awaits!</span>
+                ) : (
+                  <span>Let&apos;s start planning your dream adventure!</span>
+                )}
+              </p>
+              <p className="text-sm text-slate-500 mt-1">Agents will tailor recommendations uniquely to you</p>
+            </div>
           )}
           {step === 2 && (
-            <p className="text-slate-600 flex items-center justify-center gap-2">
-              <span className="text-xl">✨</span>
-              <span>Great choices! Now let&apos;s personalize your experience.</span>
-            </p>
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+              <p className="text-slate-700 flex items-center justify-center gap-2 font-medium">
+                <span className="text-2xl">✨</span>
+                <span>Tell us what you love in <span className="text-purple-600 font-bold">{formData.destination || 'your destination'}</span>!</span>
+              </p>
+              <p className="text-sm text-slate-500 mt-1">These details help agents craft your perfect trip</p>
+            </div>
           )}
           {step === 3 && (
-            <p className="text-emerald-600 font-medium flex items-center justify-center gap-2">
-              <span className="text-xl">🎉</span>
-              <span>You&apos;re almost there! Review and send to travel experts.</span>
-            </p>
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100">
+              <p className="text-emerald-700 font-medium flex items-center justify-center gap-2">
+                <span className="text-2xl">🎉</span>
+                <span>You&apos;re almost there! One click to start your <span className="font-bold">{formData.destination || ''}</span> adventure!</span>
+              </p>
+              <p className="text-sm text-emerald-600 mt-1">Expert agents are ready to compete for your trip</p>
+            </div>
           )}
         </div>
         
@@ -568,38 +598,50 @@ export default function NewRequestPage() {
                     )}
                   </div>
                   
-                  {/* Visual destination cards */}
+                  {/* Visual destination cards with images */}
                   <div className="pt-2">
-                    <p className="text-sm text-slate-500 mb-3">🔥 Popular destinations</p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <p className="text-sm text-slate-500 mb-3 flex items-center gap-2">
+                      <span className="text-lg">🔥</span> 
+                      <span>Popular destinations — click to select</span>
+                    </p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {popularDestinations.map((dest) => (
                         <button
                           key={dest.name}
                           type="button"
                           onClick={() => selectDestination(dest.name)}
-                          className={`relative overflow-hidden rounded-xl border-2 transition-all hover:shadow-lg group ${
+                          className={`relative overflow-hidden rounded-2xl border-2 transition-all hover:shadow-xl hover:scale-[1.02] group h-32 ${
                             formData.destination === dest.name
-                              ? 'border-blue-500 ring-2 ring-blue-200'
-                              : 'border-transparent hover:border-blue-300'
+                              ? 'border-blue-500 ring-4 ring-blue-200 shadow-lg scale-[1.02]'
+                              : 'border-slate-200 hover:border-blue-300'
                           }`}
                         >
-                          {/* Background gradient as fallback */}
-                          <div className={`absolute inset-0 bg-gradient-to-br ${dest.color} opacity-90`} />
+                          {/* Background image */}
+                          <div 
+                            className="absolute inset-0 bg-cover bg-center"
+                            style={{ backgroundImage: `url(${dest.image})` }}
+                          />
+                          {/* Gradient overlay for text readability */}
+                          <div className={`absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent`} />
                           
                           {/* Content */}
-                          <div className="relative p-4 text-white">
-                            <span className="text-3xl drop-shadow-md">{dest.emoji}</span>
-                            <p className="font-bold mt-2 text-lg drop-shadow-sm">{dest.name}</p>
-                            <p className="text-xs text-white/80">{dest.type}</p>
+                          <div className="relative h-full flex flex-col justify-end p-3 text-white text-left">
+                            <div className="flex items-center gap-2">
+                              <span className="text-2xl drop-shadow-lg">{dest.emoji}</span>
+                              <div>
+                                <p className="font-bold text-lg drop-shadow-md leading-tight">{dest.name}</p>
+                                <p className="text-xs text-white/90 drop-shadow">{dest.type}</p>
+                              </div>
+                            </div>
                             {formData.destination === dest.name && (
-                              <div className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center">
-                                <Check className="h-4 w-4 text-blue-600" />
+                              <div className="absolute top-2 right-2 w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                                <Check className="h-4 w-4 text-white" />
                               </div>
                             )}
                           </div>
                           
                           {/* Hover overlay */}
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                          <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors" />
                         </button>
                       ))}
                     </div>
@@ -1018,7 +1060,11 @@ export default function NewRequestPage() {
                   disabled={!canProceed()}
                   className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-12 px-8 text-base font-semibold"
                 >
-                  Next: {steps[step]?.title} <ArrowRight className="h-4 w-4" />
+                  {step === 1 && formData.destination ? (
+                    <>Continue → Customize my {formData.destination} trip <ArrowRight className="h-4 w-4" /></>
+                  ) : (
+                    <>Next: {steps[step]?.title} <ArrowRight className="h-4 w-4" /></>
+                  )}
                 </Button>
               ) : (
                 <Button
@@ -1030,12 +1076,12 @@ export default function NewRequestPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Sending to experts...
+                      Finding {formData.destination} experts...
                     </>
                   ) : (
                     <>
                       <Sparkles className="h-4 w-4" />
-                      Send to Travel Experts
+                      Get My {formData.destination} Proposals →
                     </>
                   )}
                 </Button>
@@ -1063,9 +1109,17 @@ export default function NewRequestPage() {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-2xl md:hidden z-50">
         {/* Reassurance text */}
         <div className="text-center py-2 text-xs text-slate-500 border-b bg-slate-50">
-          {step === 1 && "Takes about 2 minutes"}
-          {step === 2 && "Almost done! One more step."}
-          {step === 3 && <span className="text-emerald-600 font-medium">✓ Free to submit • No booking required</span>}
+          {step === 1 && (
+            <span className="flex items-center justify-center gap-2">
+              <span>⏱️ ~2 min</span>
+              <span>•</span>
+              <span>💰 Free</span>
+              <span>•</span>
+              <span>🔒 No account yet</span>
+            </span>
+          )}
+          {step === 2 && "Almost done! One more step to your personalized trip."}
+          {step === 3 && <span className="text-emerald-600 font-medium">✓ Free • No booking required • Proposals in 24hrs</span>}
         </div>
         
         <div className="flex gap-3 p-4">
@@ -1093,7 +1147,11 @@ export default function NewRequestPage() {
               disabled={!canProceed()}
               className="flex-1 gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-14 text-base font-semibold"
             >
-              Next: {steps[step]?.title} <ArrowRight className="h-5 w-5" />
+              {step === 1 && formData.destination ? (
+                <>Customize {formData.destination} <ArrowRight className="h-5 w-5" /></>
+              ) : (
+                <>Next: {steps[step]?.title} <ArrowRight className="h-5 w-5" /></>
+              )}
             </Button>
           ) : (
             <Button
@@ -1105,12 +1163,12 @@ export default function NewRequestPage() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Sending...
+                  Finding experts...
                 </>
               ) : (
                 <>
                   <Sparkles className="h-5 w-5" />
-                  Send to Experts
+                  Get My Proposals →
                 </>
               )}
             </Button>
@@ -1120,3 +1178,4 @@ export default function NewRequestPage() {
     </div>
   );
 }
+
