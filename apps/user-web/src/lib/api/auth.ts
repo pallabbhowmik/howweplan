@@ -143,6 +143,36 @@ export async function logout(accessToken: string): Promise<void> {
   }
 }
 
+/**
+ * Request a password reset email
+ */
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  const response = await fetch(`${normalizedBaseUrl}/api/identity/auth/forgot-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  return handleResponse<{ message: string }>(response);
+}
+
+/**
+ * Reset password using token from email
+ */
+export async function resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+  const response = await fetch(`${normalizedBaseUrl}/api/identity/auth/reset-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ token, newPassword }),
+  });
+
+  return handleResponse<{ message: string }>(response);
+}
+
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'tc_access_token';
 const REFRESH_TOKEN_KEY = 'tc_refresh_token';
