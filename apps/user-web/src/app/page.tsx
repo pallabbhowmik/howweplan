@@ -53,47 +53,51 @@ const popularDestinations = [
 const testimonials = [
   {
     name: 'Priya M.',
-    location: 'Mumbai',
+    location: 'Mumbai, India',
     avatar: 'PM',
-    text: 'Our honeymoon to Udaipur was absolutely perfect! Our agent knew exactly what we wanted.',
+    text: 'Got 4 competing proposals in 18 hours. Booked our dream honeymoon and saved ₹18,000 compared to what we found ourselves.',
     rating: 5,
     trip: 'Rajasthan Honeymoon',
     savings: '₹18,000',
+    outcome: '4 proposals in 18hrs',
   },
   {
     name: 'Rahul & Neha S.',
-    location: 'Delhi',
+    location: 'Delhi, India',
     avatar: 'RS',
-    text: 'The competition between agents meant we got amazing options to choose from. Saved over ₹20,000!',
+    text: 'We compared 5 agent proposals side-by-side. The winning itinerary included extras we never thought to ask for. Saved ₹20,000!',
     rating: 5,
     trip: 'Kerala Family Trip',
     savings: '₹20,000',
+    outcome: '5 proposals compared',
   },
   {
     name: 'Vikram T.',
-    location: 'Bangalore',
+    location: 'Bangalore, India',
     avatar: 'VT',
-    text: 'Finally, a platform that protects travelers! The obfuscated options helped me choose purely on value.',
+    text: 'Anonymous proposals meant I chose purely on value. No sales pressure. Booked confidently knowing my payment was protected.',
     rating: 5,
     trip: 'Ladakh Adventure',
     savings: '₹15,000',
+    outcome: 'Payment protected',
   },
   {
     name: 'Ananya K.',
-    location: 'Hyderabad',
+    location: 'Hyderabad, India',
     avatar: 'AK',
-    text: 'I was skeptical at first, but the agent competition feature is a game-changer. Got 5 unique proposals within 24 hours!',
+    text: 'Posted my request at 9pm, woke up to 5 custom proposals. Booked by lunch. This is how travel planning should work.',
     rating: 5,
     trip: 'Goa Beach Getaway',
     savings: '₹12,000',
+    outcome: 'Booked in 1 day',
   },
 ];
 
 const stats = [
-  { value: '50K+', label: 'Happy Travelers', icon: Users },
-  { value: '2,500+', label: 'Expert Agents', icon: Award },
-  { value: '98%', label: 'Satisfaction Rate', icon: Heart },
-  { value: '₹12Cr+', label: 'Saved for Travelers', icon: TrendingUp },
+  { value: '50K+', label: 'trips planned with us', sublabel: 'Happy Travelers', icon: Users },
+  { value: '2,500+', label: 'verified travel experts', sublabel: 'Ready to Help', icon: Award },
+  { value: '98%', label: 'would book again', sublabel: 'Satisfaction Rate', icon: Heart },
+  { value: '₹12Cr+', label: 'saved by our travelers', sublabel: 'Real Savings', icon: TrendingUp },
 ];
 
 // Partner logos for trust section
@@ -319,14 +323,23 @@ export default function Home() {
         <div className="container mx-auto px-4 relative">
           <div className="max-w-5xl mx-auto text-center">
             {/* Live Activity Badge */}
-            <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-full text-sm">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-              </span>
-              <span className="text-green-700 font-medium">
-                {activeTravelers} travelers planning trips right now
-              </span>
+            <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-full text-sm">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                </span>
+                <span className="text-green-700 font-medium">
+                  {activeTravelers} planning trips now
+                </span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-full text-sm">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                </span>
+                <span className="text-blue-700 font-medium">47 agents responding</span>
+              </div>
             </div>
             
             {/* Main Headline - Clear Value Proposition */}
@@ -462,15 +475,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats Bar */}
+      {/* Stats Bar - With Micro Labels */}
       <section className="py-12 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             {stats.map((stat, i) => (
               <div key={i} className="text-center text-white">
-                <stat.icon className="h-8 w-8 mx-auto mb-3 opacity-80" />
-                <div className="text-4xl font-bold mb-1">{stat.value}</div>
-                <div className="text-blue-100 text-sm">{stat.label}</div>
+                <div className="inline-flex p-3 rounded-full bg-white/10 mb-3">
+                  <stat.icon className="h-6 w-6" />
+                </div>
+                <div className="text-3xl md:text-4xl font-bold mb-1">{stat.value}</div>
+                <div className="text-white font-medium text-sm">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -493,91 +508,75 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 max-w-6xl mx-auto">
-            {[
-              {
-                step: '01',
-                icon: Target,
-                title: 'Share Your Vision',
-                bullets: [
-                  'Where & when you want to go',
-                  'Budget & travel style',
-                  'Must-have experiences'
-                ],
-                color: 'from-blue-500 to-blue-600',
-                time: '2 min',
-              },
-              {
-                step: '02',
-                icon: Users,
-                title: 'Agents Compete',
-                bullets: [
-                  'Avg. 5 proposals received',
-                  '24hr response guarantee',
-                  'Only verified experts'
-                ],
-                color: 'from-purple-500 to-purple-600',
-                time: '24 hrs',
-              },
-              {
-                step: '03',
-                icon: Eye,
-                title: 'Compare Fairly',
-                bullets: [
-                  'Anonymous proposals',
-                  'Pure value comparison',
-                  'No brand bias'
-                ],
-                color: 'from-pink-500 to-pink-600',
-                time: 'Your pace',
-              },
-              {
-                step: '04',
-                icon: Wallet,
-                title: 'Book & Travel',
-                bullets: [
-                  'Secure escrow payment',
-                  'Direct agent chat',
-                  'Full trip protection'
-                ],
-                color: 'from-green-500 to-green-600',
-                time: 'Done!',
-              },
-            ].map((item, i) => (
-              <div key={i} className="relative group">
-                {i < 3 && (
-                  <div className="hidden lg:block absolute top-16 left-[60%] w-[80%] h-0.5 bg-gradient-to-r from-gray-300 to-transparent" />
-                )}
-                <div className="bg-white rounded-2xl p-6 md:p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 relative h-full group-hover:-translate-y-1">
-                  {/* Step number watermark */}
-                  <div className="text-6xl md:text-7xl font-bold text-gray-100 absolute top-2 right-4 select-none">
-                    {item.step}
+          {/* Connected Steps with Progress Line */}
+          <div className="relative max-w-6xl mx-auto">
+            {/* Progress line connecting steps */}
+            <div className="hidden lg:block absolute top-24 left-[12%] right-[12%] h-1 bg-gradient-to-r from-blue-500 via-purple-500 via-pink-500 to-green-500 rounded-full opacity-30" />
+            
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+              {[
+                {
+                  step: '01',
+                  icon: Target,
+                  title: 'Tell Us Your Dream',
+                  description: 'Destination, dates, budget, style',
+                  color: 'from-blue-500 to-blue-600',
+                  time: '2 min',
+                },
+                {
+                  step: '02',
+                  icon: Users,
+                  title: 'Agents Compete',
+                  description: 'Avg. 5 proposals within 24hrs',
+                  color: 'from-purple-500 to-purple-600',
+                  time: '24 hrs',
+                },
+                {
+                  step: '03',
+                  icon: Eye,
+                  title: 'Compare Anonymously',
+                  description: 'Choose on value, not brand',
+                  color: 'from-pink-500 to-pink-600',
+                  time: 'Your pace',
+                },
+                {
+                  step: '04',
+                  icon: Wallet,
+                  title: 'Book Protected',
+                  description: 'Secure escrow + full support',
+                  color: 'from-green-500 to-green-600',
+                  time: 'Done!',
+                },
+              ].map((item, i) => (
+                <div key={i} className="relative group">
+                  {/* Step connector arrow */}
+                  {i < 3 && (
+                    <div className="hidden lg:flex absolute top-24 -right-4 z-10 text-gray-300">
+                      <ChevronRight className="h-8 w-8" />
+                    </div>
+                  )}
+                  <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 relative h-full group-hover:-translate-y-1 text-center">
+                    {/* Step number badge */}
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs font-bold px-3 py-1 rounded-full">
+                      Step {item.step}
+                    </div>
+                    
+                    {/* Time badge */}
+                    <div className="absolute top-3 right-3 text-xs font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-full">
+                      {item.time}
+                    </div>
+                    
+                    {/* Icon */}
+                    <div className={`inline-flex p-4 rounded-xl bg-gradient-to-br ${item.color} text-white mb-4 shadow-lg group-hover:scale-110 transition-transform mt-4`}>
+                      <item.icon className="h-6 w-6" />
+                    </div>
+                    
+                    <h3 className="text-lg font-bold mb-2">{item.title}</h3>
+                    <p className="text-gray-500 text-sm">{item.description}</p>
                   </div>
-                  
-                  {/* Time badge */}
-                  <div className="absolute top-4 right-4 text-xs font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-full">
-                    {item.time}
-                  </div>
-                  
-                  {/* Icon */}
-                  <div className={`inline-flex p-4 rounded-xl bg-gradient-to-br ${item.color} text-white mb-5 shadow-lg group-hover:scale-110 transition-transform`}>
-                    <item.icon className="h-6 w-6" />
-                  </div>
-                  
-                  <h3 className="text-lg md:text-xl font-bold mb-4">{item.title}</h3>
-                  
-                  {/* Bullet points instead of paragraph */}
-                  <ul className="space-y-2">
-                    {item.bullets.map((bullet, j) => (
-                      <li key={j} className="flex items-start gap-2 text-gray-600 text-sm">
-                        <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
-                        <span>{bullet}</span>
-                      </li>
-                    ))}
-                  </ul>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
           
           {/* CTA after How It Works */}
@@ -675,19 +674,19 @@ export default function Home() {
           <div className="text-center mb-12 md:mb-16">
             <Badge className="mb-4 px-4 py-2 bg-white/10 text-white border-0 backdrop-blur">
               <Globe className="h-4 w-4 mr-2" />
-              Trending Now
+              This Week&apos;s Hot Picks
             </Badge>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-              Popular with Travelers Like You
+              Trips Travelers Planned This Week
             </h2>
             <p className="text-lg md:text-xl text-blue-200 max-w-2xl mx-auto">
-              These destinations are getting the most requests this month
+              Click any destination to start planning a similar trip
             </p>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 max-w-6xl mx-auto">
             {popularDestinations.map((dest, i) => (
-              <Link href="/requests/new" key={i}>
+              <Link href={`/requests/new?destination=${dest.name.toLowerCase()}`} key={i}>
                 <div className="group relative bg-white/10 backdrop-blur-sm rounded-2xl p-5 md:p-6 border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all duration-300 cursor-pointer hover:-translate-y-1">
                   <div className="flex items-start justify-between mb-4">
                     <div className="text-4xl md:text-5xl">{dest.image}</div>
@@ -708,13 +707,14 @@ export default function Home() {
                   <div className="flex items-center justify-between text-xs text-blue-300 mb-4">
                     <span className="flex items-center gap-1">
                       <Users className="h-3 w-3" />
-                      {dest.travelers.toLocaleString()} travelers
+                      {dest.travelers.toLocaleString()} planned this
                     </span>
                   </div>
                   
-                  <div className="flex items-center text-sm text-blue-300 group-hover:text-white transition-colors font-medium">
-                    Plan this trip
-                    <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                  <div className="flex items-center text-sm font-semibold text-white bg-white/20 rounded-lg px-3 py-2 group-hover:bg-white/30 transition-colors">
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Plan a trip like this
+                    <ChevronRight className="h-4 w-4 ml-auto group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               </Link>
@@ -802,17 +802,27 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Testimonial Grid - Additional social proof */}
+          {/* Testimonial Grid - Outcome Focused */}
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {testimonials.slice(0, 3).map((testimonial, i) => (
               <div 
                 key={i} 
-                className={`bg-white rounded-xl p-6 shadow-lg border border-gray-100 transition-all duration-300 hover:shadow-xl ${
+                className={`bg-white rounded-xl p-6 shadow-lg border border-gray-100 transition-all duration-300 hover:shadow-xl cursor-pointer ${
                   i === currentTestimonial ? 'ring-2 ring-blue-500 ring-offset-2' : ''
                 }`}
                 onClick={() => setCurrentTestimonial(i)}
               >
-                <div className="flex items-center gap-3 mb-4">
+                {/* Outcome badge at top */}
+                <div className="flex items-center justify-between mb-4">
+                  <Badge className="bg-green-100 text-green-700 text-xs border-0 font-semibold">
+                    ✓ {testimonial.outcome}
+                  </Badge>
+                  <Badge className="bg-blue-100 text-blue-700 text-xs border-0">
+                    Saved {testimonial.savings}
+                  </Badge>
+                </div>
+                
+                <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
                     {testimonial.avatar}
                   </div>
@@ -827,9 +837,6 @@ export default function Home() {
                   ))}
                 </div>
                 <p className="text-gray-600 text-sm line-clamp-3">&ldquo;{testimonial.text}&rdquo;</p>
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <span className="text-xs text-green-600 font-medium">💰 Saved {testimonial.savings}</span>
-                </div>
               </div>
             ))}
           </div>
