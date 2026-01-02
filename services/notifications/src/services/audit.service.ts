@@ -52,6 +52,12 @@ export class AuditService {
       return;
     }
 
+    // Skip AMQP connection if using HTTP-based event bus
+    if (env.EVENT_BUS_URL.startsWith('http://') || env.EVENT_BUS_URL.startsWith('https://')) {
+      logger.info('Using HTTP-based event bus, audit events will be logged locally');
+      return;
+    }
+
     try {
       const conn = await amqp.connect(env.EVENT_BUS_URL);
       this.connection = conn;
@@ -64,7 +70,7 @@ export class AuditService {
       // Flush buffer periodically
       this.flushInterval = setInterval(() => this.flush(), 5000);
 
-      logger.info('Audit service initialized');
+      logger.info('Audit service initialized with AMQP');
     } catch (error) {
       logger.error('Failed to initialize audit service', {
         error: error instanceof Error ? error.message : String(error),

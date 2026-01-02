@@ -38,6 +38,12 @@ export class EventConsumer {
       return;
     }
 
+    // Skip AMQP connection if using HTTP-based event bus (webhooks are used instead)
+    if (env.EVENT_BUS_URL.startsWith('http://') || env.EVENT_BUS_URL.startsWith('https://')) {
+      logger.info('Using HTTP-based event bus, events will be received via webhook');
+      return;
+    }
+
     try {
       logger.info('Connecting to event bus...', { url: this.redactUrl(env.EVENT_BUS_URL) });
 
