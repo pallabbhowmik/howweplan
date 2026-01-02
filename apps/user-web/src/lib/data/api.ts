@@ -573,7 +573,7 @@ export async function createTravelRequest(input: CreateTravelRequestInput): Prom
       notes: input.preferences,
     },
     special_requirements: input.specialRequests || null,
-    status: 'open',
+    state: 'SUBMITTED',
   };
 
   const { data, error } = await supabase
@@ -677,7 +677,7 @@ export async function cancelTravelRequest(requestId: string): Promise<void> {
   const { error } = await supabase
     .from('travel_requests')
     .update({
-      status: 'cancelled',
+      state: 'CANCELLED',
       updated_at: new Date().toISOString(),
     })
     .eq('id', requestId);
@@ -875,22 +875,22 @@ export async function markNotificationRead(notificationId: string): Promise<void
 export async function fetchDashboardStats(userId: string): Promise<DashboardStats> {
   const supabase = getSupabaseClient();
 
-  // Fetch requests counts by status
+  // Fetch requests counts by state
   const { data: requests } = await supabase
     .from('travel_requests')
-    .select('status')
+    .select('state')
     .eq('user_id', userId);
 
-  // Support both Supabase schema (lowercase) and Docker schema (uppercase)
-  const activeStates = ['SUBMITTED', 'MATCHING', 'PROPOSALS_RECEIVED', 'open', 'matched', 'proposals_received'];
-  const selectionStates = ['PROPOSALS_RECEIVED', 'proposals_received'];
+  // Support both Supabase schema (UPPERCASE) and Docker schema (lowercase)
+  const activeStates = ['SUBMITTED', 'MATCHING', 'PROPOSALS_RECEIVED', 'AGENTS_MATCHED', 'open', 'matched', 'proposals_received'];
+  const selectionStates = ['PROPOSALS_RECEIVED', 'AGENTS_MATCHED', 'proposals_received'];
   
   const activeRequests = (requests || []).filter((r: any) => 
-    activeStates.includes(r.status || r.state)
+    activeStates.includes(r.state)
   ).length;
   
   const awaitingSelection = (requests || []).filter((r: any) => 
-    selectionStates.includes(r.status || r.state)
+    selectionStates.includes(r.state)
   ).length;
 
   // Fetch bookings counts (table may not exist in Supabase)
