@@ -71,8 +71,8 @@ function createLimiter(cfg: RateLimitConfig) {
  * Global rate limiter - applies to all requests
  */
 export const globalRateLimiter = createLimiter({
-  windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.maxRequests,
+  windowMs: config.rateLimit.global.windowMs,
+  max: config.rateLimit.global.max,
   message: 'Too many requests, please try again later',
 });
 

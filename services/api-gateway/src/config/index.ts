@@ -24,7 +24,12 @@ export const config = {
       'https://howweplan-agent.vercel.app',
       'https://howweplan-admin.vercel.app',
     ],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-API-Key'],
   },
+
+  // Proxy timeout
+  proxyTimeout: 30000, // 30 seconds
 
   // Rate Limiting Configuration
   rateLimit: {
@@ -49,8 +54,10 @@ export const config = {
   // Circuit Breaker Configuration
   circuitBreaker: {
     failureThreshold: 5, // Number of failures before opening
+    successThreshold: 3, // Number of successes in half-open to close
     resetTimeout: 30000, // 30 seconds before trying again
-    requestTimeout: 5000, // 5 second timeout per request
+    timeout: 5000, // 5 second timeout per request
+    requestTimeout: 5000, // Alias for compatibility
   },
 
   // Cache Configuration
@@ -109,6 +116,7 @@ export const config = {
   },
 
   // Request Size Limits
+  requestSizeLimit: 1024 * 1024, // 1MB in bytes
   limits: {
     maxBodySize: '1mb',
     maxQueryLength: 2048,

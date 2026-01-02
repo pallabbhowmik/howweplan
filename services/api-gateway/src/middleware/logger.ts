@@ -5,8 +5,8 @@ import crypto from 'crypto';
 declare global {
   namespace Express {
     interface Request {
-      requestId: string;
-      startTime: number;
+      requestId?: string;
+      startTime?: number;
       user?: {
         userId: string;
         email: string;
@@ -19,18 +19,29 @@ declare global {
 
 export interface LogEntry {
   timestamp: string;
-  requestId: string;
-  method: string;
-  path: string;
+  requestId?: string;
+  method?: string;
+  path?: string;
   statusCode?: number;
   duration?: number;
   userId?: string;
   userRole?: string;
-  ip: string;
+  ip?: string;
   userAgent?: string;
   service?: string;
   error?: string;
+  message?: string;
   metadata?: Record<string, unknown>;
+  // Extended fields for middleware logging
+  event?: string;
+  warning?: string;
+  details?: string;
+  limit?: number;
+  window?: string;
+  contentLength?: number;
+  retryAfter?: number;
+  validationErrors?: unknown[];
+  [key: string]: unknown; // Allow additional properties
 }
 
 class Logger {

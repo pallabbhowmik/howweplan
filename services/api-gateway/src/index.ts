@@ -22,13 +22,6 @@ declare global {
   namespace Express {
     interface Request {
       requestId?: string;
-      user?: {
-        userId: string;
-        email: string;
-        role: 'user' | 'agent' | 'admin' | 'system';
-        iat: number;
-        exp: number;
-      };
     }
   }
 }
@@ -280,10 +273,10 @@ function createProxyOptions(serviceName: string, serviceUrl: string): Options {
 }
 
 // Configure proxies for each service
-Object.entries(config.services).forEach(([serviceName, serviceUrl]) => {
+Object.entries(config.services).forEach(([serviceName, serviceConfig]) => {
   app.use(
     `/api/${serviceName}`,
-    createProxyMiddleware(createProxyOptions(serviceName, serviceUrl))
+    createProxyMiddleware(createProxyOptions(serviceName, serviceConfig.url))
   );
 });
 

@@ -1,6 +1,6 @@
 // Middleware exports
-export { logger, requestIdMiddleware, requestLoggerMiddleware, responseLoggerMiddleware, Logger } from './logger';
-export { authMiddleware, optionalAuthMiddleware, verifyJWT, generateJWT, revokeToken, isTokenRevoked, PUBLIC_ROUTES } from './auth';
+export { logger, requestIdMiddleware, requestLoggerMiddleware, responseLoggerMiddleware, LogEntry } from './logger';
+export { authMiddleware, optionalAuthMiddleware, generateJWT, revokeToken, isTokenRevoked } from './auth';
 export { rbacMiddleware, requireRole, requireOwnership } from './rbac';
 export { globalRateLimiter, authRateLimiter, writeRateLimiter, readRateLimiter, sensitiveRateLimiter, adaptiveRateLimiter, apiKeyRateLimiter } from './rateLimiter';
 export { validate, sanitizeInput, requestSizeLimiter, validateUuidParam, requireJson, schemas } from './validation';
