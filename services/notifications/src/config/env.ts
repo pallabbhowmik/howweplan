@@ -84,6 +84,15 @@ const envSchema = z.object({
     .default('info'),
 
   // ===========================================================================
+  // FRONTEND URLS (for email links)
+  // ===========================================================================
+  FRONTEND_URL: z
+    .string()
+    .url()
+    .default('https://howweplan-user.vercel.app')
+    .describe('Frontend URL for email links'),
+
+  // ===========================================================================
   // API CONNECTIVITY
   // ===========================================================================
   PORT: z.coerce.number().int().positive().default(3005),
