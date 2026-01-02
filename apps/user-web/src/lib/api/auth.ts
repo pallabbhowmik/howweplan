@@ -1,7 +1,7 @@
 /**
  * Authentication API Client
  * 
- * Handles login, registration, and token management
+ * Handles login, registration, token management, and automatic refresh
  * through the API Gateway.
  * 
  * All requests go through: /api/identity/* (routed by gateway)
@@ -127,16 +127,20 @@ export async function refreshToken(token: string): Promise<AuthResponse> {
 }
 
 /**
- * Logout and invalidate tokens
+ * Logout and invalidate tokens on the server
  */
 export async function logout(accessToken: string): Promise<void> {
-  await fetch(`${normalizedBaseUrl}/api/identity/auth/logout`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`,
-    },
-  });
+  try {
+    await fetch(`${normalizedBaseUrl}/api/identity/auth/logout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+  } catch {
+    // Ignore errors during logout - tokens will expire anyway
+  }
 }
 
 // Token storage keys
@@ -188,4 +192,100 @@ export function clearAuthData(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+}
+
+/**
+ * Check if access token is expired (with 60s buffer)
+ */
+export function isTokenExpired(): boolean {
+  const token = getAccessToken();
+  if (!token) return true;
+  
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expiresAt = payload.exp * 1000;
+    // Return true if token expires in less than 60 seconds
+    return Date.now() >= expiresAt - 60000;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Attempt to refresh the access token if needed
+ * Returns true if successful, false otherwise
+ */
+export async function ensureValidToken(): Promise<boolean> {
+  if (!isTokenExpired()) {
+    return true;
+  }
+  
+  const storedRefreshToken = getRefreshToken();
+  if (!storedRefreshToken) {
+    return false;
+  }
+  
+  try {
+    const response = await refreshToken(storedRefreshToken);
+    storeAuthTokens(response);
+    
+    // Update the cookie with new access token
+    if (typeof document !== 'undefined') {
+      const expires = new Date(Date.now() + response.expiresIn * 1000).toUTCString();
+      document.cookie = `tc-auth-token=${response.accessToken}; path=/; expires=${expires}; SameSite=Lax`;
+    }
+    
+    return true;
+  } catch {
+    // Refresh failed - user needs to re-authenticate
+    clearAuthData();
+    return false;
+  }
+}
+
+/**
+ * Make an authenticated fetch request
+ * Automatically includes Authorization header and handles token refresh
+ */
+export async function authenticatedFetch(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  // Ensure we have a valid token
+  const hasValidToken = await ensureValidToken();
+  if (!hasValidToken) {
+    throw new AuthError('Session expired. Please log in again.', 'SESSION_EXPIRED', 401);
+  }
+  
+  const accessToken = getAccessToken();
+  
+  const headers = new Headers(options.headers);
+  if (accessToken) {
+    headers.set('Authorization', `Bearer ${accessToken}`);
+  }
+  
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+  
+  // If we get a 401, try refreshing once
+  if (response.status === 401) {
+    const refreshed = await ensureValidToken();
+    if (refreshed) {
+      const newToken = getAccessToken();
+      headers.set('Authorization', `Bearer ${newToken}`);
+      return fetch(url, { ...options, headers });
+    }
+    throw new AuthError('Session expired. Please log in again.', 'SESSION_EXPIRED', 401);
+  }
+  
+  return response;
+}
+
+/**
+ * Helper to build API URLs
+ */
+export function apiUrl(path: string): string {
+  return `${normalizedBaseUrl}${path.startsWith('/') ? path : `/${path}`}`;
 }

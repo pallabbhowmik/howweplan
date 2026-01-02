@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
-import { clearAuthData, getStoredUser } from '@/lib/api/auth';
+import { clearAuthData, getStoredUser, getAccessToken, logout } from '@/lib/api/auth';
 
 const STORAGE_KEY = 'tc_demo_user_id';
 
@@ -39,7 +39,13 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
     }
   };
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async () => {
+    // Call backend to invalidate refresh token
+    const accessToken = getAccessToken();
+    if (accessToken) {
+      await logout(accessToken);
+    }
+    
     // Clear demo user
     setUserIdState(null);
     setUser(null);
