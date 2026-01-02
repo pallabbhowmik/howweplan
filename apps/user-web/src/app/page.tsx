@@ -266,207 +266,132 @@ export default function Home() {
         )}
       </nav>
 
-      {/* Hero Section - Enhanced Value Proposition */}
-      <section className="relative pt-24 md:pt-32 pb-16 md:pb-20 overflow-hidden min-h-[90vh] md:min-h-[85vh] flex items-center">
-        {/* Hero Background with Travel Imagery Mosaic */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50" />
-        
-        {/* Animated background gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent z-[1]" />
-        
-        {/* Floating destination cards - creates travel emotion */}
-        <div className="absolute top-24 left-2 md:left-8 w-24 h-32 md:w-36 md:h-44 rounded-2xl overflow-hidden shadow-2xl rotate-6 opacity-40 md:opacity-60 border-4 border-white transform hover:scale-105 transition-transform">
-          <div className="w-full h-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-end p-2 md:p-3">
-            <div className="text-white">
-              <div className="text-3xl md:text-4xl mb-1">🏰</div>
-              <p className="text-xs md:text-sm font-bold">Rajasthan</p>
-            </div>
-          </div>
+      {/* Hero Section - Emotional Travel Visual with Split Layout */}
+      <section className="relative pt-20 md:pt-24 pb-12 md:pb-16 overflow-hidden min-h-[95vh] md:min-h-[90vh]">
+        {/* Full-width Hero Background Image */}
+        <div className="absolute inset-0">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{
+              backgroundImage: `url('https://images.unsplash.com/photo-1524492412937-b28074a5d7da?ixlib=rb-4.0.3&auto=format&fit=crop&w=2071&q=80')`,
+            }}
+          />
+          {/* Gradient overlay for text readability - stronger on left for text */}
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/95 to-white/70 md:from-white md:via-white/90 md:to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-white/30" />
         </div>
         
-        <div className="absolute top-40 md:top-32 right-2 md:right-12 w-20 h-28 md:w-32 md:h-40 rounded-2xl overflow-hidden shadow-2xl -rotate-12 opacity-40 md:opacity-60 border-4 border-white">
-          <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-end p-2 md:p-3">
-            <div className="text-white">
-              <div className="text-2xl md:text-3xl mb-1">🏝️</div>
-              <p className="text-xs md:text-sm font-bold">Andaman</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="absolute bottom-32 md:bottom-24 left-4 md:left-16 w-20 h-24 md:w-28 md:h-36 rounded-xl overflow-hidden shadow-xl rotate-12 opacity-40 md:opacity-60 border-4 border-white">
-          <div className="w-full h-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-end p-2">
-            <div className="text-white">
-              <div className="text-2xl md:text-3xl mb-1">🌴</div>
-              <p className="text-xs font-bold">Kerala</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="absolute bottom-40 md:bottom-32 right-4 md:right-20 w-22 h-28 md:w-32 md:h-40 rounded-2xl overflow-hidden shadow-2xl -rotate-6 opacity-40 md:opacity-60 border-4 border-white">
-          <div className="w-full h-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-end p-2 md:p-3">
-            <div className="text-white">
-              <div className="text-2xl md:text-3xl mb-1">🏔️</div>
-              <p className="text-xs md:text-sm font-bold">Ladakh</p>
-            </div>
-          </div>
-        </div>
-        
-        {/* Additional floating elements for depth */}
-        <div className="absolute top-1/3 left-1/4 w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-orange-400 opacity-20 blur-sm animate-float" />
-        <div className="absolute bottom-1/3 right-1/3 w-20 h-20 rounded-full bg-gradient-to-br from-pink-400 to-rose-400 opacity-20 blur-sm animate-float animation-delay-2000" />
-        
-        {/* Animated blob backgrounds */}
-        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-400/20 rounded-full blur-3xl animate-blob" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl animate-blob animation-delay-2000" />
-        <div className="absolute top-40 right-1/4 w-64 h-64 bg-pink-400/10 rounded-full blur-3xl animate-blob animation-delay-4000" />
+        {/* Subtle animated accents */}
+        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-400/10 rounded-full blur-3xl animate-blob" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-400/10 rounded-full blur-3xl animate-blob animation-delay-2000" />
         
         <div className="container mx-auto px-4 relative">
-          <div className="max-w-5xl mx-auto text-center">
-            {/* Live Activity Badge */}
-            <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-full text-sm">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-                </span>
-                <span className="text-green-700 font-medium">
-                  {activeTravelers} planning trips now
-                </span>
-              </div>
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-full text-sm">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-                </span>
-                <span className="text-blue-700 font-medium">47 agents responding</span>
-              </div>
-            </div>
-            
-            {/* Main Headline - Clear Value Proposition */}
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight tracking-tight">
-              <span className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
-                Custom Itineraries from
-              </span>
-              <br />
-              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                Competing Expert Agents
-              </span>
-            </h1>
-            
-            {/* Sub-headline - Quantified benefit */}
-            <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-3 max-w-3xl mx-auto leading-relaxed">
-              Travelers save an average of <span className="text-green-600 font-bold">₹16,500</span> per trip when agents compete for their business.
-            </p>
-            
-            {/* How it works in one line */}
-            <p className="text-base text-gray-500 mb-6 max-w-2xl mx-auto">
-              Post your trip → Agents compete → Compare anonymously → Book with confidence
-            </p>
-            
-            {/* Trust indicators under headline */}
-            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500 mb-8">
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>No upfront payment</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Avg. 5 proposals per request</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>24hr response guarantee</span>
-              </div>
-            </div>
-            
-            {/* CTA Buttons - Single Primary Focus */}
-            <div className="flex flex-col items-center gap-4 mb-8">
-              {/* Directional Arrow */}
-              <div className="hidden md:flex flex-col items-center text-blue-500 animate-bounce-slow">
-                <span className="text-sm font-medium mb-1">Get started here</span>
-                <ArrowRight className="h-5 w-5 rotate-90" />
+          <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center min-h-[70vh]">
+            {/* Left side - Text content */}
+            <div className="text-left">
+              {/* Live Activity Badge */}
+              <div className="flex flex-wrap items-center gap-3 mb-6">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur border border-green-200 rounded-full text-sm shadow-sm">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                  </span>
+                  <span className="text-green-700 font-medium">
+                    {activeTravelers} planning trips now
+                  </span>
+                </div>
               </div>
               
-              <Link href="/requests/new">
-                <Button 
-                  size="lg" 
-                  className="text-base md:text-lg px-10 md:px-14 py-7 md:py-8 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-2xl shadow-blue-500/40 hover:shadow-blue-500/60 group font-bold transition-all duration-300 hover:scale-105 animate-pulse-subtle"
-                >
-                  <MapPin className="mr-2 h-6 w-6" />
-                  Start Planning — It&apos;s Free
-                  <ArrowRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </Link>
+              {/* Main Headline - Emotional + Clear */}
+              <h1 className="text-4xl sm:text-5xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight tracking-tight">
+                <span className="text-gray-900">
+                  Your Dream Trip,
+                </span>
+                <br />
+                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  Planned by Experts
+                </span>
+              </h1>
               
-              {/* Secondary CTA - Much quieter text link */}
-              <button 
-                onClick={() => setIsVideoPlaying(true)}
-                className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors text-sm group mt-2"
-              >
-                <Play className="h-4 w-4 text-gray-400 group-hover:text-blue-500" />
-                <span className="underline-offset-2 group-hover:underline">See how it works</span>
-                <span className="text-gray-400">(90 sec)</span>
-              </button>
-            </div>
-            
-            {/* Quick Trip Type Selector - Above the Fold Engagement */}
-            <div className="mb-10">
-              <p className="text-sm text-gray-500 mb-4">Or start with a trip type:</p>
-              <div className="flex flex-wrap justify-center gap-2 md:gap-3">
-                {tripTypes.map((type, i) => (
-                  <Link 
-                    key={i}
-                    href={`/requests/new?type=${type.name.toLowerCase()}`}
-                    className="group flex items-center gap-2 px-4 py-2.5 bg-white rounded-full shadow-md border border-gray-100 hover:shadow-lg hover:border-gray-200 transition-all duration-200 hover:-translate-y-0.5"
+              {/* Sub-headline - Benefit-focused */}
+              <p className="text-lg md:text-xl text-gray-700 mb-4 leading-relaxed">
+                Tell us where you want to go. <span className="font-semibold">Multiple travel experts</span> compete to craft your perfect itinerary.
+              </p>
+              
+              {/* Savings callout */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg mb-6">
+                <span className="text-green-600 font-bold text-lg">₹16,500</span>
+                <span className="text-green-700 text-sm">average savings when agents compete</span>
+              </div>
+              
+              {/* Trust indicators */}
+              <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-8">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>100% free to use</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>No obligation to book</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>Verified agents only</span>
+                </div>
+              </div>
+              
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row items-start gap-4 mb-6">
+                <Link href="/requests/new">
+                  <Button 
+                    size="lg" 
+                    className="text-lg px-8 py-7 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-2xl shadow-blue-500/30 hover:shadow-blue-500/50 group font-bold transition-all duration-300 hover:scale-105"
                   >
-                    <span className="text-lg">{type.emoji}</span>
-                    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">{type.name}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* Hero Social Proof - Redesigned */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-12">
-              <div className="flex items-center gap-3 bg-white/80 backdrop-blur rounded-full py-2 px-4 shadow-lg border border-gray-100">
-                <div className="flex -space-x-3">
-                  {['P', 'R', 'V', 'A', 'S'].map((letter, i) => (
-                    <div 
-                      key={i} 
-                      className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 border-2 border-white flex items-center justify-center text-white text-sm font-bold shadow-md"
-                    >
-                      {letter}
-                    </div>
-                  ))}
-                  <div className="w-9 h-9 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-gray-600 text-xs font-bold shadow-md">
-                    +50K
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    Get My Custom Trip Plan
+                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </Link>
+                
+                {/* Secondary CTA */}
+                <button 
+                  onClick={() => setIsVideoPlaying(true)}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors text-sm group py-3"
+                >
+                  <div className="w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center group-hover:shadow-lg transition-shadow">
+                    <Play className="h-4 w-4 text-blue-600 ml-0.5" />
                   </div>
-                </div>
-                <div className="text-left">
-                  <div className="flex items-center gap-1">
-                    {[1,2,3,4,5].map((i) => (
-                      <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    ))}
-                    <span className="font-bold text-gray-900 ml-1">4.9</span>
-                  </div>
-                  <p className="text-xs text-gray-500">from 12,000+ reviews</p>
-                </div>
+                  <span className="font-medium">Watch how it works</span>
+                </button>
               </div>
+              
+              {/* Social proof micro-stat */}
+              <p className="text-sm text-gray-500">
+                <span className="font-semibold text-gray-700">2,500+</span> trips planned this month
+              </p>
             </div>
             
-            {/* Partner Trust Logos */}
-            <div className="pt-8 border-t border-gray-200">
-              <p className="text-xs text-gray-400 uppercase tracking-wider mb-4">Trusted by travelers who&apos;ve used</p>
-              <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10">
-                {partnerLogos.map((partner, i) => (
-                  <div key={i} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
-                    <span className="text-2xl opacity-70">{partner.icon}</span>
-                    <span className="text-sm font-medium hidden sm:inline">{partner.name}</span>
-                  </div>
-                ))}
-              </div>
+            {/* Right side - Visual emphasis area (shows through on desktop) */}
+            <div className="hidden md:block" />
+          </div>
+          
+          {/* Quick Trip Type Selector - Below hero grid */}
+          <div className="text-center mt-8 pt-8 border-t border-gray-100">
+            <p className="text-sm text-gray-500 mb-4">Popular trip types:</p>
+            <div className="flex flex-wrap justify-center gap-2 md:gap-3">
+              {tripTypes.map((type, i) => (
+                <Link 
+                  key={i}
+                  href={`/requests/new?type=${type.name.toLowerCase()}`}
+                  className="group flex items-center gap-2 px-4 py-2.5 bg-white rounded-full shadow-md border border-gray-100 hover:shadow-lg hover:border-gray-200 transition-all duration-200 hover:-translate-y-0.5"
+                >
+                  <span className="text-lg">{type.emoji}</span>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">{type.name}</span>
+                </Link>
+              ))}
             </div>
           </div>
+
         </div>
         
         {/* Scroll indicator */}
@@ -584,13 +509,14 @@ export default function Home() {
             <Link href="/requests/new">
               <Button 
                 size="lg" 
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-xl shadow-blue-500/30 font-semibold text-lg px-8 py-6"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-xl shadow-blue-500/30 font-bold text-lg px-8 py-6"
               >
-                Start Your Free Request
+                <Sparkles className="mr-2 h-5 w-5" />
+                Get My Custom Trip Plan
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <p className="text-sm text-gray-500 mt-3">No credit card required • Free to compare</p>
+            <p className="text-sm text-gray-500 mt-3">No credit card required • 100% free to compare</p>
           </div>
         </div>
       </section>
@@ -654,13 +580,14 @@ export default function Home() {
             <Link href="/requests/new">
               <Button 
                 size="lg" 
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-xl shadow-blue-500/30 font-semibold text-lg px-8 py-6"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-xl shadow-blue-500/30 font-bold text-lg px-8 py-6"
               >
-                Get Your Custom Proposals
+                <Sparkles className="mr-2 h-5 w-5" />
+                Get My Custom Trip Plan
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <p className="text-sm text-gray-500 mt-3">Average ₹16,500 saved per trip</p>
+            <p className="text-sm text-gray-500 mt-3">Takes 5 minutes • Average ₹16,500 saved</p>
           </div>
         </div>
       </section>
@@ -876,79 +803,86 @@ export default function Home() {
 
           <div className="max-w-3xl mx-auto">
             <div className="space-y-4">
-              {faqItems.map((faq, i) => (
+              {faqItems.slice(0, 4).map((faq, i) => (
                 <div 
                   key={i}
-                  className="bg-gray-50 rounded-2xl p-6 hover:bg-gray-100 transition-colors"
+                  className="bg-gray-50 rounded-2xl p-5 hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white">
-                      <faq.icon className="h-5 w-5" />
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white">
+                      <faq.icon className="h-4 w-4" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-lg text-gray-900 mb-2">{faq.question}</h3>
-                      <p className="text-gray-600 leading-relaxed">{faq.answer}</p>
+                      <h3 className="font-bold text-gray-900 mb-1">{faq.question}</h3>
+                      <p className="text-gray-600 text-sm">{faq.answer}</p>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-            
-            {/* Additional help link */}
-            <div className="text-center mt-8">
-              <p className="text-gray-500 mb-4">Still have questions?</p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/help">
-                  <Button variant="outline" className="font-medium">
-                    <HelpCircle className="mr-2 h-4 w-4" />
-                    Visit Help Center
-                  </Button>
-                </Link>
-                <Link href="/requests/new">
-                  <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 font-semibold">
-                    Start Planning Free
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section - More compelling */}
+      {/* CTA Section with Mini FAQ - Objection Killer */}
       <section className="py-16 md:py-24 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtOS45NCAwLTE4IDguMDYtMTggMThzOC4wNiAxOCAxOCAxOCAxOC04LjA2IDE4LTE4LTguMDYtMTgtMTgtMTh6bTAgMzJjLTcuNzMyIDAtMTQtNi4yNjgtMTQtMTRzNi4yNjgtMTQgMTQtMTQgMTQgNi4yNjggMTQgMTQtNi4yNjggMTQtMTQgMTR6IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9Ii4wNSIvPjwvZz48L3N2Zz4=')] opacity-30" />
         
-        <div className="container mx-auto px-4 text-center relative">
-          {/* Urgency element */}
-          <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-white/10 backdrop-blur rounded-full text-sm text-white/90">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-            </span>
-            <span>{activeTravelers} people are planning trips right now</span>
+        <div className="container mx-auto px-4 relative">
+          {/* Mini FAQ - Quick objection killers */}
+          <div className="max-w-4xl mx-auto mb-12">
+            <p className="text-center text-white/80 text-sm uppercase tracking-wider mb-6">Quick answers to common questions</p>
+            <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
+                <p className="text-white font-semibold mb-1">Is it really free?</p>
+                <p className="text-white/70 text-sm">Yes, 100%. Agents pay us, not you.</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
+                <p className="text-white font-semibold mb-1">Do I have to book?</p>
+                <p className="text-white/70 text-sm">No obligation. Browse, compare, decide.</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
+                <p className="text-white font-semibold mb-1">How fast is it?</p>
+                <p className="text-white/70 text-sm">Most get proposals within 24 hours.</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
+                <p className="text-white font-semibold mb-1">Are agents verified?</p>
+                <p className="text-white/70 text-sm">Yes, all agents are vetted & rated.</p>
+              </div>
+            </div>
           </div>
           
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6">
-            Ready for Your Next Adventure?
-          </h2>
-          <p className="text-lg md:text-xl text-white/90 mb-10 max-w-2xl mx-auto">
-            Join thousands of happy travelers who saved time and money on their perfect trips.
-            <span className="block mt-2 font-semibold">It&apos;s completely free to get started!</span>
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/requests/new">
-              <Button 
-                size="lg" 
-                variant="secondary" 
-                className="w-full sm:w-auto text-base md:text-lg px-8 py-6 shadow-xl group font-semibold hover:scale-105 transition-transform"
-              >
-                <MapPin className="mr-2 h-5 w-5" />
-                Create Your Free Request
-                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
+          {/* Main CTA content */}
+          <div className="text-center">
+            {/* Urgency element */}
+            <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-white/10 backdrop-blur rounded-full text-sm text-white/90">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+              </span>
+              <span>{activeTravelers} people are planning trips right now</span>
+            </div>
+            
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6">
+              Your Perfect Trip is Waiting
+            </h2>
+            <p className="text-lg md:text-xl text-white/90 mb-10 max-w-2xl mx-auto">
+              5 minutes to describe your dream trip. 24 hours to get expert proposals.
+              <span className="block mt-2 font-semibold">Zero cost. Zero obligation.</span>
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/requests/new">
+                <Button 
+                  size="lg" 
+                  variant="secondary" 
+                  className="w-full sm:w-auto text-base md:text-lg px-8 py-6 shadow-xl group font-bold hover:scale-105 transition-transform"
+                >
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  Get My Custom Trip Plan
+                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+            </div>
           </div>
           
           <div className="mt-10 flex flex-wrap items-center justify-center gap-6 md:gap-8 text-white/80 text-sm">
@@ -1036,14 +970,14 @@ export default function Home() {
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-xl border-t border-gray-200 shadow-2xl z-40 md:hidden">
         <Link href="/requests/new" className="block">
           <Button 
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg font-semibold py-6 text-base"
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg font-bold py-6 text-base"
           >
-            <MapPin className="mr-2 h-5 w-5" />
-            Start Planning — Free
+            <Sparkles className="mr-2 h-5 w-5" />
+            Get My Custom Trip Plan
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </Link>
-        <p className="text-center text-xs text-gray-500 mt-2">No credit card required</p>
+        <p className="text-center text-xs text-gray-500 mt-2">100% free • No obligation</p>
       </div>
 
       {/* Video Modal Placeholder */}
