@@ -87,6 +87,11 @@ export default function RegisterPage() {
       });
       
       storeAuthTokens(response);
+      // Set auth cookie for middleware (7 days expiry)
+      if (response.user?.id) {
+        const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
+        document.cookie = `tc-auth-token=${response.user.id}; path=/; expires=${expires}; SameSite=Lax`;
+      }
       router.push('/dashboard');
     } catch (err) {
       if (err instanceof AuthError) {

@@ -50,8 +50,10 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
     }
     // Clear auth tokens
     clearAuthData();
-    // Redirect to login
-    window.location.href = '/login';
+    // Clear auth cookie
+    document.cookie = 'tc-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    // Redirect to landing page
+    window.location.href = '/';
   }, []);
 
   useEffect(() => {

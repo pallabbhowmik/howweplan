@@ -49,6 +49,9 @@ export default function LoginPage() {
       storeAuthTokens(response);
       if (response.user?.id) {
         localStorage.setItem(STORAGE_KEY, response.user.id);
+        // Set auth cookie for middleware (7 days expiry)
+        const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
+        document.cookie = `tc-auth-token=${response.user.id}; path=/; expires=${expires}; SameSite=Lax`;
       }
       router.push('/dashboard');
     } catch (err) {

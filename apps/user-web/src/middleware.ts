@@ -45,9 +45,11 @@ export function middleware(request: NextRequest) {
     pathname === route || pathname.startsWith(route)
   );
 
-  // Check for authentication token (from Supabase)
-  const authToken = request.cookies.get('sb-access-token');
-  const hasAuthToken = !!authToken;
+  // Check for authentication token
+  // Support both Supabase token and our custom token
+  const supabaseToken = request.cookies.get('sb-access-token');
+  const customAuthToken = request.cookies.get('tc-auth-token');
+  const hasAuthToken = !!(supabaseToken || customAuthToken);
 
   // Redirect unauthenticated users from protected routes
   if (!isPublicRoute && !hasAuthToken) {
