@@ -78,6 +78,11 @@ class BookingService {
       totalAmountCents: fees.totalAmountCents,
       agentPayoutCents: fees.agentPayoutCents,
 
+      // Generic payment provider fields
+      paymentIntentId: null,
+      checkoutSessionId: null,
+      chargeId: null,
+      // Deprecated Stripe-specific fields (kept for backward compatibility)
       stripePaymentIntentId: null,
       stripeCheckoutSessionId: null,
       stripeChargeId: null,

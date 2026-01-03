@@ -421,8 +421,8 @@ export class MessageService {
    * Gets unread message count for a user in a conversation.
    */
   async getUnreadCount(
-    conversationId: string,
-    userId: string
+    _conversationId: string,
+    _userId: string
   ): Promise<number> {
     if (!config.features.readReceipts) {
       return 0;
@@ -450,8 +450,8 @@ export class MessageService {
    * Gets the last read message ID for a user in a conversation.
    */
   async getLastReadMessageId(
-    conversationId: string,
-    userId: string
+    _conversationId: string,
+    _userId: string
   ): Promise<string | null> {
     if (!config.features.readReceipts) {
       return null;
@@ -482,9 +482,9 @@ export class MessageService {
    * More efficient than marking individual messages.
    */
   async markAllReadUpTo(
-    conversationId: string,
-    upToMessageId: string,
-    readById: string
+    _conversationId: string,
+    _upToMessageId: string,
+    _readById: string
   ): Promise<{ markedCount: number }> {
     if (!config.features.readReceipts) {
       return { markedCount: 0 };

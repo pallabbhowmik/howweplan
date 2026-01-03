@@ -486,7 +486,7 @@ export class ItineraryService {
 
     for (const itinerary of expiredItineraries) {
       try {
-        await this.changeStatus(
+        await this.updateStatus(
           itinerary.id,
           ItineraryStatus.ARCHIVED,
           'system',

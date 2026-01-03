@@ -323,15 +323,22 @@ export class AuditService {
 
     const eventBus = await getEventBus();
 
+    // Emit as a generic messaging event - read receipts use the message.sent structure
+    // with additional metadata to indicate it's a read receipt
     await eventBus.publish({
-      ...createBaseEvent(EMITTED_EVENT_TYPES.MESSAGE_SENT), // Using closest event type
-      eventType: 'messaging.messages.read',
+      ...createBaseEvent(EMITTED_EVENT_TYPES.MESSAGE_SENT),
       payload: {
         conversationId,
-        messageIds,
-        readById,
-        messageCount: messageIds.length,
-        readAt: readAt.toISOString(),
+        messageId: messageIds[0] || '', // Use first message ID as primary
+        senderId: readById, // The person who read the messages
+        content: '', // Empty for read receipts
+        messageType: 'TEXT',
+        sentAt: readAt.toISOString(),
+        metadata: {
+          isReadReceipt: true,
+          readMessageIds: messageIds,
+          messageCount: messageIds.length,
+        },
       },
     });
 
