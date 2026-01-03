@@ -16,6 +16,7 @@ import { RequestNotFoundError, RepositoryError } from './request.errors';
 interface RequestRow {
   id: string;
   user_id: string;
+  title: string;  // Generated from destination
   state: string;  // Database stores UPPERCASE enum values
   destination: string;
   departure_location: string;
@@ -240,6 +241,7 @@ function toRow(request: TravelRequest): RequestRow {
   return {
     id: request.id,
     user_id: request.userId,
+    title: `Trip to ${request.destination}`,  // Auto-generate title
     state: toDbState(request.state),
     destination: request.destination,
     departure_location: request.departureLocation,
