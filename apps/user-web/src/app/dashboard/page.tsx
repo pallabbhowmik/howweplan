@@ -782,6 +782,7 @@ function SignalsPanel({ stage, stats }: { stage: JourneyStage; stats: DashboardS
     amber: { bg: 'bg-amber-50', text: 'text-amber-600' },
     purple: { bg: 'bg-purple-50', text: 'text-purple-600' },
   };
+  const defaultColor = { bg: 'bg-blue-50', text: 'text-blue-600' };
 
   return (
     <Card className="border border-gray-100">
@@ -792,7 +793,7 @@ function SignalsPanel({ stage, stats }: { stage: JourneyStage; stats: DashboardS
         </div>
         <div className="space-y-3">
           {signals.map((signal, i) => {
-            const colors = colorMap[signal.color] || colorMap.blue;
+            const colors = colorMap[signal.color] ?? defaultColor;
             return (
               <div key={i} className="flex items-center gap-3 group">
                 <div className={`p-2 rounded-lg ${colors.bg} ${colors.text} group-hover:scale-105 transition-transform`}>
