@@ -1,0 +1,28 @@
+{
+  "name": "tripcomposer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HowWePlan - Travel planning platform monorepo",
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:packages": "npm run build --workspace=@tripcomposer/contracts && npm run build --workspace=@tripcomposer/observability && npm run build --workspace=@tripcomposer/idempotency && npm run build --workspace=@tripcomposer/resilience && npm run build --workspace=@tripcomposer/auth-utils",
+    "build:services": "npm run build --workspaces --if-present",
+    "dev:user-web": "npm run dev --workspace=@tripcomposer/user-web",
+    "dev:agent-web": "npm run dev --workspace=@tripcomposer/agent-web",
+    "dev:admin-web": "npm run dev --workspace=@tripcomposer/admin-web",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

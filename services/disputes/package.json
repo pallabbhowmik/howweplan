@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@tripcomposer/contracts": "workspace:*",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.3",
     "pino": "^8.17.2",

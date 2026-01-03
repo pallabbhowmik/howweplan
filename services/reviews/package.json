@@ -19,6 +19,7 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@tripcomposer/contracts": "workspace:*",
     "@hono/node-server": "^1.8.0",
     "@hono/zod-validator": "^0.2.0",
     "@supabase/supabase-js": "^2.39.0",

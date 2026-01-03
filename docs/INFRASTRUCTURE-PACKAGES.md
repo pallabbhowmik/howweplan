@@ -2,11 +2,49 @@
 
 ## Overview
 
-This document describes the new infrastructure packages added to support the architectural principles:
+This monorepo uses npm workspaces to share common infrastructure packages across services.
+The packages are located in `packages/` and can be imported using `workspace:*` protocol.
 
-1. **@tripcomposer/observability** - Distributed tracing, metrics, and logging
-2. **@tripcomposer/idempotency** - Idempotency key handling for safe retries
-3. **@tripcomposer/resilience** - Circuit breaker, retry, dead letter queue
+### Package Summary
+
+| Package | Purpose | Used By |
+|---------|---------|---------|
+| **@tripcomposer/contracts** | Shared types, entities, events, DTOs | All services |
+| **@tripcomposer/observability** | Distributed tracing, metrics, logging | All services |
+| **@tripcomposer/idempotency** | Idempotency key handling for safe retries | requests, booking-payments |
+| **@tripcomposer/resilience** | Circuit breaker, retry, dead letter queue | api-gateway |
+| **@tripcomposer/auth-utils** | JWT utilities, RBAC | identity, api-gateway |
+
+### Installation
+
+From the monorepo root:
+```bash
+npm install
+```
+
+This will link all workspace packages automatically.
+
+---
+
+## @tripcomposer/contracts
+
+### Purpose
+Single source of truth for all inter-service types and contracts.
+
+### Contents
+- **Entities**: User, Agent, TravelRequest, Booking, etc.
+- **States**: State machine definitions for all domain objects
+- **Events**: Event types for the event bus
+- **DTOs**: Request/response data transfer objects
+
+### Usage
+```typescript
+import { 
+  TravelRequest, 
+  BookingState, 
+  COMMISSION_ELIGIBLE_STATES 
+} from '@tripcomposer/contracts';
+```
 
 ---
 

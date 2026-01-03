@@ -26,6 +26,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
+    "@tripcomposer/auth-utils": "workspace:*",
+    "@tripcomposer/contracts": "workspace:*",
     "argon2": "^0.31.2",
     "express": "^4.18.2",
     "helmet": "^7.1.0",
