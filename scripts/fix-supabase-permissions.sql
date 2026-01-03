@@ -22,6 +22,27 @@ GRANT ALL ON refresh_tokens TO service_role;
 GRANT ALL ON verification_tokens TO authenticated;
 GRANT ALL ON verification_tokens TO service_role;
 
+-- Grant permissions on travel_requests and related tables
+GRANT ALL ON travel_requests TO authenticated;
+GRANT ALL ON travel_requests TO service_role;
+GRANT ALL ON travel_requests TO anon;
+
+GRANT ALL ON agents TO authenticated;
+GRANT ALL ON agents TO service_role;
+GRANT ALL ON agents TO anon;
+
+GRANT ALL ON itineraries TO authenticated;
+GRANT ALL ON itineraries TO service_role;
+GRANT ALL ON itineraries TO anon;
+
+GRANT ALL ON bookings TO authenticated;
+GRANT ALL ON bookings TO service_role;
+GRANT ALL ON bookings TO anon;
+
+GRANT ALL ON destinations TO authenticated;
+GRANT ALL ON destinations TO service_role;
+GRANT ALL ON destinations TO anon;
+
 -- Grant usage on sequences (for auto-generated IDs)
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO service_role;
@@ -120,6 +141,119 @@ CREATE POLICY "Service role has full access to verification_tokens" ON verificat
     TO service_role
     USING (true)
     WITH CHECK (true);
+
+-- ============================================================================
+-- TRAVEL REQUESTS RLS
+-- ============================================================================
+
+ALTER TABLE travel_requests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Service role has full access to travel_requests" ON travel_requests;
+DROP POLICY IF EXISTS "Users can read own requests" ON travel_requests;
+DROP POLICY IF EXISTS "Users can create requests" ON travel_requests;
+DROP POLICY IF EXISTS "Users can update own requests" ON travel_requests;
+
+CREATE POLICY "Service role has full access to travel_requests" ON travel_requests
+    FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "Users can read own requests" ON travel_requests
+    FOR SELECT
+    TO authenticated
+    USING (user_id::text = auth.uid()::text);
+
+CREATE POLICY "Users can create requests" ON travel_requests
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (user_id::text = auth.uid()::text);
+
+CREATE POLICY "Users can update own requests" ON travel_requests
+    FOR UPDATE
+    TO authenticated
+    USING (user_id::text = auth.uid()::text)
+    WITH CHECK (user_id::text = auth.uid()::text);
+
+-- ============================================================================
+-- AGENTS RLS
+-- ============================================================================
+
+ALTER TABLE agents ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Service role has full access to agents" ON agents;
+DROP POLICY IF EXISTS "Anyone can read agents" ON agents;
+
+CREATE POLICY "Service role has full access to agents" ON agents
+    FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "Anyone can read agents" ON agents
+    FOR SELECT
+    TO authenticated, anon
+    USING (true);
+
+-- ============================================================================
+-- ITINERARIES RLS
+-- ============================================================================
+
+ALTER TABLE itineraries ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Service role has full access to itineraries" ON itineraries;
+DROP POLICY IF EXISTS "Users can read own itineraries" ON itineraries;
+
+CREATE POLICY "Service role has full access to itineraries" ON itineraries
+    FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "Users can read own itineraries" ON itineraries
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- ============================================================================
+-- BOOKINGS RLS
+-- ============================================================================
+
+ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Service role has full access to bookings" ON bookings;
+DROP POLICY IF EXISTS "Users can read own bookings" ON bookings;
+
+CREATE POLICY "Service role has full access to bookings" ON bookings
+    FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "Users can read own bookings" ON bookings
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- ============================================================================
+-- DESTINATIONS RLS
+-- ============================================================================
+
+ALTER TABLE destinations ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Service role has full access to destinations" ON destinations;
+DROP POLICY IF EXISTS "Anyone can read destinations" ON destinations;
+
+CREATE POLICY "Service role has full access to destinations" ON destinations
+    FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "Anyone can read destinations" ON destinations
+    FOR SELECT
+    TO authenticated, anon
+    USING (true);
 
 -- ============================================================================
 -- ALTERNATIVE: DISABLE RLS COMPLETELY (USE IF ABOVE DOESN'T WORK)
