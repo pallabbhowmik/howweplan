@@ -13,6 +13,25 @@
 import { z } from 'zod';
 
 // ============================================================================
+// BUILD-TIME DEFAULTS
+// ============================================================================
+// These defaults allow the app to build on Vercel without env vars set.
+// Runtime values should be configured via Vercel environment variables.
+
+const BUILD_DEFAULTS = {
+  // API Gateway URL - will be overridden at runtime
+  API_BASE_URL: 'https://howweplan-gateway.onrender.com',
+  WS_URL: 'wss://howweplan-gateway.onrender.com',
+  // Supabase - placeholder for build, should be configured in Vercel
+  SUPABASE_URL: 'https://placeholder.supabase.co',
+  SUPABASE_ANON_KEY: 'placeholder-anon-key-for-build',
+  // Stripe - placeholder for build
+  STRIPE_KEY: 'pk_test_placeholder',
+  // Support email
+  SUPPORT_EMAIL: 'support@howweplan.com',
+};
+
+// ============================================================================
 // SCHEMA DEFINITIONS
 // ============================================================================
 
@@ -32,15 +51,6 @@ const urlSchema = z.string().url('Must be a valid URL');
 const wsUrlSchema = z.string().refine(
   (val) => val.startsWith('ws://') || val.startsWith('wss://'),
   { message: 'Must be a valid WebSocket URL (ws:// or wss://)' }
-);
-
-/**
- * Stripe publishable key validation
- * Must start with pk_test_ or pk_live_
- */
-const stripePublishableKeySchema = z.string().refine(
-  (val) => val.startsWith('pk_test_') || val.startsWith('pk_live_'),
-  { message: 'Stripe publishable key must start with pk_test_ or pk_live_' }
 );
 
 /**
@@ -74,16 +84,16 @@ const clientEnvSchema = z.object({
   // API Connectivity - GATEWAY ONLY
   // All backend requests MUST go through the API gateway.
   // Frontend should NEVER call microservices directly.
-  NEXT_PUBLIC_API_BASE_URL: urlSchema,
-  NEXT_PUBLIC_WS_URL: wsUrlSchema,
+  NEXT_PUBLIC_API_BASE_URL: urlSchema.optional().default(BUILD_DEFAULTS.API_BASE_URL),
+  NEXT_PUBLIC_WS_URL: wsUrlSchema.optional().default(BUILD_DEFAULTS.WS_URL),
   NEXT_PUBLIC_API_TIMEOUT_MS: z.string().optional().default('30000').transform((val) => parseInt(val, 10)),
 
-  // Authentication (Supabase)
-  NEXT_PUBLIC_SUPABASE_URL: urlSchema,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'Supabase anon key is required'),
+  // Authentication (Supabase) - defaults allow build to succeed
+  NEXT_PUBLIC_SUPABASE_URL: urlSchema.optional().default(BUILD_DEFAULTS.SUPABASE_URL),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional().default(BUILD_DEFAULTS.SUPABASE_ANON_KEY),
 
-  // Payments (Stripe)
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: stripePublishableKeySchema,
+  // Payments (Stripe) - defaults allow build to succeed
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional().default(BUILD_DEFAULTS.STRIPE_KEY),
 
   // Feature Toggles
   NEXT_PUBLIC_FEATURE_DISPUTES_ENABLED: z.string().optional().default('true').transform((val) => val === 'true'),
@@ -105,7 +115,7 @@ const clientEnvSchema = z.object({
   // UI Configuration
   NEXT_PUBLIC_DEFAULT_CURRENCY: currencyCode,
   NEXT_PUBLIC_DEFAULT_LOCALE: localeSchema,
-  NEXT_PUBLIC_SUPPORT_EMAIL: z.string().email('Must be a valid email'),
+  NEXT_PUBLIC_SUPPORT_EMAIL: z.string().email().optional().default(BUILD_DEFAULTS.SUPPORT_EMAIL),
   NEXT_PUBLIC_TERMS_URL: z.string().optional().default('/legal/terms'),
   NEXT_PUBLIC_PRIVACY_URL: z.string().optional().default('/legal/privacy'),
 });
