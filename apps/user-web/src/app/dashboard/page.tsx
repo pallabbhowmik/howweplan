@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus,
@@ -27,6 +27,11 @@ import {
   Heart,
   Globe,
   Award,
+  Bell,
+  Edit,
+  FileText,
+  MessageCircle,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -76,6 +81,25 @@ function determineJourneyStage(
 }
 
 // ============================================================================
+// TIME HELPERS
+// ============================================================================
+
+function getTimeAgo(dateString: string): string {
+  const now = new Date();
+  const then = new Date(dateString);
+  const diffMs = now.getTime() - then.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return then.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
@@ -88,6 +112,7 @@ export default function DashboardPage() {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Redirect to login if no user session after loading completes
   useEffect(() => {
@@ -96,6 +121,31 @@ export default function DashboardPage() {
     }
   }, [userLoading, user, userError, router]);
 
+  const loadData = useCallback(async () => {
+    if (!user?.userId) return;
+    
+    setLoading(true);
+    setDataError(null);
+    try {
+      const [requestsData, bookingsData, statsData, activityData] = await Promise.all([
+        fetchUserRequests(user.userId),
+        fetchUserBookings(user.userId),
+        fetchDashboardStats(user.userId),
+        fetchRecentActivity(user.userId),
+      ]);
+      setRequests(requestsData);
+      setBookings(bookingsData);
+      setStats(statsData);
+      setActivity(activityData);
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      setDataError(error instanceof Error ? error.message : 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.userId]);
+
   useEffect(() => {
     if (!userLoading && !user?.userId) {
       setLoading(false);
@@ -103,30 +153,8 @@ export default function DashboardPage() {
     }
     if (!user?.userId) return;
 
-    const loadData = async () => {
-      setLoading(true);
-      setDataError(null);
-      try {
-        const [requestsData, bookingsData, statsData, activityData] = await Promise.all([
-          fetchUserRequests(user.userId),
-          fetchUserBookings(user.userId),
-          fetchDashboardStats(user.userId),
-          fetchRecentActivity(user.userId),
-        ]);
-        setRequests(requestsData);
-        setBookings(bookingsData);
-        setStats(statsData);
-        setActivity(activityData);
-      } catch (error) {
-        console.error('Error loading dashboard data:', error);
-        setDataError(error instanceof Error ? error.message : 'Failed to load dashboard data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadData();
-  }, [user?.userId, userLoading]);
+  }, [user?.userId, userLoading, loadData]);
 
   const journeyStage = determineJourneyStage(requests, bookings, stats);
   
@@ -238,16 +266,21 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 py-6 px-4 sm:px-0">
+    <div className="max-w-5xl mx-auto space-y-8 py-6 px-4 sm:px-0 pb-24 md:pb-6">
       {/* ================================================================== */}
       {/* WELCOME HEADER - Personalized greeting */}
       {/* ================================================================== */}
-      <WelcomeHeader userName={user?.firstName || 'there'} stage={journeyStage} stats={stats} />
+      <WelcomeHeader 
+        userName={user?.firstName || 'there'} 
+        stage={journeyStage} 
+        stats={stats} 
+        activeRequest={activeRequest}
+      />
 
       {/* ================================================================== */}
       {/* TRIP TIMELINE - Primary Visual Anchor (Always Visible) */}
       {/* ================================================================== */}
-      <TripTimeline stage={journeyStage} />
+      <TripTimeline stage={journeyStage} activeRequest={activeRequest} />
 
       {/* ================================================================== */}
       {/* CENTRAL ACTION PANEL - "What should I do right now?" */}
@@ -268,7 +301,12 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 space-y-4">
           {/* Show active request details if exists */}
           {activeRequest && (
-            <ActiveTripCard request={activeRequest} stage={journeyStage} />
+            <ActiveTripCard 
+              request={activeRequest} 
+              stage={journeyStage} 
+              lastUpdated={lastUpdated}
+              onRefresh={loadData}
+            />
           )}
           
           {/* Show upcoming booking if exists */}
@@ -281,21 +319,65 @@ export default function DashboardPage() {
             <MessagingPreview unreadCount={stats?.unreadMessages || 0} />
           )}
 
-          {/* Quick Actions Grid for new users */}
-          {journeyStage === 'idea' && (
+          {/* Contextual actions based on journey stage */}
+          {journeyStage === 'idea' ? (
             <QuickActionsGrid />
+          ) : activeRequest && (
+            <ContextualActionsGrid stage={journeyStage} requestId={activeRequest.id} />
           )}
         </div>
 
         {/* Right Rail - Signals (Not Tips) */}
         <div className="space-y-4">
-          <SignalsPanel stage={journeyStage} stats={stats} />
+          <SignalsPanel stage={journeyStage} stats={stats} activeRequest={activeRequest} />
           
           {/* Stats card for returning users */}
           {(stats?.completedTrips || 0) > 0 && (
             <StatsCard stats={stats} />
           )}
         </div>
+      </div>
+
+      {/* ================================================================== */}
+      {/* STICKY MOBILE CTA - Always accessible on mobile */}
+      {/* ================================================================== */}
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-xl border-t border-gray-200 shadow-2xl z-40 md:hidden">
+        {journeyStage === 'idea' ? (
+          <Link href="/requests/new" className="block">
+            <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg font-bold py-5 text-base">
+              <Plus className="h-5 w-5 mr-2" />
+              Create Trip Request
+            </Button>
+          </Link>
+        ) : journeyStage === 'compare' ? (
+          <Link href="/dashboard/requests" className="block">
+            <Button className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg font-bold py-5 text-base">
+              <Target className="h-5 w-5 mr-2" />
+              Compare {stats?.awaitingSelection || ''} Proposals
+            </Button>
+          </Link>
+        ) : activeRequest ? (
+          <Link href={`/dashboard/requests/${activeRequest.id}`} className="block">
+            <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg font-bold py-5 text-base">
+              <Eye className="h-5 w-5 mr-2" />
+              View Trip Status
+            </Button>
+          </Link>
+        ) : upcomingBooking ? (
+          <Link href={`/dashboard/bookings/${upcomingBooking.id}`} className="block">
+            <Button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg font-bold py-5 text-base">
+              <Plane className="h-5 w-5 mr-2" />
+              View Itinerary
+            </Button>
+          </Link>
+        ) : (
+          <Link href="/requests/new" className="block">
+            <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg font-bold py-5 text-base">
+              <Plus className="h-5 w-5 mr-2" />
+              Plan New Trip
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -305,12 +387,44 @@ export default function DashboardPage() {
 // WELCOME HEADER
 // ============================================================================
 
-function WelcomeHeader({ userName, stage, stats }: { userName: string; stage: JourneyStage; stats: DashboardStats | null }) {
+function WelcomeHeader({ 
+  userName, 
+  stage, 
+  stats,
+  activeRequest 
+}: { 
+  userName: string; 
+  stage: JourneyStage; 
+  stats: DashboardStats | null;
+  activeRequest?: TravelRequest;
+}) {
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+  };
+
+  const destination = activeRequest?.destination?.label || activeRequest?.destination?.city || 'your trip';
+
+  // State-aware subtitle
+  const getSubtitle = () => {
+    switch (stage) {
+      case 'idea':
+        return "Ready to plan your next adventure?";
+      case 'request_sent':
+        return `Your ${destination} request has been sent to agents`;
+      case 'agents_responding':
+        return `Agents are working on your ${destination} trip`;
+      case 'compare':
+        return `You have ${stats?.awaitingSelection || 'new'} proposals waiting for review!`;
+      case 'booked':
+        return "Your trip is confirmed. Here's what's happening.";
+      case 'traveling':
+        return "Enjoy your trip! Your agent is on standby.";
+      default:
+        return "Here's what's happening with your trips.";
+    }
   };
 
   return (
@@ -320,58 +434,139 @@ function WelcomeHeader({ userName, stage, stats }: { userName: string; stage: Jo
           {getGreeting()}, <span className="bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-transparent bg-clip-text">{userName}</span>! 👋
         </h1>
         <p className="text-gray-500 mt-1.5 text-base">
-          {stage === 'idea' 
-            ? "Ready to plan your next adventure?"
-            : stage === 'compare'
-            ? "You have proposals waiting for review!"
-            : "Here's what's happening with your trips."
-          }
+          {getSubtitle()}
         </p>
       </div>
-      {(stats?.activeRequests || 0) > 0 && (
-        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100/50 shadow-sm">
-          <div className="relative">
-            <div className="h-2.5 w-2.5 bg-blue-500 rounded-full" />
-            <div className="absolute inset-0 h-2.5 w-2.5 bg-blue-500 rounded-full animate-ping" />
+      
+      <div className="flex items-center gap-2">
+        {/* Show active trip indicator when there's an active request */}
+        {activeRequest && stage !== 'idea' && (
+          <Link href={`/dashboard/requests/${activeRequest.id}`}>
+            <div className="flex items-center gap-2.5 px-4 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100/50 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group">
+              <div className="relative">
+                <div className="h-2.5 w-2.5 bg-blue-500 rounded-full" />
+                <div className="absolute inset-0 h-2.5 w-2.5 bg-blue-500 rounded-full animate-ping" />
+              </div>
+              <span className="text-sm font-semibold text-blue-700 group-hover:text-blue-800">
+                {activeRequest.destination?.city || 'Active'} trip
+              </span>
+              <ChevronRight className="h-4 w-4 text-blue-400 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </Link>
+        )}
+        
+        {/* De-emphasized New Trip button when trip exists */}
+        {activeRequest ? (
+          <div className="relative group">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-gray-500 hover:text-gray-700 hidden sm:flex items-center gap-1"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden md:inline">New Trip</span>
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+            <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-100 py-2 px-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[160px]">
+              <Link href="/requests/new" className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg">
+                Create new request
+              </Link>
+            </div>
           </div>
-          <span className="text-sm font-semibold text-blue-700">
-            {stats?.activeRequests} active request{(stats?.activeRequests || 0) !== 1 ? 's' : ''}
-          </span>
-        </div>
-      )}
+        ) : (
+          <Link href="/requests/new" className="hidden sm:block">
+            <Button size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg hover:shadow-xl">
+              <Plus className="h-4 w-4 mr-1" />
+              New Trip
+            </Button>
+          </Link>
+        )}
+      </div>
     </div>
   );
 }
 
 // ============================================================================
-// TRIP TIMELINE - The Backbone
+// TRIP TIMELINE - The Backbone with timing and interactivity
 // ============================================================================
 
-function TripTimeline({ stage }: { stage: JourneyStage }) {
+function TripTimeline({ stage, activeRequest }: { stage: JourneyStage; activeRequest?: TravelRequest }) {
   const stages = [
-    { key: 'idea', label: 'Start', icon: Sparkles, description: 'Plan your trip' },
-    { key: 'request_sent', label: 'Request', icon: Send, description: 'Sent to agents' },
-    { key: 'agents_responding', label: 'Matching', icon: Users, description: 'Agents respond' },
-    { key: 'compare', label: 'Compare', icon: Target, description: 'Choose best' },
-    { key: 'booked', label: 'Booked', icon: CheckCircle, description: 'All set!' },
+    { 
+      key: 'idea', 
+      label: 'Start', 
+      icon: Sparkles, 
+      description: 'Plan your trip',
+      timing: null,
+      href: '/requests/new',
+    },
+    { 
+      key: 'request_sent', 
+      label: 'Request', 
+      icon: Send, 
+      description: 'Sent to agents',
+      timing: null,
+      href: activeRequest ? `/dashboard/requests/${activeRequest.id}` : '/dashboard/requests',
+    },
+    { 
+      key: 'agents_responding', 
+      label: 'Matching', 
+      icon: Users, 
+      description: 'Agents reviewing',
+      timing: 'Usually ~4h',
+      currentCopy: 'Agents are crafting proposals',
+      href: activeRequest ? `/dashboard/requests/${activeRequest.id}` : '/dashboard/requests',
+    },
+    { 
+      key: 'compare', 
+      label: 'Compare', 
+      icon: Target, 
+      description: 'Choose best',
+      timing: null,
+      currentCopy: 'Pick your favorite proposal',
+      href: '/dashboard/requests',
+    },
+    { 
+      key: 'booked', 
+      label: 'Booked', 
+      icon: CheckCircle, 
+      description: 'All set!',
+      timing: null,
+      href: '/dashboard/bookings',
+    },
   ];
 
   const currentIndex = stages.findIndex(s => s.key === stage || 
     (stage === 'traveling' && s.key === 'booked'));
 
+  const currentStage = stages[currentIndex];
+
   return (
     <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-blue-500/25">
-          <TrendingUp className="h-5 w-5 text-white" />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-blue-500/25">
+            <TrendingUp className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 text-lg">Your Journey</h3>
+            <p className="text-sm text-gray-500">Track your trip planning progress</p>
+          </div>
         </div>
-        <div>
-          <h3 className="font-bold text-gray-900 text-lg">Your Journey</h3>
-          <p className="text-sm text-gray-500">Track your trip planning progress</p>
-        </div>
+        
+        {/* Current stage indicator with micro-copy */}
+        {currentStage && stage !== 'idea' && (
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-xl border border-blue-100">
+            <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse" />
+            <span className="text-xs font-medium text-blue-700">
+              {currentStage.currentCopy || currentStage.description}
+            </span>
+          </div>
+        )}
       </div>
 
-      <div className="flex items-center justify-between relative px-2">
+      {/* Desktop: Horizontal stepper */}
+      <div className="hidden md:flex items-center justify-between relative px-2">
         {/* Background line */}
         <div className="absolute top-5 left-8 right-8 h-1 bg-gray-100 rounded-full -z-10" />
         <div 
@@ -383,14 +578,16 @@ function TripTimeline({ stage }: { stage: JourneyStage }) {
           const isComplete = i < currentIndex;
           const isCurrent = i === currentIndex;
           const isFuture = i > currentIndex;
+          const StepIcon = s.icon;
+          const isClickable = isComplete || isCurrent;
           
-          return (
-            <div key={s.key} className="flex flex-col items-center relative z-10 group">
+          const stepContent = (
+            <div className={`flex flex-col items-center relative z-10 group ${isClickable ? 'cursor-pointer' : ''}`}>
               {/* Step Circle */}
               <div 
                 className={`
                   w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-500
-                  ${isComplete ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-lg shadow-green-500/40 rotate-0' : ''}
+                  ${isComplete ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-lg shadow-green-500/40 group-hover:scale-110' : ''}
                   ${isCurrent ? 'bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 text-white ring-4 ring-blue-100 scale-110 shadow-xl shadow-blue-500/40' : ''}
                   ${isFuture ? 'bg-gray-50 text-gray-400 border-2 border-gray-200 group-hover:border-gray-300 group-hover:bg-gray-100' : ''}
                 `}
@@ -398,7 +595,7 @@ function TripTimeline({ stage }: { stage: JourneyStage }) {
                 {isComplete ? (
                   <CheckCircle className="h-5 w-5" />
                 ) : (
-                  <s.icon className={`h-5 w-5 ${isCurrent ? 'animate-pulse' : ''}`} />
+                  <StepIcon className={`h-5 w-5 ${isCurrent ? 'animate-pulse' : ''}`} />
                 )}
               </div>
               
@@ -416,10 +613,72 @@ function TripTimeline({ stage }: { stage: JourneyStage }) {
                 `}>
                   {s.description}
                 </span>
+                {/* Timing estimate for current step */}
+                {isCurrent && s.timing && (
+                  <span className="text-[10px] mt-1 block text-amber-600 font-medium">
+                    {s.timing}
+                  </span>
+                )}
               </div>
             </div>
           );
+          
+          return isClickable ? (
+            <Link key={s.key} href={s.href}>
+              {stepContent}
+            </Link>
+          ) : (
+            <div key={s.key}>
+              {stepContent}
+            </div>
+          );
         })}
+      </div>
+
+      {/* Mobile: Horizontal scrollable stepper */}
+      <div className="md:hidden overflow-x-auto pb-2 -mx-2 px-2">
+        <div className="flex items-center gap-3 min-w-max">
+          {stages.map((s, i) => {
+            const isComplete = i < currentIndex;
+            const isCurrent = i === currentIndex;
+            const isFuture = i > currentIndex;
+            const StepIcon = s.icon;
+            
+            return (
+              <div key={s.key} className="flex items-center">
+                <Link 
+                  href={s.href}
+                  className={`
+                    flex items-center gap-2 px-3 py-2 rounded-xl transition-all
+                    ${isCurrent ? 'bg-blue-50 border border-blue-200' : ''}
+                    ${isComplete ? 'bg-green-50 border border-green-200' : ''}
+                    ${isFuture ? 'bg-gray-50 border border-gray-100' : ''}
+                  `}
+                >
+                  <div className={`
+                    w-7 h-7 rounded-lg flex items-center justify-center
+                    ${isComplete ? 'bg-green-500 text-white' : ''}
+                    ${isCurrent ? 'bg-blue-500 text-white' : ''}
+                    ${isFuture ? 'bg-gray-200 text-gray-400' : ''}
+                  `}>
+                    {isComplete ? <CheckCircle className="h-4 w-4" /> : <StepIcon className="h-4 w-4" />}
+                  </div>
+                  <div>
+                    <span className={`text-xs font-semibold block ${isCurrent ? 'text-blue-700' : isComplete ? 'text-green-700' : 'text-gray-400'}`}>
+                      {s.label}
+                    </span>
+                    {isCurrent && s.timing && (
+                      <span className="text-[10px] text-amber-600">{s.timing}</span>
+                    )}
+                  </div>
+                </Link>
+                {i < stages.length - 1 && (
+                  <ChevronRight className={`h-4 w-4 mx-1 ${i < currentIndex ? 'text-green-400' : 'text-gray-200'}`} />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -427,6 +686,7 @@ function TripTimeline({ stage }: { stage: JourneyStage }) {
 
 // ============================================================================
 // CENTRAL ACTION PANEL - Always answers "What should I do right now?"
+// Promotes current trip to hero role
 // ============================================================================
 
 interface ActionPanelProps {
@@ -438,6 +698,8 @@ interface ActionPanelProps {
 }
 
 function ActionPanel({ stage, activeRequest, upcomingBooking, stats, userName }: ActionPanelProps) {
+  const destination = activeRequest?.destination?.label || activeRequest?.destination?.city || 'your trip';
+  
   const configs: Record<JourneyStage, {
     title: string;
     subtitle: string;
@@ -456,26 +718,28 @@ function ActionPanel({ stage, activeRequest, upcomingBooking, stats, userName }:
       emoji: '✨',
     },
     request_sent: {
-      title: 'Request submitted!',
-      subtitle: 'Your trip request has been sent to travel agents. They\'re reviewing it now.',
-      cta: { label: 'View Request Details', href: '/dashboard/requests', variant: 'outline' },
+      title: `Your ${destination} request is live!`,
+      subtitle: 'Agents are being notified. Most respond within 4 hours with personalized proposals.',
+      cta: { label: 'View Request Details', href: activeRequest ? `/dashboard/requests/${activeRequest.id}` : '/dashboard/requests' },
+      secondaryCta: { label: 'Edit Preferences', href: activeRequest ? `/requests/edit/${activeRequest.id}` : '/dashboard/requests' },
       gradient: 'from-amber-500 to-orange-500',
       bgPattern: 'radial-gradient(circle at 30% 50%, rgba(251, 191, 36, 0.1) 0%, transparent 50%)',
       emoji: '📤',
     },
     agents_responding: {
-      title: 'Agents are crafting proposals',
-      subtitle: `Expert agents are designing personalized itineraries. You'll be notified when they're ready.`,
-      cta: { label: 'View Progress', href: '/dashboard/requests', variant: 'outline' },
-      secondaryCta: { label: 'Edit Preferences', href: activeRequest ? `/dashboard/requests/${activeRequest.id}` : '/dashboard/requests' },
+      title: `Agents are working on your ${destination} trip`,
+      subtitle: `${activeRequest?.agentsResponded ? `${activeRequest.agentsResponded} agent${activeRequest.agentsResponded > 1 ? 's have' : ' has'} already viewed your request.` : 'Expert agents are designing personalized itineraries.'} Most respond within ~4 hours.`,
+      cta: { label: 'View Request Details', href: activeRequest ? `/dashboard/requests/${activeRequest.id}` : '/dashboard/requests' },
+      secondaryCta: { label: 'Edit Preferences', href: activeRequest ? `/requests/edit/${activeRequest.id}` : '/dashboard/requests' },
       gradient: 'from-cyan-500 to-blue-600',
       bgPattern: 'radial-gradient(circle at 70% 30%, rgba(34, 211, 238, 0.1) 0%, transparent 50%)',
       emoji: '⚡',
     },
     compare: {
-      title: `${stats?.awaitingSelection || 'New'} proposals ready!`,
-      subtitle: 'Agents have sent you personalized itineraries. Compare and choose your favorite.',
+      title: `${stats?.awaitingSelection || 'New'} proposals for your ${destination} trip!`,
+      subtitle: 'Agents have sent you personalized itineraries. Compare prices, experiences, and reviews to find your perfect match.',
       cta: { label: 'Compare Proposals', href: '/dashboard/requests' },
+      secondaryCta: { label: 'Message Agents', href: '/dashboard/messages' },
       gradient: 'from-emerald-500 to-teal-600',
       bgPattern: 'radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.15) 0%, transparent 50%)',
       emoji: '🎯',
@@ -483,7 +747,7 @@ function ActionPanel({ stage, activeRequest, upcomingBooking, stats, userName }:
     booked: {
       title: upcomingBooking ? 'Your trip is confirmed!' : `Welcome back, ${userName}!`,
       subtitle: upcomingBooking 
-        ? 'Everything is set. Your agent is available if you need anything.'
+        ? 'Everything is set. Your agent is available if you need anything before departure.'
         : 'Ready for your next adventure?',
       cta: upcomingBooking 
         ? { label: 'View Itinerary', href: '/dashboard/bookings' }
@@ -495,7 +759,7 @@ function ActionPanel({ stage, activeRequest, upcomingBooking, stats, userName }:
     },
     traveling: {
       title: 'Enjoy your trip!',
-      subtitle: 'Your agent is on standby if you need any assistance.',
+      subtitle: 'Your agent is on standby if you need any assistance during your journey.',
       cta: { label: 'View Itinerary', href: '/dashboard/bookings' },
       secondaryCta: { label: 'Contact Agent', href: '/dashboard/messages' },
       gradient: 'from-pink-500 to-rose-600',
@@ -561,7 +825,7 @@ function ActionPanel({ stage, activeRequest, upcomingBooking, stats, userName }:
 }
 
 // ============================================================================
-// QUICK ACTIONS GRID - For new users
+// QUICK ACTIONS GRID - For new users (no active trip)
 // ============================================================================
 
 function QuickActionsGrid() {
@@ -596,6 +860,125 @@ function QuickActionsGrid() {
     <div className="grid grid-cols-3 gap-4">
       {actions.map((action, i) => (
         <Link key={action.href} href={action.href}>
+          <Card className={`border border-gray-100 hover:border-gray-200 hover:shadow-xl transition-all duration-300 cursor-pointer group h-full rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500`} style={{ animationDelay: `${300 + i * 100}ms` }}>
+            <CardContent className="p-5 flex flex-col items-center text-center">
+              <div className={`p-4 rounded-2xl bg-gradient-to-br ${action.color} text-white mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg ${action.shadowColor}`}>
+                <action.icon className="h-6 w-6" />
+              </div>
+              <h4 className="font-bold text-gray-900 text-sm group-hover:text-gray-700">{action.label}</h4>
+              <p className="text-xs text-gray-500 mt-1">{action.description}</p>
+            </CardContent>
+          </Card>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
+// CONTEXTUAL ACTIONS GRID - For users with active trips (replaces generic cards)
+// ============================================================================
+
+function ContextualActionsGrid({ stage, requestId }: { stage: JourneyStage; requestId: string }) {
+  // Different actions based on journey stage
+  const getActions = () => {
+    switch (stage) {
+      case 'agents_responding':
+      case 'request_sent':
+        return [
+          { 
+            href: `/dashboard/requests/${requestId}`, 
+            icon: Eye, 
+            label: 'Track Progress', 
+            description: 'See agent activity',
+            color: 'from-blue-500 to-indigo-500',
+            shadowColor: 'shadow-blue-500/25',
+          },
+          { 
+            href: `/requests/edit/${requestId}`, 
+            icon: Edit, 
+            label: 'Edit Preferences', 
+            description: 'Update your trip',
+            color: 'from-amber-500 to-orange-500',
+            shadowColor: 'shadow-amber-500/25',
+          },
+          { 
+            href: '/help', 
+            icon: MessageCircle, 
+            label: 'Get Help', 
+            description: 'Questions?',
+            color: 'from-purple-500 to-pink-500',
+            shadowColor: 'shadow-purple-500/25',
+          },
+        ];
+      case 'compare':
+        return [
+          { 
+            href: '/dashboard/requests', 
+            icon: Target, 
+            label: 'View Proposals', 
+            description: 'Compare options',
+            color: 'from-emerald-500 to-teal-500',
+            shadowColor: 'shadow-emerald-500/25',
+          },
+          { 
+            href: '/dashboard/messages', 
+            icon: MessageCircle, 
+            label: 'Ask Agents', 
+            description: 'Get answers',
+            color: 'from-blue-500 to-indigo-500',
+            shadowColor: 'shadow-blue-500/25',
+          },
+          { 
+            href: `/dashboard/requests/${requestId}`, 
+            icon: FileText, 
+            label: 'Compare Details', 
+            description: 'Side by side',
+            color: 'from-purple-500 to-pink-500',
+            shadowColor: 'shadow-purple-500/25',
+          },
+        ];
+      case 'booked':
+      case 'traveling':
+        return [
+          { 
+            href: '/dashboard/bookings', 
+            icon: FileText, 
+            label: 'View Itinerary', 
+            description: 'Trip details',
+            color: 'from-green-500 to-emerald-500',
+            shadowColor: 'shadow-green-500/25',
+          },
+          { 
+            href: '/dashboard/messages', 
+            icon: MessageCircle, 
+            label: 'Contact Agent', 
+            description: 'Get support',
+            color: 'from-blue-500 to-indigo-500',
+            shadowColor: 'shadow-blue-500/25',
+          },
+          { 
+            href: '/requests/new', 
+            icon: Plus, 
+            label: 'Plan Next Trip', 
+            description: 'New adventure',
+            color: 'from-purple-500 to-pink-500',
+            shadowColor: 'shadow-purple-500/25',
+          },
+        ];
+      default:
+        return [];
+    }
+  };
+
+  const actions = getActions();
+  
+  if (actions.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-3 gap-4">
+      {actions.map((action, i) => (
+        <Link key={action.href + i} href={action.href}>
           <Card className={`border border-gray-100 hover:border-gray-200 hover:shadow-xl transition-all duration-300 cursor-pointer group h-full rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500`} style={{ animationDelay: `${300 + i * 100}ms` }}>
             <CardContent className="p-5 flex flex-col items-center text-center">
               <div className={`p-4 rounded-2xl bg-gradient-to-br ${action.color} text-white mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg ${action.shadowColor}`}>
@@ -647,55 +1030,127 @@ function StatsCard({ stats }: { stats: DashboardStats | null }) {
 }
 
 // ============================================================================
-// ACTIVE TRIP CARD - Shows current request details
+// ACTIVE TRIP CARD - Command center with inline actions
 // ============================================================================
 
-function ActiveTripCard({ request, stage }: { request: TravelRequest; stage: JourneyStage }) {
+function ActiveTripCard({ 
+  request, 
+  stage,
+  lastUpdated,
+  onRefresh 
+}: { 
+  request: TravelRequest; 
+  stage: JourneyStage;
+  lastUpdated: Date | null;
+  onRefresh: () => void;
+}) {
   const destination = request.destination?.label || request.destination?.city || request.title || 'Your Trip';
+  const hasAgentViews = (request.agentsResponded || 0) > 0;
   
   return (
-    <Link href={`/dashboard/requests/${request.id}`}>
-      <Card className="border border-gray-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300 cursor-pointer group overflow-hidden rounded-2xl">
-        <CardContent className="p-0">
-          {/* Gradient accent bar */}
-          <div className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
-          
-          <div className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-5">
-                <div className="text-5xl transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 drop-shadow-sm">
-                  {getDestinationEmoji(request.destination?.country || request.destination?.city)}
-                </div>
-                <div>
-                  <h3 className="font-bold text-xl text-gray-900 group-hover:text-blue-600 transition-colors">
-                    {destination}
-                  </h3>
-                  <div className="flex items-center gap-4 text-sm text-gray-500 mt-2">
-                    <span className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      {formatDateRange(request.departureDate, request.returnDate)}
-                    </span>
-                    {request.travelers && (
-                      <span className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg">
-                        <Users className="h-4 w-4 text-gray-400" />
-                        {getTravelerCount(request.travelers)} travelers
-                      </span>
-                    )}
-                  </div>
-                </div>
+    <Card className="border border-gray-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300 overflow-hidden rounded-2xl group">
+      <CardContent className="p-0">
+        {/* Gradient accent bar */}
+        <div className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
+        
+        <div className="p-6">
+          {/* Header with destination and status */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-5">
+              <div className="text-5xl transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 drop-shadow-sm">
+                {getDestinationEmoji(request.destination?.country || request.destination?.city)}
               </div>
-              
-              <div className="flex items-center gap-3">
-                <StatusBadge stage={stage} agentsResponded={request.agentsResponded} />
-                <div className="p-2 rounded-xl bg-gray-50 group-hover:bg-blue-50 transition-colors">
-                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" />
+              <div>
+                <h3 className="font-bold text-xl text-gray-900 group-hover:text-blue-600 transition-colors">
+                  {destination}
+                </h3>
+                <div className="flex items-center gap-4 text-sm text-gray-500 mt-2">
+                  <span className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg">
+                    <Calendar className="h-4 w-4 text-gray-400" />
+                    {formatDateRange(request.departureDate, request.returnDate)}
+                  </span>
+                  {request.travelers && (
+                    <span className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg">
+                      <Users className="h-4 w-4 text-gray-400" />
+                      {getTravelerCount(request.travelers)} travelers
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
+            
+            <StatusBadge stage={stage} agentsResponded={request.agentsResponded} />
           </div>
-        </CardContent>
-      </Card>
-    </Link>
+
+          {/* Activity indicator */}
+          {hasAgentViews && stage === 'agents_responding' && (
+            <div className="flex items-center gap-2 mb-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
+              <div className="flex -space-x-2">
+                {[...Array(Math.min(request.agentsResponded || 0, 3))].map((_, i) => (
+                  <div key={i} className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 border-2 border-white flex items-center justify-center">
+                    <Users className="h-3 w-3 text-white" />
+                  </div>
+                ))}
+              </div>
+              <span className="text-sm text-blue-700 font-medium">
+                {request.agentsResponded} agent{(request.agentsResponded || 0) > 1 ? 's have' : ' has'} viewed your trip
+              </span>
+            </div>
+          )}
+
+          {/* Inline action buttons */}
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
+            <Link href={`/dashboard/requests/${request.id}`}>
+              <Button size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg">
+                <Eye className="h-4 w-4 mr-1.5" />
+                View Details
+              </Button>
+            </Link>
+            
+            <Link href={`/requests/edit/${request.id}`}>
+              <Button size="sm" variant="outline" className="border-gray-200 hover:border-blue-200 hover:bg-blue-50">
+                <Edit className="h-4 w-4 mr-1.5" />
+                Edit
+              </Button>
+            </Link>
+
+            {stage === 'compare' ? (
+              <Link href="/dashboard/messages">
+                <Button size="sm" variant="outline" className="border-gray-200 hover:border-purple-200 hover:bg-purple-50">
+                  <MessageCircle className="h-4 w-4 mr-1.5" />
+                  Message Agents
+                </Button>
+              </Link>
+            ) : (
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                className="text-gray-400"
+                disabled
+                title="No agents to message yet"
+              >
+                <MessageCircle className="h-4 w-4 mr-1.5" />
+                Message
+              </Button>
+            )}
+
+            {/* Last updated indicator */}
+            {lastUpdated && (
+              <div className="ml-auto flex items-center gap-2 text-xs text-gray-400">
+                <span>Updated {getTimeAgo(lastUpdated.toISOString())}</span>
+                <button 
+                  onClick={(e) => { e.preventDefault(); onRefresh(); }}
+                  className="p-1 hover:bg-gray-100 rounded-md transition-colors"
+                  title="Refresh"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -817,39 +1272,63 @@ function MessagingPreview({ unreadCount }: { unreadCount: number }) {
 }
 
 // ============================================================================
-// SIGNALS PANEL - Reassurance > Advice
+// SIGNALS PANEL - Contextual guidance based on journey stage
 // ============================================================================
 
-function SignalsPanel({ stage, stats }: { stage: JourneyStage; stats: DashboardStats | null }) {
-  // Different signals based on journey stage
+function SignalsPanel({ 
+  stage, 
+  stats,
+  activeRequest 
+}: { 
+  stage: JourneyStage; 
+  stats: DashboardStats | null;
+  activeRequest?: TravelRequest;
+}) {
+  const destination = activeRequest?.destination?.city || 'your destination';
+  
+  // Dynamic, contextual signals based on journey stage
   const getSignals = () => {
     switch (stage) {
       case 'idea':
         return [
-          { icon: Zap, text: 'Most agents respond in ~4 hours', color: 'blue' },
-          { icon: Shield, text: 'You\'re not obligated to book', color: 'green' },
-          { icon: Users, text: '127 travelers booked this week', color: 'purple' },
+          { icon: Zap, text: 'Most agents respond in ~4 hours', color: 'blue', type: 'info' },
+          { icon: Shield, text: "You're not obligated to book", color: 'green', type: 'reassurance' },
+          { icon: Users, text: '127 travelers booked this week', color: 'purple', type: 'social' },
         ];
       case 'request_sent':
+        return [
+          { icon: Bell, text: "You'll be notified when proposals arrive", color: 'blue', type: 'info' },
+          { icon: Clock, text: 'Agents typically respond within 4 hours', color: 'amber', type: 'timing' },
+          { icon: Edit, text: 'You can still edit your preferences', color: 'purple', type: 'action' },
+        ];
       case 'agents_responding':
         return [
-          { icon: Eye, text: 'Agents are viewing your request', color: 'blue' },
-          { icon: Clock, text: 'Proposals usually arrive in 4h', color: 'amber' },
-          { icon: Shield, text: 'No commitment required', color: 'green' },
+          { icon: Eye, text: activeRequest?.agentsResponded 
+            ? `${activeRequest.agentsResponded} agent${(activeRequest.agentsResponded || 0) > 1 ? 's' : ''} reviewing your request`
+            : 'Agents are viewing your request', color: 'blue', type: 'activity' },
+          { icon: Bell, text: "We'll notify you when proposals arrive", color: 'amber', type: 'info' },
+          { icon: Shield, text: 'No commitment until you choose', color: 'green', type: 'reassurance' },
         ];
       case 'compare':
         return [
-          { icon: Target, text: 'Compare at least 2 proposals', color: 'blue' },
-          { icon: MessageSquare, text: 'Message agents with questions', color: 'purple' },
-          { icon: Shield, text: 'Book only when you\'re ready', color: 'green' },
+          { icon: Target, text: 'Compare at least 2-3 proposals', color: 'blue', type: 'advice' },
+          { icon: MessageSquare, text: 'Ask agents any questions', color: 'purple', type: 'action' },
+          { icon: Shield, text: 'Book only when ready', color: 'green', type: 'reassurance' },
         ];
       case 'booked':
+        return [
+          { icon: MessageSquare, text: 'Your agent is available anytime', color: 'blue', type: 'info' },
+          { icon: FileText, text: 'Download itinerary for offline access', color: 'purple', type: 'action' },
+          { icon: Star, text: 'Leave a review after your trip', color: 'amber', type: 'action' },
+        ];
       case 'traveling':
         return [
-          { icon: MessageSquare, text: 'Your agent is on standby', color: 'blue' },
-          { icon: Star, text: 'Leave a review after your trip', color: 'amber' },
-          { icon: Plus, text: 'Plan your next adventure', color: 'purple' },
+          { icon: MessageSquare, text: 'Agent on standby for support', color: 'blue', type: 'info' },
+          { icon: Shield, text: 'Emergency support available 24/7', color: 'green', type: 'reassurance' },
+          { icon: Star, text: 'Share your experience when back', color: 'amber', type: 'action' },
         ];
+      default:
+        return [];
     }
   };
 
@@ -862,6 +1341,19 @@ function SignalsPanel({ stage, stats }: { stage: JourneyStage; stats: DashboardS
   };
   const defaultColor = { bg: 'bg-blue-50', text: 'text-blue-600', iconBg: 'from-blue-500 to-indigo-500' };
 
+  // Stage-specific header
+  const getHeader = () => {
+    switch (stage) {
+      case 'idea': return 'Good to know';
+      case 'request_sent': return 'What happens next';
+      case 'agents_responding': return "While you wait";
+      case 'compare': return 'Tips for choosing';
+      case 'booked': return 'Before you go';
+      case 'traveling': return 'During your trip';
+      default: return 'Good to know';
+    }
+  };
+
   return (
     <Card className="border border-gray-100 rounded-2xl overflow-hidden">
       <CardContent className="p-5">
@@ -869,7 +1361,7 @@ function SignalsPanel({ stage, stats }: { stage: JourneyStage; stats: DashboardS
           <div className="p-2 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 shadow-lg shadow-green-500/25">
             <Shield className="h-4 w-4 text-white" />
           </div>
-          <span className="text-sm font-bold text-gray-800">Good to know</span>
+          <span className="text-sm font-bold text-gray-800">{getHeader()}</span>
         </div>
         <div className="space-y-4">
           {signals.map((signal, i) => {
@@ -884,6 +1376,25 @@ function SignalsPanel({ stage, stats }: { stage: JourneyStage; stats: DashboardS
             );
           })}
         </div>
+        
+        {/* Contextual CTA at bottom */}
+        {stage === 'agents_responding' && (
+          <div className="mt-5 pt-4 border-t border-gray-100">
+            <Link href="/help" className="flex items-center justify-between text-sm text-gray-500 hover:text-blue-600 transition-colors group">
+              <span>Have questions?</span>
+              <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+        )}
+        
+        {stage === 'compare' && (
+          <div className="mt-5 pt-4 border-t border-gray-100">
+            <Link href="/dashboard/messages" className="flex items-center justify-between text-sm text-gray-500 hover:text-blue-600 transition-colors group">
+              <span>Need clarification? Chat with agents</span>
+              <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
