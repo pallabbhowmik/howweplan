@@ -26,12 +26,44 @@ export interface IndiaDestination {
   imageQuery: string;
 }
 
-export function destinationImageUrl(destination: IndiaDestination): string {
-  // Using Unsplash Source (no API key) for dynamic, travel-relevant imagery.
-  // This is intentionally a query-based URL so the Explore page stays lightweight.
-  const query = `india ${destination.imageQuery}`;
-  return `https://source.unsplash.com/featured/1200x800/?${encodeURIComponent(query)}`;
+export function destinationImageUrl(destination: IndiaDestination, width = 800, height = 500): string {
+  // Using Lorem Picsum for reliable placeholder images.
+  // We create a deterministic seed from destination ID so each place gets a consistent image.
+  const seed = destination.id.replace(/[^a-z0-9]/gi, '');
+  return `https://picsum.photos/seed/${seed}/${width}/${height}`;
 }
+
+// Theme-based gradient backgrounds as elegant fallbacks
+export const THEME_GRADIENTS: Record<DestinationTheme, string> = {
+  Mountains: 'from-slate-700 via-blue-900 to-slate-800',
+  Beaches: 'from-cyan-500 via-blue-500 to-teal-600',
+  Heritage: 'from-amber-700 via-orange-800 to-red-900',
+  Wildlife: 'from-green-700 via-emerald-800 to-green-900',
+  Spiritual: 'from-purple-600 via-violet-700 to-indigo-800',
+  Food: 'from-orange-500 via-red-500 to-pink-600',
+  City: 'from-zinc-600 via-slate-700 to-zinc-800',
+  Culture: 'from-rose-600 via-pink-700 to-fuchsia-800',
+  Nightlife: 'from-violet-600 via-purple-700 to-indigo-900',
+  Nature: 'from-green-600 via-teal-700 to-emerald-800',
+  Adventure: 'from-orange-600 via-amber-700 to-yellow-800',
+  Desert: 'from-yellow-600 via-amber-700 to-orange-800',
+};
+
+// Theme icons for visual interest
+export const THEME_ICONS: Record<DestinationTheme, string> = {
+  Mountains: '🏔️',
+  Beaches: '🏖️',
+  Heritage: '🏛️',
+  Wildlife: '🐅',
+  Spiritual: '🕉️',
+  Food: '🍛',
+  City: '🏙️',
+  Culture: '🎭',
+  Nightlife: '🌃',
+  Nature: '🌿',
+  Adventure: '🧗',
+  Desert: '🏜️',
+};
 
 export const INDIA_DESTINATIONS: IndiaDestination[] = [
   // North
