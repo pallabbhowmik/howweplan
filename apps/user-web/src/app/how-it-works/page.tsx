@@ -63,7 +63,7 @@ const benefits = [
 
 export default function HowItWorksPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white flex flex-col">
       {/* Navigation */}
       <nav className="border-b">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -84,79 +84,81 @@ export default function HowItWorksPage() {
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="py-16 bg-gradient-to-b from-blue-50 to-white">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">
-            How HowWePlan Works
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            From dream to destination in six simple steps. Our platform connects you with 
-            expert travel agents who craft personalized itineraries just for you.
-          </p>
-        </div>
-      </section>
+      <main className="flex-1">
+        {/* Hero */}
+        <section className="py-16 bg-gradient-to-b from-blue-50 to-white">
+          <div className="container mx-auto px-4 text-center">
+            <h1 className="text-4xl md:text-5xl font-bold mb-6">
+              How HowWePlan Works
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              From dream to destination in six simple steps. Our platform connects you with 
+              expert travel agents who craft personalized itineraries just for you.
+            </p>
+          </div>
+        </section>
 
-      {/* Steps */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            {steps.map((step, index) => (
-              <div key={step.number} className="relative">
-                {/* Connection line */}
-                {index < steps.length - 1 && (
-                  <div className="absolute left-8 top-20 w-0.5 h-24 bg-blue-100 hidden md:block" />
-                )}
-                
-                <div className="flex gap-6 mb-12">
-                  <div className="flex-shrink-0">
-                    <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
-                      <step.icon className="h-7 w-7 text-white" />
+        {/* Steps */}
+        <section className="py-16">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto">
+              {steps.map((step, index) => (
+                <div key={step.number} className="relative">
+                  {/* Connection line */}
+                  {index < steps.length - 1 && (
+                    <div className="absolute left-8 top-20 w-0.5 h-24 bg-blue-100 hidden md:block" />
+                  )}
+                  
+                  <div className="flex gap-6 mb-12">
+                    <div className="flex-shrink-0">
+                      <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+                        <step.icon className="h-7 w-7 text-white" />
+                      </div>
+                    </div>
+                    <div className="flex-1 pt-2">
+                      <span className="text-sm font-bold text-blue-600">STEP {step.number}</span>
+                      <h3 className="text-2xl font-bold mt-1 mb-3">{step.title}</h3>
+                      <p className="text-muted-foreground text-lg">{step.description}</p>
                     </div>
                   </div>
-                  <div className="flex-1 pt-2">
-                    <span className="text-sm font-bold text-blue-600">STEP {step.number}</span>
-                    <h3 className="text-2xl font-bold mt-1 mb-3">{step.title}</h3>
-                    <p className="text-muted-foreground text-lg">{step.description}</p>
-                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Benefits */}
-      <section className="py-16 bg-slate-50">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">Why Choose HowWePlan?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-            {benefits.map((benefit) => (
-              <Card key={benefit.title}>
-                <CardContent className="pt-6">
-                  <h3 className="font-semibold text-lg mb-2">{benefit.title}</h3>
-                  <p className="text-sm text-muted-foreground">{benefit.description}</p>
-                </CardContent>
-              </Card>
-            ))}
+        {/* Benefits */}
+        <section className="py-16 bg-slate-50">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl font-bold text-center mb-12">Why Choose HowWePlan?</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+              {benefits.map((benefit) => (
+                <Card key={benefit.title}>
+                  <CardContent className="pt-6">
+                    <h3 className="font-semibold text-lg mb-2">{benefit.title}</h3>
+                    <p className="text-sm text-muted-foreground">{benefit.description}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* CTA */}
-      <section className="py-16">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Start Planning?</h2>
-          <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-            Create your first travel request and let our expert agents craft your perfect trip.
-          </p>
-          <Link href="/requests/new">
-            <Button size="lg" className="gap-2">
-              Create Your Request <ArrowRight className="h-5 w-5" />
-            </Button>
-          </Link>
-        </div>
-      </section>
+        {/* CTA */}
+        <section className="py-16">
+          <div className="container mx-auto px-4 text-center">
+            <h2 className="text-3xl font-bold mb-4">Ready to Start Planning?</h2>
+            <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
+              Create your first travel request and let our expert agents craft your perfect trip.
+            </p>
+            <Link href="/requests/new">
+              <Button size="lg" className="gap-2">
+                Create Your Request <ArrowRight className="h-5 w-5" />
+              </Button>
+            </Link>
+          </div>
+        </section>
+      </main>
 
       {/* Footer */}
       <footer className="border-t py-8">

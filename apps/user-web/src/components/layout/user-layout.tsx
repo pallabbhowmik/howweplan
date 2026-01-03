@@ -85,7 +85,7 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
   const unreadNotifications = 2;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/20 flex flex-col">
       {/* Enhanced Header */}
       <header className={cn(
         "sticky top-0 z-50 transition-all duration-300",
@@ -409,10 +409,10 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">{children}</main>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">{children}</main>
 
       {/* Footer - Enhanced */}
-      <footer className="border-t border-gray-100 bg-white/50 mt-auto">
+      <footer className="border-t border-gray-100 bg-white/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">

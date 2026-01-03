@@ -92,7 +92,7 @@ export default function ContactPage() {
   const fullAddress = getFullAddress();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex flex-col">
       {/* Navigation */}
       <nav className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -129,7 +129,7 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <main className="container mx-auto px-4 py-12">
+      <main className="flex-1 container mx-auto px-4 py-12">
         {/* Quick Contact Cards */}
         <div className="grid md:grid-cols-3 gap-6 -mt-20 mb-16 relative z-20">
           <Card className="shadow-xl border-0 bg-white hover:shadow-2xl transition-shadow">

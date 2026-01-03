@@ -12,7 +12,7 @@ export default function TermsOfServicePage() {
   const effectiveDate = 'January 3, 2026';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex flex-col">
       {/* Navigation */}
       <nav className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -76,7 +76,7 @@ export default function TermsOfServicePage() {
         </Card>
       </div>
 
-      <main className="container mx-auto px-4 py-12 max-w-4xl">
+      <main className="flex-1 container mx-auto px-4 py-12 max-w-4xl">
         {/* Important Notice */}
         <section className="mb-12 bg-amber-50 border border-amber-200 rounded-2xl p-8">
           <div className="flex items-start gap-4">
