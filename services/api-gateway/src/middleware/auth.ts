@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { logger } from './logger';
 
@@ -17,27 +18,52 @@ interface JWTPayload {
 }
 
 /**
- * Simple JWT verification without external library
- * In production, use jsonwebtoken or jose library
+ * Verify JWT using the configured algorithm (RS256 or HS256)
+ * RS256: Uses public key for verification (recommended)
+ * HS256: Uses shared secret (legacy fallback)
  */
-function verifyJWT(token: string, secret: string): JWTPayload | null {
+function verifyJWT(token: string): JWTPayload | null {
+  try {
+    const algorithm = config.jwt.algorithm;
+    const verifyKey = algorithm === 'RS256' ? config.jwt.publicKey : config.jwt.secret;
+    
+    if (!verifyKey) {
+      logger.error({ 
+        timestamp: new Date().toISOString(), 
+        error: 'JWT verification key not configured',
+        message: `Missing ${algorithm === 'RS256' ? 'JWT_PUBLIC_KEY' : 'JWT_SECRET'}`,
+      });
+      return null;
+    }
+
+    const payload = jwt.verify(token, verifyKey, {
+      algorithms: [algorithm],
+      issuer: config.jwt.issuer,
+      audience: config.jwt.audience,
+    }) as JWTPayload;
+
+    return payload;
+  } catch (error) {
+    // Log verification failures for debugging
+    if (error instanceof jwt.TokenExpiredError) {
+      logger.debug({ timestamp: new Date().toISOString(), message: 'Token expired' });
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      logger.debug({ timestamp: new Date().toISOString(), error: (error as Error).message, message: 'JWT verification failed' });
+    }
+    return null;
+  }
+}
+
+/**
+ * Decode JWT without verification - ONLY for debugging/logging
+ * Never use this for authentication decisions
+ */
+function decodeJWT(token: string): JWTPayload | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
 
-    const [headerB64, payloadB64, signatureB64] = parts;
-
-    // Verify signature
-    const expectedSignature = crypto
-      .createHmac('sha256', secret)
-      .update(`${headerB64}.${payloadB64}`)
-      .digest('base64url');
-
-    if (signatureB64 !== expectedSignature) {
-      return null;
-    }
-
-    // Decode payload
+    const payloadB64 = parts[1];
     const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString());
 
     return payload as JWTPayload;
@@ -47,9 +73,14 @@ function verifyJWT(token: string, secret: string): JWTPayload | null {
 }
 
 /**
- * Generate JWT token (for internal use)
+ * Generate JWT token (for internal use - gateway-issued tokens)
+ * Note: For user authentication, tokens should be issued by Identity Service
  */
 export function generateJWT(payload: Omit<JWTPayload, 'iat' | 'exp'>, expiresIn: number = 900): string {
+  const algorithm = config.jwt.algorithm;
+  
+  // Gateway typically only verifies tokens, not signs them
+  // If signing is needed, use HS256 with shared secret for internal tokens
   const now = Math.floor(Date.now() / 1000);
   const fullPayload: JWTPayload = {
     ...payload,
@@ -132,7 +163,9 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   }
 
   const token = authHeader.substring(7);
-  const payload = verifyJWT(token, config.jwt.secret);
+  
+  // Verify the JWT using configured algorithm (RS256 or HS256)
+  const payload = verifyJWT(token);
 
   if (!payload) {
     logger.warn({
@@ -141,7 +174,8 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
       method: req.method,
       path: req.path,
       ip: req.ip || 'unknown',
-      error: 'Invalid JWT signature',
+      error: 'Invalid JWT',
+      algorithm: config.jwt.algorithm,
     });
 
     res.status(401).json({
@@ -152,7 +186,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     return;
   }
 
-  // Check expiration
+  // Check expiration (jwt.verify already checks this, but double-check)
   const now = Math.floor(Date.now() / 1000);
   if (payload.exp < now) {
     logger.warn({
@@ -215,7 +249,9 @@ export function optionalAuthMiddleware(req: Request, res: Response, next: NextFu
   }
 
   const token = authHeader.substring(7);
-  const payload = verifyJWT(token, config.jwt.secret);
+  
+  // Verify the JWT using configured algorithm
+  const payload = verifyJWT(token);
 
   if (payload && payload.exp >= Math.floor(Date.now() / 1000)) {
     req.user = {

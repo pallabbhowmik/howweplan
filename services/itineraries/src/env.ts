@@ -1,4 +1,36 @@
 import { z } from 'zod';
+import { readFileSync, existsSync } from 'fs';
+
+/**
+ * Read a secret file from Render's secret files location.
+ */
+function readSecretFile(filename: string): string | undefined {
+  const paths = [
+    `/etc/secrets/${filename}`,
+    `./secrets/${filename}`,
+    `./${filename}`,
+  ];
+  for (const path of paths) {
+    if (existsSync(path)) {
+      try {
+        const content = readFileSync(path, 'utf-8').trim();
+        console.info(`✓ Loaded ${filename} from: ${path}`);
+        return content;
+      } catch { /* continue */ }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Get JWT public key from secret file or env var.
+ */
+function getJwtPublicKey(): string {
+  const fileContent = readSecretFile('jwt-public.pem');
+  if (fileContent) return fileContent;
+  const envKey = process.env.JWT_PUBLIC_KEY;
+  return envKey ? envKey.replace(/\\n/g, '\n') : '';
+}
 
 /**
  * Environment variable schema with strict validation.
@@ -25,11 +57,13 @@ const envSchema = z.object({
   INTERNAL_API_KEY: z.string().min(16, 'INTERNAL_API_KEY must be at least 16 characters'),
 
   // ============================================================
-  // AUTHENTICATION
+  // AUTHENTICATION (RS256 with secret files or HS256 fallback)
   // ============================================================
-  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  JWT_ISSUER: z.string().default('tripcomposer-auth'),
-  JWT_AUDIENCE: z.string().default('tripcomposer-services'),
+  JWT_PUBLIC_KEY: z.string().optional().transform((val) => val?.replace(/\\n/g, '\n') || ''),
+  JWT_SECRET: z.string().optional(),
+  JWT_ALGORITHM: z.enum(['RS256', 'HS256']).default('RS256'),
+  JWT_ISSUER: z.string().default('tripcomposer-identity'),
+  JWT_AUDIENCE: z.string().default('tripcomposer-platform'),
 
   // ============================================================
   // DATABASE

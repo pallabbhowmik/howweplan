@@ -1,4 +1,48 @@
 import { z } from 'zod';
+import { readFileSync, existsSync } from 'fs';
+
+/**
+ * Read a secret file from Render's secret files location or local path.
+ * Render stores secret files at /etc/secrets/<filename>
+ */
+function readSecretFile(filename: string): string | undefined {
+  const paths = [
+    `/etc/secrets/${filename}`,           // Render secret files location
+    `./secrets/${filename}`,              // Local development
+    `./${filename}`,                      // Current directory
+  ];
+
+  for (const path of paths) {
+    if (existsSync(path)) {
+      try {
+        return readFileSync(path, 'utf-8').trim();
+      } catch {
+        // Continue to next path
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Get JWT key from file or environment variable.
+ * Priority: File > Environment Variable
+ */
+function getJwtKey(envValue: string | undefined, filename: string): string {
+  // Try to read from secret file first
+  const fileContent = readSecretFile(filename);
+  if (fileContent) {
+    console.info(`✓ Loaded ${filename} from secret file`);
+    return fileContent;
+  }
+  
+  // Fall back to environment variable
+  if (envValue) {
+    return envValue.replace(/\\n/g, '\n');
+  }
+  
+  return '';
+}
 
 /**
  * Environment variable schema with strict validation.
@@ -24,9 +68,25 @@ const envSchema = z.object({
   // ─────────────────────────────────────────────────────────────
   // AUTHENTICATION
   // ─────────────────────────────────────────────────────────────
+  // RS256 asymmetric key authentication (recommended for production)
+  // Keys can be provided via:
+  //   1. Secret files at /etc/secrets/jwt-private.pem and /etc/secrets/jwt-public.pem (Render)
+  //   2. Environment variables JWT_PRIVATE_KEY and JWT_PUBLIC_KEY
+  JWT_PRIVATE_KEY: z
+    .string()
+    .optional()
+    .transform((val) => val?.replace(/\\n/g, '\n') || ''),
+  JWT_PUBLIC_KEY: z
+    .string()
+    .optional()
+    .transform((val) => val?.replace(/\\n/g, '\n') || ''),
+  // Legacy: JWT_SECRET kept for backward compatibility (HS256 fallback)
   JWT_SECRET: z
     .string()
-    .min(32, 'JWT_SECRET must be at least 32 characters for security'),
+    .min(32, 'JWT_SECRET must be at least 32 characters for security')
+    .optional()
+    .default('legacy-fallback-secret-do-not-use-in-production'),
+  JWT_ALGORITHM: z.enum(['RS256', 'HS256']).default('RS256'),
   JWT_ACCESS_TOKEN_EXPIRY: z.string().regex(/^\d+[smhd]$/, 'Invalid duration format').default('15m'),
   JWT_REFRESH_TOKEN_EXPIRY: z.string().regex(/^\d+[smhd]$/, 'Invalid duration format').default('7d'),
   JWT_ISSUER: z.string().min(1).default('tripcomposer-identity'),
@@ -94,7 +154,12 @@ function validateEnv(): Env {
     process.exit(1);
   }
 
-  return result.data;
+  // Load JWT keys from secret files (Render) or fall back to env vars
+  const data = result.data;
+  data.JWT_PRIVATE_KEY = getJwtKey(data.JWT_PRIVATE_KEY, 'jwt-private.pem');
+  data.JWT_PUBLIC_KEY = getJwtKey(data.JWT_PUBLIC_KEY, 'jwt-public.pem');
+
+  return data;
 }
 
 /**
@@ -108,19 +173,39 @@ export const env = validateEnv();
  * These catch common misconfigurations before they cause issues.
  */
 function assertSecurityInvariants(): void {
-  // Ensure JWT secret is not a common weak value
-  const weakSecrets = [
-    'secret',
-    'your-jwt-secret',
-    'change-me',
-    'your-jwt-secret-min-32-characters-long',
-  ];
-  if (weakSecrets.some((weak) => env.JWT_SECRET.toLowerCase().includes(weak))) {
-    if (env.NODE_ENV === 'production') {
-      console.error('FATAL: JWT_SECRET contains a weak or default value in production');
-      process.exit(1);
-    } else {
-      console.warn('WARNING: JWT_SECRET appears to be a default value. Change before production.');
+  // For RS256, validate that keys look like proper PEM format
+  if (env.JWT_ALGORITHM === 'RS256') {
+    if (!env.JWT_PRIVATE_KEY.includes('-----BEGIN') || !env.JWT_PRIVATE_KEY.includes('PRIVATE KEY-----')) {
+      console.error('FATAL: JWT_PRIVATE_KEY does not appear to be in PEM format');
+      console.error('Expected format: -----BEGIN RSA PRIVATE KEY----- or -----BEGIN PRIVATE KEY-----');
+      if (env.NODE_ENV === 'production') {
+        process.exit(1);
+      }
+    }
+    if (!env.JWT_PUBLIC_KEY.includes('-----BEGIN') || !env.JWT_PUBLIC_KEY.includes('PUBLIC KEY-----')) {
+      console.error('FATAL: JWT_PUBLIC_KEY does not appear to be in PEM format');
+      console.error('Expected format: -----BEGIN PUBLIC KEY-----');
+      if (env.NODE_ENV === 'production') {
+        process.exit(1);
+      }
+    }
+    console.info('✓ JWT RS256 keys appear to be properly formatted');
+  } else {
+    // HS256 fallback - ensure JWT secret is not a common weak value
+    const weakSecrets = [
+      'secret',
+      'your-jwt-secret',
+      'change-me',
+      'your-jwt-secret-min-32-characters-long',
+      'legacy-fallback-secret',
+    ];
+    if (env.JWT_SECRET && weakSecrets.some((weak) => env.JWT_SECRET!.toLowerCase().includes(weak))) {
+      if (env.NODE_ENV === 'production') {
+        console.error('FATAL: JWT_SECRET contains a weak or default value in production');
+        process.exit(1);
+      } else {
+        console.warn('WARNING: JWT_SECRET appears to be a default value. Change before production.');
+      }
     }
   }
 

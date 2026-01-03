@@ -6,6 +6,45 @@
  */
 
 import { z } from 'zod';
+import { readFileSync, existsSync } from 'fs';
+
+/**
+ * Read a secret file from Render's secret files location or local path.
+ * Render stores secret files at /etc/secrets/<filename>
+ */
+function readSecretFile(filename: string): string | undefined {
+  const paths = [
+    `/etc/secrets/${filename}`,           // Render secret files location
+    `./secrets/${filename}`,              // Local development
+    `./${filename}`,                      // Current directory
+  ];
+
+  for (const path of paths) {
+    if (existsSync(path)) {
+      try {
+        const content = readFileSync(path, 'utf-8').trim();
+        console.info(`✓ Loaded ${filename} from secret file: ${path}`);
+        return content;
+      } catch {
+        // Continue to next path
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Get JWT public key from secret file or environment variable.
+ */
+function getJwtPublicKey(): string {
+  const fileContent = readSecretFile('jwt-public.pem');
+  if (fileContent) return fileContent;
+  
+  const envKey = process.env.JWT_PUBLIC_KEY;
+  if (envKey) return envKey.replace(/\\n/g, '\n');
+  
+  return '';
+}
 
 const envSchema = z.object({
   // App Metadata
@@ -24,9 +63,17 @@ const envSchema = z.object({
   EVENT_BUS_CHANNEL_PREFIX: z.string().default('tripcomposer'),
 
   // Authentication
-  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  JWT_ISSUER: z.string().default('tripcomposer'),
-  JWT_AUDIENCE: z.string().default('tripcomposer-services'),
+  // For RS256 (recommended), services only need the PUBLIC key to verify tokens
+  // The public key is safe to distribute to all services
+  JWT_PUBLIC_KEY: z
+    .string()
+    .transform((val) => val?.replace(/\\n/g, '\n') || '')
+    .optional(),
+  // Legacy HS256 fallback
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters').optional(),
+  JWT_ALGORITHM: z.enum(['RS256', 'HS256']).default('RS256'),
+  JWT_ISSUER: z.string().default('tripcomposer-identity'),
+  JWT_AUDIENCE: z.string().default('tripcomposer-platform'),
 
   // Operational Limits
   DAILY_REQUEST_CAP: z.coerce.number().int().positive().default(5),
@@ -85,7 +132,10 @@ export const config = {
     channelPrefix: env.EVENT_BUS_CHANNEL_PREFIX,
   },
   auth: {
-    jwtSecret: env.JWT_SECRET,
+    // Load from secret file first, then fall back to env var
+    jwtPublicKey: getJwtPublicKey() || env.JWT_PUBLIC_KEY || '',
+    jwtSecret: env.JWT_SECRET || '',
+    jwtAlgorithm: env.JWT_ALGORITHM,
     jwtIssuer: env.JWT_ISSUER,
     jwtAudience: env.JWT_AUDIENCE,
   },

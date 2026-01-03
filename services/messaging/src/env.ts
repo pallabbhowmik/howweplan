@@ -8,7 +8,39 @@
  */
 
 import { createHash } from 'crypto';
+import { readFileSync, existsSync } from 'fs';
 import { z } from 'zod';
+
+/**
+ * Read a secret file from Render's secret files location.
+ */
+function readSecretFile(filename: string): string | undefined {
+  const paths = [
+    `/etc/secrets/${filename}`,
+    `./secrets/${filename}`,
+    `./${filename}`,
+  ];
+  for (const path of paths) {
+    if (existsSync(path)) {
+      try {
+        const content = readFileSync(path, 'utf-8').trim();
+        console.info(`✓ Loaded ${filename} from: ${path}`);
+        return content;
+      } catch { /* continue */ }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Get JWT public key from secret file or env var.
+ */
+function getJwtPublicKey(): string {
+  const fileContent = readSecretFile('jwt-public.pem');
+  if (fileContent) return fileContent;
+  const envKey = process.env.JWT_PUBLIC_KEY;
+  return envKey ? envKey.replace(/\\n/g, '\n') : '';
+}
 
 // =============================================================================
 // SCHEMA DEFINITIONS
@@ -46,14 +78,16 @@ const envSchema = z.object({
   EVENT_BUS_PREFIX: z.string().default('tripcomposer:messaging'),
 
   // ---------------------------------------------------------------------------
-  // AUTHENTICATION
+  // AUTHENTICATION (RS256 with secret files or HS256 fallback)
   // ---------------------------------------------------------------------------
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z
     .string()
     .min(20, 'SUPABASE_SERVICE_ROLE_KEY appears invalid'),
-  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  JWT_ISSUER: z.string().default('tripcomposer'),
+  JWT_PUBLIC_KEY: z.string().optional().transform((val) => val?.replace(/\\n/g, '\n') || ''),
+  JWT_SECRET: z.string().optional(),
+  JWT_ALGORITHM: z.enum(['RS256', 'HS256']).default('RS256'),
+  JWT_ISSUER: z.string().default('tripcomposer-identity'),
 
   // ---------------------------------------------------------------------------
   // INTERNAL SERVICE COMMUNICATION

@@ -1,9 +1,10 @@
 /**
  * JWT token service for authentication.
  * Handles token creation, verification, and refresh.
+ * Supports both RS256 (asymmetric) and HS256 (symmetric) algorithms.
  */
 
-import jwt, { JwtPayload, SignOptions, VerifyOptions } from 'jsonwebtoken';
+import jwt, { JwtPayload, SignOptions, VerifyOptions, Algorithm } from 'jsonwebtoken';
 import { createHash, randomBytes } from 'crypto';
 import { env } from '../env.js';
 import { getDbClient } from './database.js';
@@ -14,6 +15,41 @@ import {
   AgentVerificationStatus,
 } from '../types/identity.types.js';
 import { InvalidTokenError, TokenExpiredError } from './errors.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOKEN CONFIGURATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Get the signing key based on algorithm configuration.
+ * RS256: Uses private key for signing
+ * HS256: Uses shared secret
+ */
+function getSigningKey(): string {
+  if (env.JWT_ALGORITHM === 'RS256') {
+    return env.JWT_PRIVATE_KEY;
+  }
+  return env.JWT_SECRET || '';
+}
+
+/**
+ * Get the verification key based on algorithm configuration.
+ * RS256: Uses public key for verification
+ * HS256: Uses shared secret
+ */
+function getVerificationKey(): string {
+  if (env.JWT_ALGORITHM === 'RS256') {
+    return env.JWT_PUBLIC_KEY;
+  }
+  return env.JWT_SECRET || '';
+}
+
+/**
+ * Get the algorithm to use for JWT operations.
+ */
+function getAlgorithm(): Algorithm {
+  return env.JWT_ALGORITHM as Algorithm;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TOKEN CONFIGURATION
@@ -94,10 +130,10 @@ export function createAccessToken(
     expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS,
     issuer: env.JWT_ISSUER,
     audience: env.JWT_AUDIENCE,
-    algorithm: 'HS256',
+    algorithm: getAlgorithm(),
   };
 
-  return jwt.sign(payload, env.JWT_SECRET, options);
+  return jwt.sign(payload, getSigningKey(), options);
 }
 
 /**
@@ -137,11 +173,11 @@ export async function createRefreshToken(userId: string): Promise<string> {
     expiresIn: REFRESH_TOKEN_EXPIRY_SECONDS,
     issuer: env.JWT_ISSUER,
     audience: env.JWT_AUDIENCE,
-    algorithm: 'HS256',
+    algorithm: getAlgorithm(),
   };
 
   // Combine the JWT with the random token for verification
-  const jwtToken = jwt.sign(payload, env.JWT_SECRET, options);
+  const jwtToken = jwt.sign(payload, getSigningKey(), options);
   return `${jwtToken}.${tokenValue}`;
 }
 
@@ -175,11 +211,11 @@ export function verifyAccessToken(token: string): IdentityContext {
   const options: VerifyOptions = {
     issuer: env.JWT_ISSUER,
     audience: env.JWT_AUDIENCE,
-    algorithms: ['HS256'],
+    algorithms: [getAlgorithm()],
   };
 
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET, options) as JwtPayload & AccessTokenPayload;
+    const decoded = jwt.verify(token, getVerificationKey(), options) as JwtPayload & AccessTokenPayload;
 
     if (decoded.type !== 'access') {
       throw new InvalidTokenError({ reason: 'Not an access token' });
@@ -229,11 +265,11 @@ export async function verifyRefreshToken(
   const options: VerifyOptions = {
     issuer: env.JWT_ISSUER,
     audience: env.JWT_AUDIENCE,
-    algorithms: ['HS256'],
+    algorithms: [getAlgorithm()],
   };
 
   try {
-    const decoded = jwt.verify(jwtToken, env.JWT_SECRET, options) as JwtPayload & RefreshTokenPayload;
+    const decoded = jwt.verify(jwtToken, getVerificationKey(), options) as JwtPayload & RefreshTokenPayload;
 
     if (decoded.type !== 'refresh') {
       throw new InvalidTokenError({ reason: 'Not a refresh token' });

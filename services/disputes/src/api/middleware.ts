@@ -6,9 +6,39 @@
 
 import { Request, Response, NextFunction, ErrorRequestHandler } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { readFileSync, existsSync } from 'fs';
 import jwt from 'jsonwebtoken';
 import { config, env } from '../env.js';
 import { logger, createRequestLogger } from '../audit/logger.js';
+
+/**
+ * Read a secret file from Render's secret files location.
+ */
+function readSecretFile(filename: string): string | undefined {
+  const paths = [
+    `/etc/secrets/${filename}`,
+    `./secrets/${filename}`,
+    `./${filename}`,
+  ];
+  for (const path of paths) {
+    if (existsSync(path)) {
+      try {
+        return readFileSync(path, 'utf-8').trim();
+      } catch { /* continue */ }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Get JWT public key from secret file or env var.
+ */
+function getJwtPublicKey(): string {
+  const fileContent = readSecretFile('jwt-public.pem');
+  if (fileContent) return fileContent;
+  const envKey = process.env.JWT_PUBLIC_KEY;
+  return envKey ? envKey.replace(/\\n/g, '\n') : '';
+}
 
 /**
  * User information extracted from JWT.
@@ -102,21 +132,26 @@ export function authMiddleware(
   const token = authHeader.slice(7);
 
   try {
-    // JWT configuration from environment
+    // JWT configuration - RS256 with secret files or HS256 fallback
+    const JWT_ALGORITHM = (process.env.JWT_ALGORITHM || 'RS256') as 'RS256' | 'HS256';
+    const JWT_PUBLIC_KEY = getJwtPublicKey();
     const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'development' ? 'dev-jwt-secret-minimum-32-characters-long' : '');
     const JWT_ISSUER = process.env.JWT_ISSUER || 'tripcomposer-identity';
     const JWT_AUDIENCE = process.env.JWT_AUDIENCE || 'tripcomposer-platform';
     
-    if (!JWT_SECRET) {
-      res.status(500).json({ error: 'JWT_SECRET not configured' });
+    // Determine verification key based on algorithm
+    const verifyKey = JWT_ALGORITHM === 'RS256' ? JWT_PUBLIC_KEY : JWT_SECRET;
+    
+    if (!verifyKey) {
+      res.status(500).json({ error: `JWT verification key not configured (${JWT_ALGORITHM})` });
       return;
     }
     
     // Verify JWT token
-    const decoded = jwt.verify(token, JWT_SECRET, {
+    const decoded = jwt.verify(token, verifyKey, {
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
-      algorithms: ['HS256'],
+      algorithms: [JWT_ALGORITHM],
     }) as JWTPayload;
 
     // Map JWT role to service role

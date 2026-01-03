@@ -72,7 +72,25 @@ export function createAuthMiddleware(logger: Logger): AuthMiddleware {
     const token = authHeader.substring(7);
 
     try {
-      const decoded = jwt.verify(token, config.auth.jwtSecret, {
+      // Get verification key based on algorithm
+      const algorithm = config.auth.jwtAlgorithm as 'RS256' | 'HS256';
+      const verifyKey = algorithm === 'RS256' 
+        ? config.auth.jwtPublicKey 
+        : config.auth.jwtSecret;
+
+      if (!verifyKey) {
+        logger.error('JWT verification key not configured', { algorithm });
+        res.status(500).json({
+          error: {
+            code: 'AUTH_CONFIG_ERROR',
+            message: 'Authentication not properly configured',
+          },
+        });
+        return;
+      }
+
+      const decoded = jwt.verify(token, verifyKey, {
+        algorithms: [algorithm],
         issuer: config.auth.jwtIssuer,
         audience: config.auth.jwtAudience,
       }) as JwtPayload;

@@ -1,5 +1,47 @@
 import dotenv from 'dotenv';
+import { readFileSync, existsSync } from 'fs';
 dotenv.config();
+
+/**
+ * Read a secret file from Render's secret files location or local path.
+ * Render stores secret files at /etc/secrets/<filename>
+ */
+function readSecretFile(filename: string): string | undefined {
+  const paths = [
+    `/etc/secrets/${filename}`,           // Render secret files location
+    `./secrets/${filename}`,              // Local development
+    `./${filename}`,                      // Current directory
+  ];
+
+  for (const path of paths) {
+    if (existsSync(path)) {
+      try {
+        const content = readFileSync(path, 'utf-8').trim();
+        console.info(`✓ Loaded ${filename} from secret file: ${path}`);
+        return content;
+      } catch {
+        // Continue to next path
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Get JWT public key from secret file or environment variable.
+ * Priority: Secret file > Environment variable
+ */
+function getJwtPublicKey(): string {
+  // Try secret file first
+  const fileContent = readSecretFile('jwt-public.pem');
+  if (fileContent) return fileContent;
+  
+  // Fall back to environment variable
+  const envKey = process.env.JWT_PUBLIC_KEY;
+  if (envKey) return envKey.replace(/\\n/g, '\n');
+  
+  return '';
+}
 
 export const config = {
   port: parseInt(process.env.PORT || '3000', 10),
@@ -7,7 +49,12 @@ export const config = {
   
   // JWT Configuration
   jwt: {
+    // RS256 public key for verifying tokens (from secret file or env var)
+    publicKey: getJwtPublicKey(),
+    // Legacy HS256 shared secret (fallback)
     secret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
+    // Algorithm: RS256 (asymmetric) or HS256 (symmetric)
+    algorithm: (process.env.JWT_ALGORITHM || 'RS256') as 'RS256' | 'HS256',
     issuer: process.env.JWT_ISSUER || 'tripcomposer-identity',
     audience: process.env.JWT_AUDIENCE || 'tripcomposer-services',
     accessTokenExpiry: '15m',
