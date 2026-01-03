@@ -321,34 +321,17 @@ export class AuditService {
   ): Promise<void> {
     if (!config.observability.auditEnabled) return;
 
-    const eventBus = await getEventBus();
-
-    // Emit as a generic messaging event - read receipts use the message.sent structure
-    // with additional metadata to indicate it's a read receipt
-    await eventBus.publish({
-      ...createBaseEvent(EMITTED_EVENT_TYPES.MESSAGE_SENT),
-      payload: {
-        conversationId,
-        messageId: messageIds[0] || '', // Use first message ID as primary
-        senderId: readById, // The person who read the messages
-        content: '', // Empty for read receipts
-        messageType: 'TEXT',
-        sentAt: readAt.toISOString(),
-        metadata: {
-          isReadReceipt: true,
-          readMessageIds: messageIds,
-          messageCount: messageIds.length,
-        },
-      },
-    });
-
-    // Note: Read receipts are high-volume, so we don't write individual audit logs
-    // The event bus emission is sufficient for real-time tracking
+    // Note: Read receipts are high-volume events that don't need full audit trail.
+    // We log them locally for debugging but don't emit to event bus since there's
+    // no dedicated read receipt event type in the messaging contracts.
+    // Real-time read receipt updates should be handled via WebSocket to the UI.
+    
     if (config.isDevelopment) {
       console.info('[ReadReceipt]', {
         conversationId,
         readById,
         messageCount: messageIds.length,
+        messageIds: messageIds.slice(0, 5), // Log first 5 for debugging
         readAt: readAt.toISOString(),
       });
     }
