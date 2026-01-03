@@ -14,6 +14,14 @@ ALTER TABLE travel_requests
 ADD COLUMN IF NOT EXISTS departure_location VARCHAR(200),
 ADD COLUMN IF NOT EXISTS travel_style VARCHAR(20) DEFAULT 'mid-range';
 
+-- Add budget currency column
+ALTER TABLE travel_requests 
+ADD COLUMN IF NOT EXISTS budget_currency VARCHAR(3) DEFAULT 'INR';
+
+-- Add notes column
+ALTER TABLE travel_requests 
+ADD COLUMN IF NOT EXISTS notes TEXT;
+
 -- Add missing timestamp columns
 ALTER TABLE travel_requests 
 ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '14 days'),
