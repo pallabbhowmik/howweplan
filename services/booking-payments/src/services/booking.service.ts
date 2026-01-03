@@ -521,7 +521,7 @@ class BookingService {
   async listUserBookings(
     userId: string,
     userRole: string,
-    options: { limit?: number; offset?: number; status?: string }
+    options: { limit?: number; offset?: number; status?: string | undefined }
   ): Promise<BookingResponseDTO[]> {
     const { limit = 20, offset = 0, status } = options;
 
@@ -581,7 +581,8 @@ class BookingService {
     try {
       const result = await pool.query(query, params);
 
-      return result.rows.map((row) => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return result.rows.map((row: any) => ({
         id: row.id,
         userId: row.user_id,
         agentId: row.agent_id,

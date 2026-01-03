@@ -93,7 +93,7 @@ export function createNotificationsRouter(): Router {
         },
       });
     } catch (error) {
-      logger.error({ error }, 'Failed to fetch notifications');
+      logger.error('Failed to fetch notifications', error instanceof Error ? error.message : String(error));
       next(error);
     }
   });
@@ -140,7 +140,7 @@ export function createNotificationsRouter(): Router {
         },
       });
     } catch (error) {
-      logger.error({ error }, 'Failed to mark notification as read');
+      logger.error('Failed to mark notification as read', error instanceof Error ? error.message : String(error));
       next(error);
     }
   });
@@ -176,7 +176,7 @@ export function createNotificationsRouter(): Router {
         },
       });
     } catch (error) {
-      logger.error({ error }, 'Failed to mark all notifications as read');
+      logger.error('Failed to mark all notifications as read', error instanceof Error ? error.message : String(error));
       next(error);
     }
   });
@@ -209,7 +209,7 @@ export function createNotificationsRouter(): Router {
         },
       });
     } catch (error) {
-      logger.error({ error }, 'Failed to get unread count');
+      logger.error('Failed to get unread count', error instanceof Error ? error.message : String(error));
       next(error);
     }
   });
