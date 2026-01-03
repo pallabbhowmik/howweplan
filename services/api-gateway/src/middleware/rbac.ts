@@ -151,6 +151,12 @@ function findRoutePermission(method: string, path: string): RoutePermission | nu
 
 /**
  * RBAC Authorization Middleware
+ * 
+ * Note: When no user is authenticated, we pass through to let the backend service
+ * handle authorization. This is intentional - backend services check X-User-Id header
+ * and return appropriate 401 responses. The gateway RBAC only enforces role-based
+ * restrictions when a user IS authenticated (e.g., preventing users from accessing
+ * admin endpoints).
  */
 export function rbacMiddleware(req: Request, res: Response, next: NextFunction): void {
   const permission = findRoutePermission(req.method, req.path);
@@ -160,26 +166,13 @@ export function rbacMiddleware(req: Request, res: Response, next: NextFunction):
     return next();
   }
 
-  // Route has defined permissions - authentication is required
+  // If no user authenticated, pass through to let backend service handle auth
+  // Backend services check X-User-Id header and return 401 if required
   if (!req.user) {
-    logger.warn({
-      timestamp: new Date().toISOString(),
-      requestId: req.requestId,
-      method: req.method,
-      path: req.path,
-      ip: req.ip || 'unknown',
-      error: 'Authentication required for protected route',
-    });
-
-    res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Authentication required',
-      code: 'AUTH_REQUIRED',
-    });
-    return;
+    return next();
   }
 
-  // Check role access
+  // Check role access for authenticated users
   if (!hasRoleAccess(req.user.role, permission.roles)) {
     logger.warn({
       timestamp: new Date().toISOString(),

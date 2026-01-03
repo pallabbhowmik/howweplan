@@ -21,37 +21,47 @@ interface JWTPayload {
  * Verify JWT using the configured algorithm (RS256 or HS256)
  * RS256: Uses public key for verification (recommended)
  * HS256: Uses shared secret (legacy fallback)
+ * 
+ * Falls back to HS256 if RS256 fails and HS256 secret is available.
  */
 function verifyJWT(token: string): JWTPayload | null {
-  try {
-    const algorithm = config.jwt.algorithm;
-    const verifyKey = algorithm === 'RS256' ? config.jwt.publicKey : config.jwt.secret;
-    
-    if (!verifyKey) {
-      logger.error({ 
-        timestamp: new Date().toISOString(), 
-        error: 'JWT verification key not configured',
-        message: `Missing ${algorithm === 'RS256' ? 'JWT_PUBLIC_KEY' : 'JWT_SECRET'}`,
-      });
-      return null;
-    }
+  const algorithms: Array<'RS256' | 'HS256'> = config.jwt.algorithm === 'RS256' 
+    ? ['RS256', 'HS256'] // Try RS256 first, fall back to HS256
+    : ['HS256'];
+  
+  for (const algorithm of algorithms) {
+    try {
+      const verifyKey = algorithm === 'RS256' ? config.jwt.publicKey : config.jwt.secret;
+      
+      if (!verifyKey) {
+        continue; // Skip this algorithm if key not available
+      }
 
-    const payload = jwt.verify(token, verifyKey, {
-      algorithms: [algorithm],
-      issuer: config.jwt.issuer,
-      audience: config.jwt.audience,
-    }) as JWTPayload;
+      const payload = jwt.verify(token, verifyKey, {
+        algorithms: [algorithm],
+        issuer: config.jwt.issuer,
+        audience: config.jwt.audience,
+      }) as JWTPayload;
 
-    return payload;
-  } catch (error) {
-    // Log verification failures for debugging
-    if (error instanceof jwt.TokenExpiredError) {
-      logger.debug({ timestamp: new Date().toISOString(), message: 'Token expired' });
-    } else if (error instanceof jwt.JsonWebTokenError) {
-      logger.debug({ timestamp: new Date().toISOString(), error: (error as Error).message, message: 'JWT verification failed' });
+      return payload;
+    } catch (error) {
+      // Log verification failures for debugging
+      if (error instanceof jwt.TokenExpiredError) {
+        logger.debug({ timestamp: new Date().toISOString(), message: 'Token expired' });
+        return null; // Don't try other algorithms for expired tokens
+      } else if (error instanceof jwt.JsonWebTokenError) {
+        logger.debug({ 
+          timestamp: new Date().toISOString(), 
+          algorithm,
+          error: (error as Error).message, 
+          message: 'JWT verification failed, trying next algorithm' 
+        });
+        // Continue to next algorithm
+      }
     }
-    return null;
   }
+  
+  return null;
 }
 
 /**
