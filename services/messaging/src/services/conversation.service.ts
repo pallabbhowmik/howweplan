@@ -10,6 +10,7 @@ import { randomUUID } from 'crypto';
 import { auditService } from './audit.service';
 import { rateLimitService } from './ratelimit.service';
 import { Errors } from '../api/errors';
+import { getServiceSupabaseClient } from '../db/supabase';
 import type {
   Conversation,
   ConversationState,
@@ -41,31 +42,58 @@ export class ConversationService {
     // Check rate limit
     await rateLimitService.checkConversationRateLimit(actor.actorId);
 
+    const supabase = getServiceSupabaseClient();
+
+    // Prefer existing conversation if it already exists for this booking/user/agent.
+    // (Local DB schema may not enforce uniqueness.)
+    if (input.bookingId) {
+      const { data: existing } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('booking_id', input.bookingId)
+        .eq('user_id', input.userId)
+        .eq('agent_id', input.agentId)
+        .maybeSingle();
+
+      if (existing) {
+        return this.toConversationView(this.fromDbConversation(existing), actor.actorId);
+      }
+    }
+
     const conversationId = randomUUID();
     const now = new Date();
 
-    const conversation: Conversation = {
+    const insertPayload = {
       id: conversationId,
-      bookingId: input.bookingId ?? null,
-      userId: input.userId,
-      agentId: input.agentId,
+      booking_id: input.bookingId ?? null,
+      user_id: input.userId,
+      agent_id: input.agentId,
       state: 'ACTIVE',
-      contactsRevealed: false,
-      bookingState: null,
-      createdAt: now,
-      updatedAt: now,
-      contactsRevealedAt: null,
+      contacts_revealed: false,
+      booking_state: null,
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+      contacts_revealed_at: null,
     };
 
-    // Database insert would go here
-    // await prisma.conversation.create({ data: conversation });
+    const { data: inserted, error } = await supabase
+      .from('conversations')
+      .insert(insertPayload)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw Errors.INTERNAL_ERROR('Failed to create conversation');
+    }
+
+    const conversation = this.fromDbConversation(inserted);
 
     // Audit log
     await auditService.logConversationCreated(
-      conversationId,
-      input.bookingId ?? null,
-      input.userId,
-      input.agentId,
+      conversation.id,
+      conversation.bookingId,
+      conversation.userId,
+      conversation.agentId,
       actor
     );
 
@@ -76,24 +104,23 @@ export class ConversationService {
    * Gets a conversation by ID with visibility rules applied.
    */
   async getConversation(
-    _conversationId: string,
+    conversationId: string,
     requesterId: string
   ): Promise<ConversationView | null> {
-    // Database fetch would go here
-    // const conversation = await prisma.conversation.findUnique({
-    //   where: { id: conversationId },
-    //   include: { participants: true, messages: { take: 1, orderBy: { createdAt: 'desc' } } }
-    // });
+    const supabase = getServiceSupabaseClient();
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('id', conversationId)
+      .maybeSingle();
 
-    // Placeholder - in production, fetch from database
-    const conversation: Conversation | null = null;
-
-    if (!conversation) {
-      return null;
+    if (error) {
+      throw Errors.INTERNAL_ERROR('Failed to load conversation');
     }
 
-    // Use type assertion since TypeScript narrows to 'never' after null check with placeholder
-    const currentConversation = conversation as Conversation;
+    if (!data) return null;
+
+    const currentConversation = this.fromDbConversation(data);
 
     // Verify requester is a participant
     if (
@@ -110,28 +137,142 @@ export class ConversationService {
    * Lists conversations for a user with filters.
    */
   async listConversations(
-    _filters: {
+    filters: {
       userId?: string;
       agentId?: string;
       bookingId?: string;
       state?: ConversationState;
     },
-    _pagination?: PaginationParams
+    pagination?: PaginationParams
   ): Promise<PaginatedResult<ConversationView>> {
-    // Database query would go here
-    // const conversations = await prisma.conversation.findMany({
-    //   where: filters,
-    //   orderBy: { updatedAt: 'desc' },
-    //   take: pagination?.limit ?? 50,
-    //   cursor: pagination?.cursor ? { id: pagination.cursor } : undefined,
-    // });
+    const supabase = getServiceSupabaseClient();
 
-    // Placeholder
+    const limit = pagination?.limit ?? 50;
+
+    let query = supabase
+      .from('conversations')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(limit);
+
+    if (filters.userId) query = query.eq('user_id', filters.userId);
+    if (filters.agentId) query = query.eq('agent_id', filters.agentId);
+    if (filters.bookingId) query = query.eq('booking_id', filters.bookingId);
+    if (filters.state) query = query.eq('state', filters.state);
+
+    const { data, error } = await query;
+    if (error) {
+      throw Errors.INTERNAL_ERROR('Failed to list conversations');
+    }
+
+    const conversations = (data ?? []).map((row) => this.fromDbConversation(row));
+
+    // Enrich with last message + unread count from messages table.
+    const conversationIds = conversations.map((c) => c.id);
+    const unreadByConversation = new Map<string, number>();
+    const lastMessageByConversation = new Map<string, any>();
+
+    if (conversationIds.length > 0) {
+      const { data: messages, error: messagesErr } = await supabase
+        .from('messages')
+        .select('id, conversation_id, sender_id, sender_type, content, is_read, created_at')
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: false });
+
+      if (messagesErr) {
+        throw Errors.INTERNAL_ERROR('Failed to load conversation messages');
+      }
+
+      // Infer requester type from filters (best-effort)
+      const requesterIsUser = Boolean(filters.userId && !filters.agentId);
+      const otherSenderType = requesterIsUser ? 'agent' : 'user';
+
+      for (const m of messages ?? []) {
+        const cid = (m as any).conversation_id as string;
+        if (!lastMessageByConversation.has(cid)) lastMessageByConversation.set(cid, m);
+
+        const senderType = String((m as any).sender_type ?? '').toLowerCase();
+        const isRead = Boolean((m as any).is_read);
+        if (senderType === otherSenderType && !isRead) {
+          unreadByConversation.set(cid, (unreadByConversation.get(cid) ?? 0) + 1);
+        }
+      }
+    }
+
+    const items: ConversationView[] = conversations.map((c) => {
+      const last = lastMessageByConversation.get(c.id) ?? null;
+      return {
+        id: c.id,
+        bookingId: c.bookingId,
+        state: c.state,
+        contactsRevealed: c.contactsRevealed,
+        createdAt: c.createdAt.toISOString(),
+        updatedAt: c.updatedAt.toISOString(),
+        participants: [
+          {
+            id: c.userId,
+            participantType: 'USER',
+            displayName: '',
+            isOnline: false,
+            lastSeenAt: null,
+          },
+          {
+            id: c.agentId,
+            participantType: 'AGENT',
+            displayName: '',
+            isOnline: false,
+            lastSeenAt: null,
+          },
+        ],
+        lastMessage: last
+          ? {
+              id: String(last.id),
+              conversationId: String(last.conversation_id),
+              senderId: String(last.sender_id ?? ''),
+              senderType:
+                String(last.sender_type ?? '').toLowerCase() === 'agent'
+                  ? 'AGENT'
+                  : String(last.sender_type ?? '').toLowerCase() === 'system'
+                    ? 'SYSTEM'
+                    : 'USER',
+              senderDisplayName: '',
+              content: String(last.content ?? ''),
+              wasMasked: false,
+              messageType: 'TEXT',
+              attachments: [],
+              createdAt: new Date(String(last.created_at)).toISOString(),
+              editedAt: null,
+              isDeleted: false,
+              readBy: Boolean(last.is_read) ? ['*'] : [],
+              reactions: [],
+            }
+          : null,
+        unreadCount: unreadByConversation.get(c.id) ?? 0,
+      };
+    });
+
     return {
-      items: [],
+      items,
       nextCursor: null,
       previousCursor: null,
       hasMore: false,
+    };
+  }
+
+  private fromDbConversation(row: any): Conversation {
+    return {
+      id: String(row.id),
+      bookingId: row.booking_id ? String(row.booking_id) : null,
+      userId: String(row.user_id),
+      agentId: String(row.agent_id),
+      state: String(row.state) as ConversationState,
+      contactsRevealed: Boolean(row.contacts_revealed),
+      bookingState: row.booking_state ? String(row.booking_state) : null,
+      createdAt: new Date(String(row.created_at)),
+      updatedAt: new Date(String(row.updated_at)),
+      contactsRevealedAt: row.contacts_revealed_at
+        ? new Date(String(row.contacts_revealed_at))
+        : null,
     };
   }
 

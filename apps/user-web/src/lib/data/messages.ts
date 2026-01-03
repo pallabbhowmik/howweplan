@@ -1,4 +1,4 @@
-import { getSupabaseClient } from '@/lib/supabase/client';
+import { messagingApi } from '@/lib/api/client';
 
 // ============================================================================
 // ⚠️ ARCHITECTURE VIOLATION WARNING ⚠️
@@ -42,160 +42,58 @@ export type ConversationMessage = {
 };
 
 export async function listUserConversations(userId: string): Promise<ConversationListItem[]> {
-  const supabase = getSupabaseClient();
+  // NOTE: `userId` is kept for backward compatibility with callers.
+  // The messaging service infers the principal from the bearer token.
+  void userId;
 
-  const { data: conversations, error } = await supabase
-    .from('conversations')
-    .select('id, booking_id, agent_id, state, updated_at')
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false });
+  const response: any = await messagingApi.listConversations();
+  const items: any[] = response?.data?.items ?? [];
 
-  if (error) throw error;
-
-  const conversationIds = (conversations ?? []).map((c: any) => c.id);
-
-  const unreadByConversation = new Map<string, number>();
-  if (conversationIds.length > 0) {
-    const { data: unread, error: unreadErr } = await supabase
-      .from('messages')
-      .select('conversation_id')
-      .in('conversation_id', conversationIds)
-      .eq('is_read', false)
-      .eq('sender_type', 'agent');
-
-    if (unreadErr) throw unreadErr;
-    for (const row of unread ?? []) {
-      const cid = (row as any).conversation_id as string;
-      unreadByConversation.set(cid, (unreadByConversation.get(cid) ?? 0) + 1);
-    }
-  }
-
-  const lastByConversation = new Map<string, any>();
-  if (conversationIds.length > 0) {
-    const { data: lastMsgs, error: lastErr } = await supabase
-      .from('messages')
-      .select('conversation_id, content, created_at')
-      .in('conversation_id', conversationIds)
-      .order('created_at', { ascending: false });
-
-    if (lastErr) throw lastErr;
-    for (const m of lastMsgs ?? []) {
-      const cid = (m as any).conversation_id as string;
-      if (!lastByConversation.has(cid)) lastByConversation.set(cid, m);
-    }
-  }
-
-  const agentIds = Array.from(new Set((conversations ?? []).map((c: any) => c.agent_id).filter(Boolean)));
-  const agentsById = new Map<string, any>();
-  if (agentIds.length > 0) {
-    const { data: agents, error: agentErr } = await supabase
-      .from('agents')
-      .select('id, user_id, users!agents_user_id_fkey(id, first_name, last_name, avatar_url)')
-      .in('id', agentIds);
-    if (agentErr) throw agentErr;
-    for (const a of agents ?? []) agentsById.set((a as any).id, a);
-  }
-
-  // Destination label from booking->request if available (best-effort)
-  const bookingIds = (conversations ?? []).map((c: any) => c.booking_id).filter(Boolean) as string[];
-  const bookingsById = new Map<string, any>();
-  if (bookingIds.length > 0) {
-    const { data: bookings, error: bookingErr } = await supabase
-      .from('bookings')
-      .select('id, request_id')
-      .in('id', Array.from(new Set(bookingIds)));
-    if (bookingErr) throw bookingErr;
-    for (const b of bookings ?? []) bookingsById.set((b as any).id, b);
-  }
-
-  const requestIds = Array.from(new Set(Array.from(bookingsById.values()).map((b: any) => b.request_id).filter(Boolean)));
-  const requestsById = new Map<string, any>();
-  if (requestIds.length > 0) {
-    const { data: requests, error: reqErr } = await supabase
-      .from('travel_requests')
-      .select('id, title, destination')
-      .in('id', requestIds);
-    if (reqErr) throw reqErr;
-    for (const r of requests ?? []) requestsById.set((r as any).id, r);
-  }
-
-  return (conversations ?? []).map((c: any) => {
-    const agent = agentsById.get(c.agent_id);
-    const u: any = agent?.users;
-    const last = lastByConversation.get(c.id) ?? null;
-    const unreadCount = unreadByConversation.get(c.id) ?? 0;
-
-    const booking = c.booking_id ? bookingsById.get(c.booking_id) : null;
-    const request = booking?.request_id ? requestsById.get(booking.request_id) : null;
-
-    let destinationLabel: string | null = null;
-    if (request?.destination) {
-      const d: any = request.destination;
-      const country = typeof d?.country === 'string' ? d.country : null;
-      const regions = Array.isArray(d?.regions) ? (d.regions.filter(Boolean) as string[]) : [];
-      if (country && regions.length > 0) destinationLabel = `${country} • ${regions.join(', ')}`;
-      else if (country) destinationLabel = country;
-      else if (typeof request?.title === 'string') destinationLabel = request.title;
-    } else if (typeof request?.title === 'string') {
-      destinationLabel = request.title;
-    }
-
-    const agentName = u ? `${u.first_name} ${u.last_name}`.trim() : 'Agent';
-
+  return items.map((c: any) => {
+    const last = c.lastMessage;
+    const participants: any[] = Array.isArray(c.participants) ? c.participants : [];
+    const agent = participants.find((p) => p?.participantType === 'AGENT');
     return {
       id: c.id,
-      bookingId: c.booking_id ?? null,
-      agentId: c.agent_id,
+      bookingId: c.bookingId ?? null,
+      agentId: agent?.id ?? '',
       state: c.state,
-      updatedAt: c.updated_at,
-      lastMessageAt: last?.created_at ?? null,
+      updatedAt: c.updatedAt,
+      lastMessageAt: last?.createdAt ?? null,
       lastMessagePreview: last?.content ? String(last.content).slice(0, 120) : null,
-      unreadCount,
-      agentName,
-      agentAvatarUrl: u?.avatar_url ?? null,
-      destinationLabel,
+      unreadCount: Number(c.unreadCount ?? 0),
+      agentName: 'Agent',
+      agentAvatarUrl: null,
+      destinationLabel: null,
     } as ConversationListItem;
   });
 }
 
 export async function listMessages(conversationId: string): Promise<ConversationMessage[]> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('messages')
-    .select('id, conversation_id, sender_type, content, is_read, created_at')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true });
-  if (error) throw error;
+  const response: any = await messagingApi.listMessages(conversationId);
+  const items: any[] = response?.data?.items ?? [];
 
-  return (data ?? []).map((m: any) => ({
+  return items.map((m: any) => ({
     id: m.id,
-    conversationId: m.conversation_id,
-    senderType: m.sender_type,
+    conversationId: m.conversationId,
+    senderType: String(m.senderType ?? '').toLowerCase() as any,
     content: m.content,
-    isRead: Boolean(m.is_read),
-    createdAt: m.created_at,
+    isRead: Array.isArray(m.readBy) && m.readBy.length > 0,
+    createdAt: m.createdAt,
   }));
 }
 
 export async function sendUserMessage(conversationId: string, userId: string, content: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.from('messages').insert({
-    conversation_id: conversationId,
-    sender_id: userId,
-    sender_type: 'user',
-    content,
-    content_type: 'text',
-    is_read: false,
-  });
-  if (error) throw error;
+  // NOTE: `userId` kept for backward compatibility.
+  void userId;
+  await messagingApi.sendMessage(conversationId, content);
 }
 
 export async function markConversationReadAsUser(conversationId: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase
-    .from('messages')
-    .update({ is_read: true })
-    .eq('conversation_id', conversationId)
-    .eq('sender_type', 'agent');
-  if (error) throw error;
+  // Mark read up to the most recent message in the thread.
+  const response: any = await messagingApi.listMessages(conversationId);
+  const items: any[] = response?.data?.items ?? [];
+  const last = items.length > 0 ? items[items.length - 1] : null;
+  if (!last?.id) return;
+  await messagingApi.markReadUpTo(conversationId, String(last.id));
 }

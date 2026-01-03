@@ -274,6 +274,65 @@ export const requestsApi = {
 };
 
 // ============================================================================
+// Messaging Service API (via Gateway)
+// ============================================================================
+
+export const messagingApi = {
+  /**
+   * List conversations for the authenticated user/agent.
+   * Server infers the principal from the bearer token.
+   */
+  listConversations: (_userId?: string) =>
+    apiRequest(`/api/messaging/api/v1/conversations`),
+
+  /**
+   * List messages for a conversation.
+   */
+  listMessages: (conversationId: string) =>
+    apiRequest(
+      `/api/messaging/api/v1/messages?conversationId=${encodeURIComponent(conversationId)}`
+    ),
+
+  // Back-compat alias
+  getMessages: (conversationId: string) =>
+    apiRequest(
+      `/api/messaging/api/v1/messages?conversationId=${encodeURIComponent(conversationId)}`
+    ),
+
+  /**
+   * Send a message.
+   */
+  sendMessage: (conversationId: string, content: string) =>
+    apiRequest(`/api/messaging/api/v1/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ conversationId, content }),
+    }),
+
+  /**
+   * Mark all messages read up to the provided messageId.
+   */
+  markReadUpTo: (conversationId: string, upToMessageId: string) =>
+    apiRequest(`/api/messaging/api/v1/messages/read-up-to`, {
+      method: 'POST',
+      body: JSON.stringify({ conversationId, upToMessageId }),
+    }),
+
+  // Back-compat alias
+  markAsRead: async (conversationId: string) => {
+    const response: any = await apiRequest(
+      `/api/messaging/api/v1/messages?conversationId=${encodeURIComponent(conversationId)}`
+    );
+    const items: any[] = response?.data?.items ?? [];
+    const last = items.length > 0 ? items[items.length - 1] : null;
+    if (!last?.id) return { data: { markedCount: 0 } };
+    return apiRequest(`/api/messaging/api/v1/messages/read-up-to`, {
+      method: 'POST',
+      body: JSON.stringify({ conversationId, upToMessageId: String(last.id) }),
+    });
+  },
+};
+
+// ============================================================================
 // Bookings Service API (via Gateway)
 // ============================================================================
 
@@ -306,41 +365,6 @@ export const bookingsApi = {
     apiRequest(`/api/bookings/${bookingId}/cancel`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
-    }),
-};
-
-// ============================================================================
-// Messaging Service API (via Gateway)
-// ============================================================================
-
-export const messagingApi = {
-  /**
-   * List user's conversations
-   */
-  listConversations: (userId: string) =>
-    apiRequest(`/api/messaging/conversations/user/${userId}`),
-  
-  /**
-   * Get conversation messages
-   */
-  getMessages: (conversationId: string) =>
-    apiRequest(`/api/messaging/conversations/${conversationId}/messages`),
-  
-  /**
-   * Send message
-   */
-  sendMessage: (conversationId: string, content: string) =>
-    apiRequest(`/api/messaging/messages`, {
-      method: 'POST',
-      body: JSON.stringify({ conversationId, content }),
-    }),
-  
-  /**
-   * Mark conversation as read
-   */
-  markAsRead: (conversationId: string) =>
-    apiRequest(`/api/messaging/conversations/${conversationId}/read`, {
-      method: 'PUT',
     }),
 };
 

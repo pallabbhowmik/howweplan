@@ -8,6 +8,7 @@
 
 import { randomUUID, createHash } from 'crypto';
 import { config } from '../env';
+import { getServiceSupabaseClient } from '../db/supabase';
 import { contentMaskingService } from './masking.service';
 import { auditService } from './audit.service';
 import { rateLimitService } from './ratelimit.service';
@@ -57,19 +58,29 @@ export class MessageService {
       throw Errors.TOO_MANY_ATTACHMENTS(config.limits.maxAttachments);
     }
 
-    // Fetch conversation to check state and contacts status
-    // const conversation = await prisma.conversation.findUnique({
-    //   where: { id: input.conversationId }
-    // });
+    const supabase = getServiceSupabaseClient();
 
-    // Placeholder
+    const { data: convoRow, error: convoErr } = await supabase
+      .from('conversations')
+      .select('id, booking_id, user_id, agent_id, state, contacts_revealed')
+      .eq('id', input.conversationId)
+      .maybeSingle();
+
+    if (convoErr) {
+      throw Errors.INTERNAL_ERROR('Failed to load conversation');
+    }
+
+    if (!convoRow) {
+      throw Errors.CONVERSATION_NOT_FOUND(input.conversationId);
+    }
+
     const conversation = {
-      id: input.conversationId,
-      state: 'ACTIVE' as const,
-      contactsRevealed: false,
-      bookingId: null as string | null,
-      userId: '',
-      agentId: '',
+      id: String(convoRow.id),
+      state: String((convoRow as any).state) as 'ACTIVE' | 'PAUSED' | 'CLOSED',
+      contactsRevealed: Boolean((convoRow as any).contacts_revealed),
+      bookingId: (convoRow as any).booking_id ? String((convoRow as any).booking_id) : null,
+      userId: String((convoRow as any).user_id),
+      agentId: String((convoRow as any).agent_id),
     };
 
     // Verify actor is a participant
@@ -99,25 +110,52 @@ export class MessageService {
       .update(input.content)
       .digest('hex');
 
+    // Persist message to current DB schema (messages table).
+    const senderTypeDb = actor.actorType.toLowerCase();
+    const contentTypeDb =
+      (input.messageType ?? 'TEXT') === 'SYSTEM' ? 'system' : 'text';
+
+    const { data: inserted, error: insertErr } = await supabase
+      .from('messages')
+      .insert({
+        id: messageId,
+        conversation_id: input.conversationId,
+        sender_id: actor.actorId,
+        sender_type: senderTypeDb,
+        content: maskResult.maskedContent,
+        content_type: contentTypeDb,
+        is_read: false,
+        created_at: now.toISOString(),
+      })
+      .select('id, conversation_id, sender_id, sender_type, content, is_read, created_at')
+      .single();
+
+    if (insertErr) {
+      throw Errors.INTERNAL_ERROR('Failed to send message');
+    }
+
+    // Best-effort bump conversation updated_at
+    await supabase
+      .from('conversations')
+      .update({ updated_at: now.toISOString() })
+      .eq('id', input.conversationId);
+
     const message: Message = {
-      id: messageId,
-      conversationId: input.conversationId,
-      senderId: actor.actorId,
+      id: String(inserted.id),
+      conversationId: String((inserted as any).conversation_id),
+      senderId: String((inserted as any).sender_id ?? actor.actorId),
       senderType: actor.actorType,
-      content: maskResult.maskedContent,
-      originalContent: maskResult.wasMasked ? input.content : null, // Encrypted in production
+      content: String((inserted as any).content ?? ''),
+      originalContent: null,
       wasMasked: maskResult.wasMasked,
       messageType: input.messageType ?? 'TEXT',
       metadata: input.metadata ?? null,
-      createdAt: now,
+      createdAt: new Date(String((inserted as any).created_at)),
       editedAt: null,
       isDeleted: false,
       deletedAt: null,
       deletedBy: null,
     };
-
-    // Database insert would go here
-    // await prisma.message.create({ data: message });
 
     // Link attachments if provided
     // if (input.attachmentIds) {
@@ -160,27 +198,73 @@ export class MessageService {
    * Gets messages in a conversation with pagination.
    */
   async getMessages(
-    _conversationId: string,
-    _requesterId: string,
-    _pagination?: PaginationParams
+    conversationId: string,
+    requesterId: string,
+    pagination?: PaginationParams
   ): Promise<PaginatedResult<MessageView>> {
-    // Verify requester is a participant
-    // const conversation = await prisma.conversation.findUnique({
-    //   where: { id: conversationId }
-    // });
+    const supabase = getServiceSupabaseClient();
 
-    // Database query would go here
-    // const messages = await prisma.message.findMany({
-    //   where: { conversationId, isDeleted: false },
-    //   orderBy: { createdAt: 'desc' },
-    //   take: pagination?.limit ?? 50,
-    //   cursor: pagination?.cursor ? { id: pagination.cursor } : undefined,
-    //   include: { attachments: true, readReceipts: true, reactions: true }
-    // });
+    const { data: convoRow, error: convoErr } = await supabase
+      .from('conversations')
+      .select('id, user_id, agent_id')
+      .eq('id', conversationId)
+      .maybeSingle();
 
-    // Placeholder
+    if (convoErr) {
+      throw Errors.INTERNAL_ERROR('Failed to load conversation');
+    }
+
+    if (!convoRow) {
+      throw Errors.CONVERSATION_NOT_FOUND(conversationId);
+    }
+
+    const userId = String((convoRow as any).user_id);
+    const agentId = String((convoRow as any).agent_id);
+    if (requesterId !== userId && requesterId !== agentId) {
+      throw Errors.NOT_PARTICIPANT();
+    }
+
+    const limit = pagination?.limit ?? 50;
+    const { data: rows, error } = await supabase
+      .from('messages')
+      .select('id, conversation_id, sender_id, sender_type, content, is_read, created_at')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true })
+      .limit(limit);
+
+    if (error) {
+      throw Errors.INTERNAL_ERROR('Failed to load messages');
+    }
+
+    const items: MessageView[] = (rows ?? []).map((row: any) => {
+      const senderTypeLower = String(row.sender_type ?? '').toLowerCase();
+      const senderType =
+        senderTypeLower === 'agent'
+          ? 'AGENT'
+          : senderTypeLower === 'system'
+            ? 'SYSTEM'
+            : 'USER';
+
+      return {
+        id: String(row.id),
+        conversationId: String(row.conversation_id),
+        senderId: String(row.sender_id ?? ''),
+        senderType,
+        senderDisplayName: '',
+        content: String(row.content ?? ''),
+        wasMasked: false,
+        messageType: 'TEXT',
+        attachments: [],
+        createdAt: new Date(String(row.created_at)).toISOString(),
+        editedAt: null,
+        isDeleted: false,
+        readBy: Boolean(row.is_read) ? ['*'] : [],
+        reactions: [],
+      };
+    });
+
     return {
-      items: [],
+      items,
       nextCursor: null,
       previousCursor: null,
       hasMore: false,
@@ -191,17 +275,62 @@ export class MessageService {
    * Gets a single message by ID.
    */
   async getMessage(
-    _messageId: string,
-    _requesterId: string
+    messageId: string,
+    requesterId: string
   ): Promise<MessageView | null> {
-    // Database fetch would go here
-    // const message = await prisma.message.findUnique({
-    //   where: { id: messageId },
-    //   include: { attachments: true, readReceipts: true, reactions: true, conversation: true }
-    // });
+    const supabase = getServiceSupabaseClient();
 
-    // Placeholder
-    return null;
+    const { data: row, error } = await supabase
+      .from('messages')
+      .select('id, conversation_id, sender_id, sender_type, content, is_read, created_at')
+      .eq('id', messageId)
+      .maybeSingle();
+
+    if (error) {
+      throw Errors.INTERNAL_ERROR('Failed to load message');
+    }
+
+    if (!row) return null;
+
+    // Participant check via conversation
+    const { data: convoRow } = await supabase
+      .from('conversations')
+      .select('user_id, agent_id')
+      .eq('id', (row as any).conversation_id)
+      .maybeSingle();
+
+    if (convoRow) {
+      const userId = String((convoRow as any).user_id);
+      const agentId = String((convoRow as any).agent_id);
+      if (requesterId !== userId && requesterId !== agentId) {
+        throw Errors.NOT_PARTICIPANT();
+      }
+    }
+
+    const senderTypeLower = String((row as any).sender_type ?? '').toLowerCase();
+    const senderType =
+      senderTypeLower === 'agent'
+        ? 'AGENT'
+        : senderTypeLower === 'system'
+          ? 'SYSTEM'
+          : 'USER';
+
+    return {
+      id: String((row as any).id),
+      conversationId: String((row as any).conversation_id),
+      senderId: String((row as any).sender_id ?? ''),
+      senderType,
+      senderDisplayName: '',
+      content: String((row as any).content ?? ''),
+      wasMasked: false,
+      messageType: 'TEXT',
+      attachments: [],
+      createdAt: new Date(String((row as any).created_at)).toISOString(),
+      editedAt: null,
+      isDeleted: false,
+      readBy: Boolean((row as any).is_read) ? ['*'] : [],
+      reactions: [],
+    };
   }
 
   /**
@@ -381,6 +510,29 @@ export class MessageService {
     //   throw Errors.NOT_PARTICIPANT();
     // }
 
+    const supabase = getServiceSupabaseClient();
+
+    // Validate participant
+    const { data: convoRow, error: convoErr } = await supabase
+      .from('conversations')
+      .select('id, user_id, agent_id')
+      .eq('id', conversationId)
+      .maybeSingle();
+
+    if (convoErr) {
+      throw Errors.INTERNAL_ERROR('Failed to load conversation');
+    }
+
+    if (!convoRow) {
+      throw Errors.CONVERSATION_NOT_FOUND(conversationId);
+    }
+
+    const userId = String((convoRow as any).user_id);
+    const agentId = String((convoRow as any).agent_id);
+    if (readById !== userId && readById !== agentId) {
+      throw Errors.NOT_PARTICIPANT();
+    }
+
     const now = new Date();
 
     // Create read receipts (idempotent - skipDuplicates)
@@ -394,8 +546,18 @@ export class MessageService {
     //   skipDuplicates: true
     // });
 
-    // Placeholder count
-    const markedCount = messageIds.length;
+    const { data: updated, error: updateErr } = await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .in('id', messageIds)
+      .eq('conversation_id', conversationId)
+      .select('id');
+
+    if (updateErr) {
+      throw Errors.INTERNAL_ERROR('Failed to mark messages read');
+    }
+
+    const markedCount = (updated ?? []).length;
 
     // Audit log for read receipts
     await auditService.logMessagesRead(
@@ -421,8 +583,8 @@ export class MessageService {
    * Gets unread message count for a user in a conversation.
    */
   async getUnreadCount(
-    _conversationId: string,
-    _userId: string
+    conversationId: string,
+    userId: string
   ): Promise<number> {
     if (!config.features.readReceipts) {
       return 0;
@@ -442,16 +604,49 @@ export class MessageService {
     //   }
     // });
 
-    // Placeholder
-    return 0;
+    const supabase = getServiceSupabaseClient();
+
+    const { data: convoRow, error: convoErr } = await supabase
+      .from('conversations')
+      .select('user_id, agent_id')
+      .eq('id', conversationId)
+      .maybeSingle();
+
+    if (convoErr) {
+      throw Errors.INTERNAL_ERROR('Failed to load conversation');
+    }
+
+    if (!convoRow) {
+      throw Errors.CONVERSATION_NOT_FOUND(conversationId);
+    }
+
+    const convoUserId = String((convoRow as any).user_id);
+    const convoAgentId = String((convoRow as any).agent_id);
+    if (userId !== convoUserId && userId !== convoAgentId) {
+      throw Errors.NOT_PARTICIPANT();
+    }
+
+    const otherSenderType = userId === convoUserId ? 'agent' : 'user';
+    const { count, error } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('conversation_id', conversationId)
+      .eq('is_read', false)
+      .eq('sender_type', otherSenderType);
+
+    if (error) {
+      throw Errors.INTERNAL_ERROR('Failed to compute unread count');
+    }
+
+    return count ?? 0;
   }
 
   /**
    * Gets the last read message ID for a user in a conversation.
    */
   async getLastReadMessageId(
-    _conversationId: string,
-    _userId: string
+    conversationId: string,
+    userId: string
   ): Promise<string | null> {
     if (!config.features.readReceipts) {
       return null;
@@ -473,8 +668,44 @@ export class MessageService {
     //   }
     // });
 
-    // Placeholder
-    return null;
+    const supabase = getServiceSupabaseClient();
+
+    const { data: convoRow, error: convoErr } = await supabase
+      .from('conversations')
+      .select('user_id, agent_id')
+      .eq('id', conversationId)
+      .maybeSingle();
+
+    if (convoErr) {
+      throw Errors.INTERNAL_ERROR('Failed to load conversation');
+    }
+
+    if (!convoRow) {
+      throw Errors.CONVERSATION_NOT_FOUND(conversationId);
+    }
+
+    const convoUserId = String((convoRow as any).user_id);
+    const convoAgentId = String((convoRow as any).agent_id);
+    if (userId !== convoUserId && userId !== convoAgentId) {
+      throw Errors.NOT_PARTICIPANT();
+    }
+
+    const otherSenderType = userId === convoUserId ? 'agent' : 'user';
+    const { data: rows, error } = await supabase
+      .from('messages')
+      .select('id, created_at')
+      .eq('conversation_id', conversationId)
+      .eq('is_read', true)
+      .eq('sender_type', otherSenderType)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      throw Errors.INTERNAL_ERROR('Failed to load read status');
+    }
+
+    const row = rows?.[0];
+    return row?.id ? String((row as any).id) : null;
   }
 
   /**
@@ -482,9 +713,9 @@ export class MessageService {
    * More efficient than marking individual messages.
    */
   async markAllReadUpTo(
-    _conversationId: string,
-    _upToMessageId: string,
-    _readById: string
+    conversationId: string,
+    upToMessageId: string,
+    readById: string
   ): Promise<{ markedCount: number }> {
     if (!config.features.readReceipts) {
       return { markedCount: 0 };
@@ -518,8 +749,60 @@ export class MessageService {
     // const messageIds = unreadMessages.map(m => m.id);
     // return this.markMessagesRead(conversationId, messageIds, readById);
 
-    // Placeholder
-    return { markedCount: 0 };
+    const supabase = getServiceSupabaseClient();
+
+    const { data: convoRow, error: convoErr } = await supabase
+      .from('conversations')
+      .select('user_id, agent_id')
+      .eq('id', conversationId)
+      .maybeSingle();
+
+    if (convoErr) {
+      throw Errors.INTERNAL_ERROR('Failed to load conversation');
+    }
+
+    if (!convoRow) {
+      throw Errors.CONVERSATION_NOT_FOUND(conversationId);
+    }
+
+    const convoUserId = String((convoRow as any).user_id);
+    const convoAgentId = String((convoRow as any).agent_id);
+    if (readById !== convoUserId && readById !== convoAgentId) {
+      throw Errors.NOT_PARTICIPANT();
+    }
+
+    const otherSenderType = readById === convoUserId ? 'agent' : 'user';
+
+    const { data: target, error: targetErr } = await supabase
+      .from('messages')
+      .select('id, conversation_id, created_at')
+      .eq('id', upToMessageId)
+      .maybeSingle();
+
+    if (targetErr) {
+      throw Errors.INTERNAL_ERROR('Failed to load target message');
+    }
+
+    if (!target || String((target as any).conversation_id) !== conversationId) {
+      throw Errors.MESSAGE_NOT_FOUND(upToMessageId);
+    }
+
+    const targetCreatedAt = String((target as any).created_at);
+
+    const { data: updated, error: updateErr } = await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('conversation_id', conversationId)
+      .eq('sender_type', otherSenderType)
+      .eq('is_read', false)
+      .lte('created_at', targetCreatedAt)
+      .select('id');
+
+    if (updateErr) {
+      throw Errors.INTERNAL_ERROR('Failed to mark messages read');
+    }
+
+    return { markedCount: (updated ?? []).length };
   }
 
   /**
