@@ -14,7 +14,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@tripcomposer/contracts": "workspace:*",
     "zod": "^3.23.8",
     "uuid": "^9.0.1",
     "pino": "^8.19.0"
