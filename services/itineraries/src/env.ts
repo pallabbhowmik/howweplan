@@ -28,7 +28,7 @@ function readSecretFile(filename: string): string | undefined {
 function getJwtPublicKey(): string {
   const fileContent = readSecretFile('jwt-public.pem');
   if (fileContent) return fileContent;
-  const envKey = process.env.JWT_PUBLIC_KEY;
+  const envKey = process.env['JWT_PUBLIC_KEY'];
   return envKey ? envKey.replace(/\\n/g, '\n') : '';
 }
 

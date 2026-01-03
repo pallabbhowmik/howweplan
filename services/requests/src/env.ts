@@ -40,7 +40,7 @@ function getJwtPublicKey(): string {
   const fileContent = readSecretFile('jwt-public.pem');
   if (fileContent) return fileContent;
   
-  const envKey = process.env.JWT_PUBLIC_KEY;
+  const envKey = process.env['JWT_PUBLIC_KEY'];
   if (envKey) return envKey.replace(/\\n/g, '\n');
   
   return '';

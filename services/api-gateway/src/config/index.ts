@@ -37,7 +37,7 @@ function getJwtPublicKey(): string {
   if (fileContent) return fileContent;
   
   // Fall back to environment variable
-  const envKey = process.env.JWT_PUBLIC_KEY;
+  const envKey = process.env['JWT_PUBLIC_KEY'];
   if (envKey) return envKey.replace(/\\n/g, '\n');
   
   return '';

@@ -38,7 +38,7 @@ function readSecretFile(filename: string): string | undefined {
 function getJwtPublicKey(): string {
   const fileContent = readSecretFile('jwt-public.pem');
   if (fileContent) return fileContent;
-  const envKey = process.env.JWT_PUBLIC_KEY;
+  const envKey = process.env['JWT_PUBLIC_KEY'];
   return envKey ? envKey.replace(/\\n/g, '\n') : '';
 }
 
@@ -275,7 +275,7 @@ function validateEnv(): Env {
   if (result.data.NODE_ENV === 'production') {
     const prodErrors: string[] = [];
 
-    if (result.data.JWT_SECRET.includes('development')) {
+    if (result.data.JWT_SECRET?.includes('development')) {
       prodErrors.push('JWT_SECRET contains "development" - use a secure random value');
     }
 
