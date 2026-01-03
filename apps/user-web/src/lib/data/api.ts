@@ -294,6 +294,16 @@ async function gatewayRequest<T>(
   return response.json();
 }
 
+function unwrapList<T = any>(result: any, listKey?: string): T[] {
+  const data = result?.data ?? result;
+
+  if (Array.isArray(data)) return data as T[];
+  if (listKey && Array.isArray(data?.[listKey])) return data[listKey] as T[];
+  if (listKey && Array.isArray(result?.[listKey])) return result[listKey] as T[];
+
+  return [];
+}
+
 function mapRequestFromApi(r: any): TravelRequest {
   return {
     id: r.id,
@@ -504,13 +514,7 @@ export async function changeUserPassword(
 export async function fetchUserRequests(userId: string): Promise<TravelRequest[]> {
   try {
     const result = await gatewayRequest<any>(`/api/requests/api/v1/requests`);
-    const requests = result.data || result || [];
-    
-    if (!Array.isArray(requests)) {
-      console.warn('Unexpected response format from requests API:', result);
-      return [];
-    }
-    
+    const requests = unwrapList<any>(result, 'requests');
     return requests.map(mapRequestFromApi);
   } catch (error) {
     console.error('Error fetching requests:', error);
@@ -596,14 +600,8 @@ export async function cancelTravelRequest(requestId: string): Promise<void> {
 
 export async function fetchUserBookings(userId: string): Promise<Booking[]> {
   try {
-    const result = await gatewayRequest<any>(`/api/bookings/user/${userId}`);
-    const bookings = result.data || result || [];
-    
-    if (!Array.isArray(bookings)) {
-      console.warn('Unexpected response format from bookings API:', result);
-      return [];
-    }
-    
+    const result = await gatewayRequest<any>(`/api/booking-payments/api/v1/bookings`);
+    const bookings = unwrapList<any>(result, 'bookings');
     return bookings.map(mapBookingFromApi);
   } catch (error) {
     console.error('Error fetching bookings:', error);
@@ -613,7 +611,7 @@ export async function fetchUserBookings(userId: string): Promise<Booking[]> {
 
 export async function fetchBooking(bookingId: string): Promise<Booking | null> {
   try {
-    const result = await gatewayRequest<any>(`/api/bookings/${bookingId}`);
+    const result = await gatewayRequest<any>(`/api/booking-payments/api/v1/bookings/${bookingId}`);
     const data = result.data || result;
     return mapBookingFromApi(data);
   } catch (error) {
@@ -628,14 +626,8 @@ export async function fetchBooking(bookingId: string): Promise<Booking | null> {
 
 export async function fetchUserNotifications(userId: string, limit = 10): Promise<Notification[]> {
   try {
-    const result = await gatewayRequest<any>(`/api/notifications/user/${userId}?limit=${limit}`);
-    const notifications = result.data || result || [];
-    
-    if (!Array.isArray(notifications)) {
-      console.warn('Unexpected response format from notifications API:', result);
-      return [];
-    }
-    
+    const result = await gatewayRequest<any>(`/api/notifications/api/v1/notifications?limit=${limit}`);
+    const notifications = unwrapList<any>(result, 'notifications');
     return notifications.map(mapNotificationFromApi);
   } catch (error) {
     console.error('Error fetching notifications:', error);
@@ -645,8 +637,8 @@ export async function fetchUserNotifications(userId: string, limit = 10): Promis
 
 export async function markNotificationRead(notificationId: string): Promise<void> {
   try {
-    await gatewayRequest(`/api/notifications/${notificationId}/read`, {
-      method: 'PUT',
+    await gatewayRequest(`/api/notifications/api/v1/notifications/${notificationId}/read`, {
+      method: 'POST',
     });
   } catch (error) {
     console.error('Error marking notification as read:', error);

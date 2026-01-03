@@ -304,6 +304,42 @@ async function tryFetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function getAgentIdentity(agentId: string): Promise<AgentIdentity | null> {
+  // If authenticated, prefer backend (derives agent/user identity from token).
+  if (getAccessToken()) {
+    try {
+      const me = await tryFetchJson<{ data: {
+        agentId: string;
+        userId: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        avatarUrl: string | null;
+        tier: string | null;
+        rating: number | null;
+        totalReviews: number;
+        isVerified: boolean;
+      } }>('/api/matching/api/v1/agent/me');
+
+      const d = (me as any)?.data ?? me;
+      if (d?.agentId && d?.userId) {
+        return {
+          agentId: String(d.agentId),
+          userId: String(d.userId),
+          email: String(d.email ?? ''),
+          firstName: String(d.firstName ?? ''),
+          lastName: String(d.lastName ?? ''),
+          avatarUrl: (d.avatarUrl ?? null) as string | null,
+          tier: String(d.tier ?? ''),
+          rating: d.rating === null || d.rating === undefined ? null : Number(d.rating),
+          totalReviews: Number(d.totalReviews ?? 0),
+          isVerified: Boolean(d.isVerified),
+        };
+      }
+    } catch {
+      // fall back to demo identity
+    }
+  }
+
   const agent = demoAgents.find((a) => a.agentId === agentId);
   if (!agent) return null;
 
@@ -356,6 +392,31 @@ export type AgentRequestMatch = {
 };
 
 export async function getAgentStats(agentId: string): Promise<AgentStatsSummary> {
+  // If authenticated, prefer backend-backed stats.
+  // Matches: from matching-service; Messages: from messaging-service.
+  if (getAccessToken()) {
+    try {
+      const [matches, conversations] = await Promise.all([
+        listMatchedRequests(agentId),
+        listConversations(agentId),
+      ]);
+
+      const pendingMatches = matches.filter((m) => m.status === 'pending').length;
+      const acceptedMatches = matches.filter((m) => m.status === 'accepted').length;
+
+      const unreadMessages = conversations.reduce((acc, c) => acc + Number(c.unreadCount ?? 0), 0);
+
+      return {
+        pendingMatches,
+        acceptedMatches,
+        activeBookings: 0,
+        unreadMessages,
+      };
+    } catch {
+      // fall back to local mock
+    }
+  }
+
   const state = loadState();
 
   const matches = Object.values(state.matches).filter((m) => m.agent_id === agentId);
@@ -383,6 +444,17 @@ export async function getAgentStats(agentId: string): Promise<AgentStatsSummary>
 }
 
 export async function listMatchedRequests(agentId: string): Promise<AgentRequestMatch[]> {
+  // If authenticated, prefer backend matching service.
+  // NOTE: backend derives agentId from the JWT; function arg is retained for UI compatibility.
+  if (getAccessToken()) {
+    try {
+      const result = await tryFetchJson<{ items: AgentRequestMatch[] }>('/api/matching/api/v1/matches');
+      return Array.isArray(result?.items) ? result.items : [];
+    } catch {
+      // fall back to local mock state
+    }
+  }
+
   const state = loadState();
   const matches = Object.values(state.matches)
     .filter((m) => m.agent_id === agentId)
@@ -409,6 +481,17 @@ export async function listMatchedRequests(agentId: string): Promise<AgentRequest
 }
 
 export async function acceptMatch(matchId: string): Promise<void> {
+  if (getAccessToken()) {
+    try {
+      await tryFetchJson('/api/matching/api/v1/matches/' + encodeURIComponent(matchId) + '/accept', {
+        method: 'POST',
+      });
+      return;
+    } catch {
+      // fall back to local mock
+    }
+  }
+
   const state = loadState();
   const match = state.matches[matchId];
   if (!match) return;
@@ -417,6 +500,18 @@ export async function acceptMatch(matchId: string): Promise<void> {
 }
 
 export async function declineMatch(matchId: string, declineReason?: string): Promise<void> {
+  if (getAccessToken()) {
+    try {
+      await tryFetchJson('/api/matching/api/v1/matches/' + encodeURIComponent(matchId) + '/decline', {
+        method: 'POST',
+        body: JSON.stringify({ reason: declineReason ?? null }),
+      });
+      return;
+    } catch {
+      // fall back to local mock
+    }
+  }
+
   const state = loadState();
   const match = state.matches[matchId];
   if (!match) return;

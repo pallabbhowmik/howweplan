@@ -32,7 +32,7 @@ export const appConfig = {
 // Gateway routes:
 //   /api/identity/*      → Identity Service
 //   /api/requests/*      → Requests Service
-//   /api/bookings/*      → Booking-Payments Service
+//   /api/booking-payments/* → Booking-Payments Service
 //   /api/messaging/*     → Messaging Service
 //   /api/matching/*      → Matching Service
 //   /api/itineraries/*   → Itineraries Service

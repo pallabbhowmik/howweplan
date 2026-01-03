@@ -12,7 +12,7 @@
  *   /api/requests/*      → Requests Service
  *   /api/itineraries/*   → Itineraries Service
  *   /api/matching/*      → Matching Service
- *   /api/bookings/*      → Booking-Payments Service
+ *   /api/booking-payments/* → Booking-Payments Service
  *   /api/messaging/*     → Messaging Service
  *   /api/notifications/* → Notifications Service
  *   /api/disputes/*      → Disputes Service
@@ -330,20 +330,20 @@ export const bookingsApi = {
   /**
    * List user's bookings
    */
-  listUserBookings: (userId: string) =>
-    apiRequest(`/api/bookings/user/${userId}`),
+  listUserBookings: (_userId?: string) =>
+    apiRequest(`/api/booking-payments/api/v1/bookings`),
   
   /**
    * Get specific booking
    */
   getBooking: (bookingId: string) =>
-    apiRequest(`/api/bookings/${bookingId}`),
+    apiRequest(`/api/booking-payments/api/v1/bookings/${bookingId}`),
   
   /**
    * Confirm booking
    */
   confirmBooking: (bookingId: string, data: any) =>
-    apiRequest(`/api/bookings/${bookingId}/confirm`, {
+    apiRequest(`/api/booking-payments/api/v1/bookings/${bookingId}/confirm`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -352,7 +352,7 @@ export const bookingsApi = {
    * Cancel booking
    */
   cancelBooking: (bookingId: string, reason?: string) =>
-    apiRequest(`/api/bookings/${bookingId}/cancel`, {
+    apiRequest(`/api/booking-payments/api/v1/bookings/${bookingId}/cancel`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),
@@ -366,15 +366,15 @@ export const notificationsApi = {
   /**
    * List user's notifications
    */
-  listNotifications: (userId: string, limit = 20) =>
-    apiRequest(`/api/notifications/user/${userId}?limit=${limit}`),
+  listNotifications: (_userId?: string, limit = 20) =>
+    apiRequest(`/api/notifications/api/v1/notifications?limit=${limit}`),
   
   /**
    * Mark notification as read
    */
   markAsRead: (notificationId: string) =>
-    apiRequest(`/api/notifications/${notificationId}/read`, {
-      method: 'PUT',
+    apiRequest(`/api/notifications/api/v1/notifications/${notificationId}/read`, {
+      method: 'POST',
     }),
   
   /**

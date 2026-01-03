@@ -17,7 +17,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 // ❌ FORBIDDEN - ALL data operations must go through Gateway API:
 //   - User profile CRUD → Use Gateway /api/identity/*
 //   - Travel requests CRUD → Use Gateway /api/requests/*
-//   - Bookings queries → Use Gateway /api/bookings/*
+//   - Bookings queries → Use Gateway /api/booking-payments/*
 //   - Messages CRUD → Use Gateway /api/messaging/*
 //   - Notifications → Use Gateway /api/notifications/*
 //   - Any database queries → Use Gateway API

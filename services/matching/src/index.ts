@@ -14,6 +14,7 @@ import { getEventBus } from './events/index.js';
 import { createEventHandlers } from './handlers/index.js';
 import { createMatchingEngine } from './engine/index.js';
 import { startServer, initWebhookRouter } from './routes/index.js';
+import { initializePool, closePool } from './db/connection.js';
 
 /**
  * Service state
@@ -31,6 +32,9 @@ async function start(): Promise<void> {
   }, 'Starting matching service');
 
   try {
+    // Initialize DB pool
+    initializePool();
+
     // Connect to event bus
     const eventBus = getEventBus();
     await eventBus.connect();
@@ -89,6 +93,10 @@ function setupShutdownHandlers(cleanupInterval: NodeJS.Timeout): void {
       const eventBus = getEventBus();
       await eventBus.disconnect();
       logger.info('Event bus disconnected');
+
+      // Close DB pool
+      await closePool();
+      logger.info('Database pool closed');
 
       logger.info('Matching service shutdown complete');
       process.exit(0);
