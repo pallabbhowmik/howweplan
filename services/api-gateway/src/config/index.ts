@@ -56,7 +56,8 @@ export const config = {
     // Algorithm: RS256 (asymmetric) or HS256 (symmetric)
     algorithm: (process.env.JWT_ALGORITHM || 'RS256') as 'RS256' | 'HS256',
     issuer: process.env.JWT_ISSUER || 'tripcomposer-identity',
-    audience: process.env.JWT_AUDIENCE || 'tripcomposer-services',
+    // Must match identity service's JWT_AUDIENCE (default: tripcomposer-platform)
+    audience: process.env.JWT_AUDIENCE || 'tripcomposer-platform',
     accessTokenExpiry: '15m',
     refreshTokenExpiry: '7d',
   },

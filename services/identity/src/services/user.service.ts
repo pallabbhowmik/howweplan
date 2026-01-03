@@ -258,6 +258,7 @@ export async function registerUser(
   // Create tokens
   const tokens = await createTokenPair(
     user.id,
+    user.email,
     user.role,
     user.status,
     role === UserRole.AGENT ? AgentVerificationStatus.NOT_SUBMITTED : null
@@ -419,7 +420,7 @@ export async function authenticateUser(
     : null;
 
   // Create tokens
-  const tokens = await createTokenPair(user.id, user.role, user.status, agentVerificationStatus);
+  const tokens = await createTokenPair(user.id, user.email, user.role, user.status, agentVerificationStatus);
 
   // Emit login event
   await EventFactory.userLoggedIn(

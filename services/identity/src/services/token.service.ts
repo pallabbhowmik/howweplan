@@ -88,6 +88,7 @@ const REFRESH_TOKEN_EXPIRY_SECONDS = parseDuration(env.JWT_REFRESH_TOKEN_EXPIRY)
 
 interface AccessTokenPayload {
   sub: string;
+  email: string; // User email for gateway forwarding
   role: UserRole;
   status: AccountStatus;
   agentVerificationStatus: AgentVerificationStatus | null;
@@ -112,6 +113,7 @@ interface RefreshTokenPayload {
  */
 export function createAccessToken(
   userId: string,
+  email: string,
   role: UserRole,
   status: AccountStatus,
   agentVerificationStatus: AgentVerificationStatus | null,
@@ -119,6 +121,7 @@ export function createAccessToken(
 ): string {
   const payload: AccessTokenPayload = {
     sub: userId,
+    email,
     role,
     status,
     agentVerificationStatus,
@@ -186,11 +189,12 @@ export async function createRefreshToken(userId: string): Promise<string> {
  */
 export async function createTokenPair(
   userId: string,
+  email: string,
   role: UserRole,
   status: AccountStatus,
   agentVerificationStatus: AgentVerificationStatus | null
 ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
-  const accessToken = createAccessToken(userId, role, status, agentVerificationStatus);
+  const accessToken = createAccessToken(userId, email, role, status, agentVerificationStatus);
   const refreshToken = await createRefreshToken(userId);
 
   return {

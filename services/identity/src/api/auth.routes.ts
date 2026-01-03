@@ -223,6 +223,7 @@ router.post(
       // Create new tokens
       const tokens = await createTokenPair(
         userWithProfile.id,
+        userWithProfile.email,
         userWithProfile.role,
         userWithProfile.status,
         userWithProfile.agentProfile?.verificationStatus ?? null
