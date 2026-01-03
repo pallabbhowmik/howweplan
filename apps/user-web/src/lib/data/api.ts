@@ -1,4 +1,5 @@
 import { getSupabaseClient, getSessionToken } from '@/lib/supabase/client';
+import { getAccessToken } from '@/lib/api/auth';
 import { apiConfig } from '@/config';
 
 // ============================================================================
@@ -411,7 +412,7 @@ export async function changeUserPassword(userId: string, currentPassword: string
 // ============================================================================
 
 export async function fetchUserRequests(userId: string): Promise<TravelRequest[]> {
-  const token = await getSessionToken();
+  const token = getAccessToken();
   
   // If not authenticated, try Supabase fallback for read-only data
   if (!token) {
@@ -534,7 +535,7 @@ async function fetchUserRequestsFromSupabase(userId: string): Promise<TravelRequ
 }
 
 export async function fetchRequest(requestId: string): Promise<TravelRequest | null> {
-  const token = await getSessionToken();
+  const token = getAccessToken();
   
   // Try gateway first if authenticated
   if (token) {
@@ -650,8 +651,8 @@ export interface CreateTravelRequestInput {
 }
 
 export async function createTravelRequest(input: CreateTravelRequestInput): Promise<TravelRequest> {
-  // Get auth token for API gateway
-  const token = await getSessionToken();
+  // Get auth token for API gateway (not Supabase token!)
+  const token = getAccessToken();
   if (!token) {
     throw new Error('Not authenticated. Please log in to create a request.');
   }
@@ -754,7 +755,7 @@ export async function updateTravelRequest(_requestId: string, _input: UpdateTrav
 
 // Cancel a travel request
 export async function cancelTravelRequest(requestId: string): Promise<void> {
-  const token = await getSessionToken();
+  const token = getAccessToken();
   if (!token) {
     throw new Error('Not authenticated. Please log in to cancel a request.');
   }
@@ -959,7 +960,7 @@ export async function markNotificationRead(notificationId: string): Promise<void
 // ============================================================================
 
 export async function fetchDashboardStats(userId: string): Promise<DashboardStats> {
-  const token = await getSessionToken();
+  const token = getAccessToken();
   
   // Try to get requests from gateway
   let requests: TravelRequest[] = [];
