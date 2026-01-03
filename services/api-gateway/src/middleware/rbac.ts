@@ -77,20 +77,28 @@ const ROUTE_PERMISSIONS: RoutePermission[] = [
   // Matching Service
   { path: '/api/matching', method: '*', roles: ['agent', 'system'] },
   
-  // Booking & Payments
+  // Booking & Payments (supports both legacy and /api/v1/ paths)
   { path: '/api/booking-payments/bookings', method: 'GET', roles: ['user'] },
   { path: '/api/booking-payments/bookings', method: 'POST', roles: ['user'] },
   { path: /^\/api\/booking-payments\/bookings\/[^/]+$/, method: 'GET', roles: ['user'] },
+  { path: '/api/booking-payments/api/v1/bookings', method: 'GET', roles: ['user'] },
+  { path: '/api/booking-payments/api/v1/bookings', method: 'POST', roles: ['user'] },
+  { path: /^\/api\/booking-payments\/api\/v1\/bookings\/[^/]+/, method: 'GET', roles: ['user'] },
+  { path: /^\/api\/booking-payments\/api\/v1\/bookings\/[^/]+\/cancel$/, method: 'POST', roles: ['user'] },
+  { path: /^\/api\/booking-payments\/api\/v1\/bookings\/[^/]+\/checkout$/, method: 'POST', roles: ['user'] },
   { path: '/api/booking-payments/payments', method: '*', roles: ['user'] },
+  { path: '/api/booking-payments/api/v1/payments', method: '*', roles: ['user'] },
   { path: '/api/booking-payments/admin', method: '*', roles: ['admin'] },
   
   // Messaging Service
   { path: '/api/messaging', method: '*', roles: ['user'] },
   
-  // Notifications Service
+  // Notifications Service (supports both legacy and /api/v1/ paths)
   { path: '/api/notifications', method: 'GET', roles: ['user'] },
   { path: '/api/notifications', method: 'POST', roles: ['system'] },
   { path: /^\/api\/notifications\/[^/]+\/read$/, method: 'POST', roles: ['user'] },
+  { path: '/api/notifications/api/v1/notifications', method: 'GET', roles: ['user'] },
+  { path: /^\/api\/notifications\/api\/v1\/notifications\/[^/]+\/read$/, method: 'POST', roles: ['user'] },
   
   // Disputes Service
   { path: '/api/disputes', method: 'GET', roles: ['user'] },
@@ -145,16 +153,30 @@ function findRoutePermission(method: string, path: string): RoutePermission | nu
  * RBAC Authorization Middleware
  */
 export function rbacMiddleware(req: Request, res: Response, next: NextFunction): void {
-  // Skip for unauthenticated requests (auth middleware handles that)
-  if (!req.user) {
+  const permission = findRoutePermission(req.method, req.path);
+
+  // If no specific permission defined, allow through (public or handled by service)
+  if (!permission) {
     return next();
   }
 
-  const permission = findRoutePermission(req.method, req.path);
+  // Route has defined permissions - authentication is required
+  if (!req.user) {
+    logger.warn({
+      timestamp: new Date().toISOString(),
+      requestId: req.requestId,
+      method: req.method,
+      path: req.path,
+      ip: req.ip || 'unknown',
+      error: 'Authentication required for protected route',
+    });
 
-  // If no specific permission defined, allow authenticated users
-  if (!permission) {
-    return next();
+    res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Authentication required',
+      code: 'AUTH_REQUIRED',
+    });
+    return;
   }
 
   // Check role access
