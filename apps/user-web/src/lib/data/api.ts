@@ -2,6 +2,11 @@ import { getSupabaseClient, getSessionToken } from '@/lib/supabase/client';
 import { getAccessToken } from '@/lib/api/auth';
 import { apiConfig } from '@/config';
 
+// Normalize API base URL - remove trailing slashes and /api suffix to avoid duplication
+const API_BASE = apiConfig.baseUrl
+  .replace(/\/+$/, '')      // Remove trailing slashes
+  .replace(/\/api(\/v1)?$/, ''); // Remove /api or /api/v1 suffix if present
+
 // ============================================================================
 // ⚠️ ARCHITECTURE VIOLATION WARNING ⚠️
 // ============================================================================
@@ -420,7 +425,7 @@ export async function fetchUserRequests(userId: string): Promise<TravelRequest[]
   }
 
   try {
-    const response = await fetch(`${apiConfig.baseUrl}/api/requests/api/v1/requests`, {
+    const response = await fetch(`${API_BASE}/api/requests/api/v1/requests`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -540,7 +545,7 @@ export async function fetchRequest(requestId: string): Promise<TravelRequest | n
   // Try gateway first if authenticated
   if (token) {
     try {
-      const response = await fetch(`${apiConfig.baseUrl}/api/requests/api/v1/requests/${requestId}`, {
+      const response = await fetch(`${API_BASE}/api/requests/api/v1/requests/${requestId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -690,7 +695,7 @@ export async function createTravelRequest(input: CreateTravelRequestInput): Prom
     notes: [input.preferences, input.specialRequests].filter(Boolean).join('\n') || null,
   };
 
-  const response = await fetch(`${apiConfig.baseUrl}/api/requests/api/v1/requests`, {
+  const response = await fetch(`${API_BASE}/api/requests/api/v1/requests`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -760,7 +765,7 @@ export async function cancelTravelRequest(requestId: string): Promise<void> {
     throw new Error('Not authenticated. Please log in to cancel a request.');
   }
 
-  const response = await fetch(`${apiConfig.baseUrl}/api/requests/api/v1/requests/${requestId}/cancel`, {
+  const response = await fetch(`${API_BASE}/api/requests/api/v1/requests/${requestId}/cancel`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
