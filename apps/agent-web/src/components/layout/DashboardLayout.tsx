@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import {
   LayoutDashboard,
@@ -24,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAgentSession } from '@/lib/agent/session';
 import { getAgentIdentity, getAgentStats, type AgentIdentity, type AgentStatsSummary } from '@/lib/data/agent';
+import { clearAuthData, ensureValidToken, getAccessToken, logout as apiLogout } from '@/lib/api/auth';
 
 interface NavItem {
   label: string;
@@ -214,6 +216,7 @@ function Header({
   agents: ReadonlyArray<{ agentId: string; firstName: string; lastName: string; email: string }>;
   setAgentById: (id: string) => void;
 }) {
+  const router = useRouter();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -345,7 +348,23 @@ function Header({
                 ))}
               </div>
               <div className="border-t border-gray-100 py-1">
-                <button className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full">
+                <button
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full"
+                  onClick={async () => {
+                    try {
+                      const token = getAccessToken();
+                      if (token) await apiLogout(token);
+                    } finally {
+                      clearAuthData();
+                      // Best-effort cookie clear
+                      if (typeof document !== 'undefined') {
+                        document.cookie = 'tc-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+                      }
+                      setShowUserMenu(false);
+                      router.push('/login');
+                    }
+                  }}
+                >
                   <LogOut className="h-4 w-4" />
                   Sign Out
                 </button>
@@ -374,6 +393,8 @@ function NotificationItem({ title, message, time, unread }: { title: string; mes
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const { agent, agents, setAgentById } = useAgentSession();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -392,6 +413,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       messages: stats.unreadMessages,
     };
   }, [stats.pendingMatches, stats.unreadMessages]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const guard = async () => {
+      try {
+        const ok = await ensureValidToken();
+        if (!ok && !cancelled) {
+          router.push('/login?redirect=' + encodeURIComponent(pathname));
+        }
+      } catch {
+        if (!cancelled) {
+          router.push('/login?redirect=' + encodeURIComponent(pathname));
+        }
+      }
+    };
+
+    guard();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, router]);
 
   useEffect(() => {
     let cancelled = false;

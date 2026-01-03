@@ -2,13 +2,14 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { getAccessToken } from '@/lib/api/auth';
 
 export default function Home() {
   const router = useRouter();
   
   useEffect(() => {
-    // Redirect to dashboard
-    router.push('/dashboard');
+    const token = getAccessToken();
+    router.push(token ? '/dashboard' : '/login');
   }, [router]);
 
   return (

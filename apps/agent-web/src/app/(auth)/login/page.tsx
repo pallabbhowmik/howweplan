@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert } from '@/components/ui/alert';
+import { login, storeAuthTokens } from '@/lib/api/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,12 +35,21 @@ export default function LoginPage() {
     setError(null);
     setIsLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const response = await login({ email, password });
+      storeAuthTokens(response);
 
-    if (email && password) {
+      // Optional: also mirror token into a cookie so other parts of the app
+      // can access it if they rely on cookies.
+      if (typeof document !== 'undefined') {
+        const expires = new Date(Date.now() + response.expiresIn * 1000).toUTCString();
+        const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = `tc-auth-token=${response.accessToken}; path=/; expires=${expires}; SameSite=Lax${secure}`;
+      }
+
       router.push('/dashboard');
-    } else {
-      setError('Please enter your email and password');
+    } catch (e: any) {
+      setError(e?.message ?? 'Login failed');
       setIsLoading(false);
     }
   };

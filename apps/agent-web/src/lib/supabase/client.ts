@@ -9,15 +9,14 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 // 
 // ✅ ALLOWED:
 //   1. Authentication (supabase.auth.*)
-//   2. Session management
-//   3. Public read-only reference data (destinations, countries)
+//   2. Session management / refresh
 // 
 // ❌ FORBIDDEN:
-//   - Agent profile queries → Use Identity Service API
-//   - Match operations → Use Matching Service API
-//   - Message operations → Use Messaging Service API
-//   - Booking queries → Use Booking-Payments Service API
-//   - Any writes to database → Use backend services
+//   - ANY database reads/writes (supabase.from / rpc / storage / realtime)
+//   - Agent profile queries → Use Identity Service (via API Gateway)
+//   - Match operations → Use Matching Service (via API Gateway)
+//   - Message operations → Use Messaging Service (via API Gateway)
+//   - Booking queries → Use Booking-Payments Service (via API Gateway)
 // 
 // See docs/FRONTEND-DATA-ACCESS-POLICY.md for complete policy.
 // ============================================================================

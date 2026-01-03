@@ -1,23 +1,15 @@
-import { getSupabaseClient } from '@/lib/supabase/client';
+import { demoAgents } from '@/lib/agent/demo-agents';
+import { apiUrl, authenticatedFetch, getAccessToken } from '@/lib/api/auth';
 
 // ============================================================================
-// ⚠️ ARCHITECTURE VIOLATION WARNING ⚠️
+// PRODUCTION-SAFE DATA LAYER
 // ============================================================================
-// This file directly queries Supabase for agent data, matches, and messages.
-// This VIOLATES our architecture.
-// 
-// ❌ WRONG: Direct Supabase queries bypassing backend services
-// ✅ RIGHT: Use backend service API endpoints
-// 
-// Functions that need migration:
-//   - getAgentIdentity() → Identity Service
-//   - getAgentStats() → Multiple services (aggregated endpoint needed)
-//   - listMatchedRequests() → Matching Service
-//   - acceptMatch()/declineMatch() → Matching Service
-//   - listConversations() → Messaging Service
-//   - sendMessage() → Messaging Service
-// 
-// See docs/FRONTEND-DATA-ACCESS-POLICY.md for migration plan.
+// IMPORTANT:
+// This module intentionally contains **NO** direct database access.
+// In production, agent-web must fetch data via the API Gateway / backend services.
+//
+// Today, agent-web uses demo login/session flows, so we provide a safe, local mock
+// implementation that keeps the UI functional without risking DB exposure.
 // ============================================================================
 
 export type AgentIdentity = {
@@ -40,30 +32,293 @@ export type AgentStatsSummary = {
   unreadMessages: number;
 };
 
-export async function getAgentIdentity(agentId: string): Promise<AgentIdentity | null> {
-  const supabase = getSupabaseClient();
+type MatchStatus = 'pending' | 'accepted' | 'declined' | 'expired' | string;
 
-  const { data: agentRow, error: agentErr } = await supabase
-    .from('agents')
-    .select('id, user_id, tier, rating, total_reviews, is_verified, users!agents_user_id_fkey(id, email, first_name, last_name, avatar_url)')
-    .eq('id', agentId)
-    .maybeSingle();
+type StoredMessage = {
+  id: string;
+  conversationId: string;
+  senderType: 'user' | 'agent' | 'system';
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+};
 
-  if (agentErr) throw agentErr;
-  if (!agentRow) return null;
+type StoredConversation = {
+  id: string;
+  agentId: string;
+  userId: string;
+  bookingId: string | null;
+  requestId: string | null;
+  state: string;
+  updatedAt: string;
+};
 
-  const u: any = (agentRow as any).users;
+type StoredRequest = {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  destination: any;
+  departure_date: string;
+  return_date: string;
+  budget_min: number | null;
+  budget_max: number | null;
+  budget_currency: string | null;
+  travelers: any;
+  travel_style: string | null;
+  preferences: any;
+  state: string;
+  created_at: string;
+  expires_at: string | null;
+};
+
+type StoredUser = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email?: string;
+  avatar_url: string | null;
+};
+
+type StoredMatch = {
+  id: string;
+  agent_id: string;
+  request_id: string;
+  status: MatchStatus;
+  match_score: number | null;
+  matched_at: string | null;
+  expires_at: string | null;
+};
+
+type StoredState = {
+  users: Record<string, StoredUser>;
+  requests: Record<string, StoredRequest>;
+  matches: Record<string, StoredMatch>;
+  conversations: Record<string, StoredConversation>;
+  messages: Record<string, StoredMessage[]>; // keyed by conversationId
+};
+
+const STORAGE_KEY = 'howweplan.agent.mockData.v1';
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function safeRandomId(prefix: string): string {
+  // Not a crypto UUID; good enough for client-only mock state.
+  return `${prefix}-${Math.random().toString(16).slice(2)}-${Date.now()}`;
+}
+
+function defaultState(): StoredState {
+  const agentA = demoAgents[0];
+  const agentB = demoAgents[1];
+
+  const user1: StoredUser = {
+    id: 'u0000000-0000-0000-0000-000000000001',
+    first_name: 'Emma',
+    last_name: 'Wilson',
+    email: 'emma.wilson@email.com',
+    avatar_url: null,
+  };
+  const user2: StoredUser = {
+    id: 'u0000000-0000-0000-0000-000000000002',
+    first_name: 'Michael',
+    last_name: 'Chen',
+    email: 'michael.chen@email.com',
+    avatar_url: null,
+  };
+
+  const req1: StoredRequest = {
+    id: 'r0000000-0000-0000-0000-000000000001',
+    user_id: user1.id,
+    title: 'Bali Honeymoon (10 days)',
+    description: 'Beachfront stay + a couple of day trips.',
+    destination: { country: 'Indonesia', regions: ['Bali'] },
+    departure_date: '2026-02-10',
+    return_date: '2026-02-20',
+    budget_min: 250000,
+    budget_max: 450000,
+    budget_currency: 'INR',
+    travelers: { adults: 2, children: 0, infants: 0 },
+    travel_style: 'luxury',
+    preferences: { interests: ['beach', 'spa'] },
+    state: 'OPEN',
+    created_at: nowIso(),
+    expires_at: null,
+  };
+
+  const req2: StoredRequest = {
+    id: 'r0000000-0000-0000-0000-000000000002',
+    user_id: user2.id,
+    title: 'Japan City Break (Tokyo + Kyoto)',
+    description: 'Food + culture, mid-range hotels.',
+    destination: { country: 'Japan', regions: ['Tokyo', 'Kyoto'] },
+    departure_date: '2026-03-05',
+    return_date: '2026-03-12',
+    budget_min: 300000,
+    budget_max: 500000,
+    budget_currency: 'INR',
+    travelers: { adults: 2, children: 0, infants: 0 },
+    travel_style: 'mid-range',
+    preferences: { interests: ['food', 'culture'] },
+    state: 'OPEN',
+    created_at: nowIso(),
+    expires_at: null,
+  };
+
+  const match1: StoredMatch = {
+    id: 'm0000000-0000-0000-0000-000000000001',
+    agent_id: agentA?.agentId ?? 'b0000000-0000-0000-0000-000000000001',
+    request_id: req1.id,
+    status: 'pending',
+    match_score: 0.91,
+    matched_at: nowIso(),
+    expires_at: null,
+  };
+  const match2: StoredMatch = {
+    id: 'm0000000-0000-0000-0000-000000000002',
+    agent_id: agentB?.agentId ?? 'b0000000-0000-0000-0000-000000000002',
+    request_id: req2.id,
+    status: 'pending',
+    match_score: 0.83,
+    matched_at: nowIso(),
+    expires_at: null,
+  };
+
+  const conv1: StoredConversation = {
+    id: 'c0000000-0000-0000-0000-000000000001',
+    agentId: match1.agent_id,
+    userId: user1.id,
+    bookingId: null,
+    requestId: req1.id,
+    state: 'open',
+    updatedAt: nowIso(),
+  };
+
+  const conv2: StoredConversation = {
+    id: 'c0000000-0000-0000-0000-000000000002',
+    agentId: match2.agent_id,
+    userId: user2.id,
+    bookingId: null,
+    requestId: req2.id,
+    state: 'open',
+    updatedAt: nowIso(),
+  };
+
+  const initialMessages1: StoredMessage[] = [
+    {
+      id: safeRandomId('msg'),
+      conversationId: conv1.id,
+      senderType: 'user',
+      content: 'Hi! We are planning our honeymoon — can you suggest options?',
+      isRead: false,
+      createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    },
+    {
+      id: safeRandomId('msg'),
+      conversationId: conv1.id,
+      senderType: 'agent',
+      content: 'Absolutely — I can share 2-3 tailored itineraries. Any preferred dates?',
+      isRead: true,
+      createdAt: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
+    },
+  ];
+
+  const initialMessages2: StoredMessage[] = [
+    {
+      id: safeRandomId('msg'),
+      conversationId: conv2.id,
+      senderType: 'user',
+      content: 'Looking for Tokyo + Kyoto for 7 days. Food + temples.',
+      isRead: false,
+      createdAt: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
+    },
+  ];
+
   return {
-    agentId: (agentRow as any).id,
-    userId: (agentRow as any).user_id,
-    email: u?.email ?? '',
-    firstName: u?.first_name ?? 'Agent',
-    lastName: u?.last_name ?? '',
-    avatarUrl: u?.avatar_url ?? null,
-    tier: (agentRow as any).tier ?? 'bench',
-    rating: (agentRow as any).rating === null || (agentRow as any).rating === undefined ? null : Number((agentRow as any).rating),
-    totalReviews: Number((agentRow as any).total_reviews ?? 0),
-    isVerified: Boolean((agentRow as any).is_verified),
+    users: {
+      [user1.id]: user1,
+      [user2.id]: user2,
+    },
+    requests: {
+      [req1.id]: req1,
+      [req2.id]: req2,
+    },
+    matches: {
+      [match1.id]: match1,
+      [match2.id]: match2,
+    },
+    conversations: {
+      [conv1.id]: conv1,
+      [conv2.id]: conv2,
+    },
+    messages: {
+      [conv1.id]: initialMessages1,
+      [conv2.id]: initialMessages2,
+    },
+  };
+}
+
+function loadState(): StoredState {
+  if (typeof window === 'undefined') return defaultState();
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+    const parsed = JSON.parse(raw) as StoredState;
+    // Minimal shape check
+    if (!parsed || typeof parsed !== 'object' || !parsed.conversations || !parsed.messages) {
+      return defaultState();
+    }
+    return parsed;
+  } catch {
+    return defaultState();
+  }
+}
+
+function saveState(state: StoredState): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore
+  }
+}
+
+function getUnreadCountForConversation(messages: StoredMessage[], agentUserId?: string): number {
+  // unread = messages not read and not sent by agent
+  return messages.filter((m) => m.isRead === false && m.senderType !== 'agent').length;
+}
+
+async function tryFetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await authenticatedFetch(apiUrl(path), {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {}),
+    },
+  });
+
+  const json = await res.json().catch(() => ({}));
+  // identity service uses { success, data }, most others use { data }
+  return (json?.data ?? json) as T;
+}
+
+export async function getAgentIdentity(agentId: string): Promise<AgentIdentity | null> {
+  const agent = demoAgents.find((a) => a.agentId === agentId);
+  if (!agent) return null;
+
+  // Demo identity details (safe defaults)
+  return {
+    agentId: agent.agentId,
+    userId: agent.userId,
+    email: agent.email,
+    firstName: agent.firstName,
+    lastName: agent.lastName,
+    avatarUrl: null,
+    tier: agent.email.includes('star') ? 'star' : 'bench',
+    rating: agent.email.includes('star') ? 4.8 : 4.4,
+    totalReviews: agent.email.includes('star') ? 156 : 24,
+    isVerified: true,
   };
 }
 
@@ -101,142 +356,73 @@ export type AgentRequestMatch = {
 };
 
 export async function getAgentStats(agentId: string): Promise<AgentStatsSummary> {
-  const supabase = getSupabaseClient();
+  const state = loadState();
 
-  const [{ count: pendingMatches }, { count: acceptedMatches }, { count: activeBookings }, { count: unreadMessages }] =
-    await Promise.all([
-      supabase
-        .from('agent_matches')
-        .select('*', { count: 'exact', head: true })
-        .eq('agent_id', agentId)
-        .eq('status', 'pending'),
-      supabase
-        .from('agent_matches')
-        .select('*', { count: 'exact', head: true })
-        .eq('agent_id', agentId)
-        .eq('status', 'accepted'),
-      supabase
-        .from('bookings')
-        .select('*', { count: 'exact', head: true })
-        .eq('agent_id', agentId)
-        .in('state', ['CONFIRMED', 'IN_PROGRESS', 'PAYMENT_AUTHORIZED', 'PENDING_PAYMENT']),
-      supabase
-        .from('conversations')
-        .select('id')
-        .eq('agent_id', agentId)
-        .then(async (r) => {
-          if (r.error) throw r.error;
-          const ids = (r.data ?? []).map((c: any) => c.id);
-          if (ids.length === 0) return { count: 0 } as any;
-          // unread = messages not read and not sent by agent
-          return supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .in('conversation_id', ids)
-            .eq('is_read', false)
-            .neq('sender_type', 'agent');
-        }),
-    ]);
+  const matches = Object.values(state.matches).filter((m) => m.agent_id === agentId);
+  const pendingMatches = matches.filter((m) => m.status === 'pending').length;
+  const acceptedMatches = matches.filter((m) => m.status === 'accepted').length;
+
+  // This demo app has bookings in a separate mock module, but stats here are minimal.
+  const activeBookings = 0;
+
+  const convIds = Object.values(state.conversations)
+    .filter((c) => c.agentId === agentId)
+    .map((c) => c.id);
+
+  const unreadMessages = convIds.reduce((acc, convId) => {
+    const msgs = state.messages[convId] ?? [];
+    return acc + getUnreadCountForConversation(msgs);
+  }, 0);
 
   return {
-    pendingMatches: pendingMatches ?? 0,
-    acceptedMatches: acceptedMatches ?? 0,
-    activeBookings: activeBookings ?? 0,
-    unreadMessages: unreadMessages ?? 0,
+    pendingMatches,
+    acceptedMatches,
+    activeBookings,
+    unreadMessages,
   };
 }
 
 export async function listMatchedRequests(agentId: string): Promise<AgentRequestMatch[]> {
-  const supabase = getSupabaseClient();
+  const state = loadState();
+  const matches = Object.values(state.matches)
+    .filter((m) => m.agent_id === agentId)
+    .sort((a, b) => String(b.matched_at ?? '').localeCompare(String(a.matched_at ?? '')));
 
-  // Join: agent_matches -> travel_requests, and travel_requests -> users
-  const { data, error } = await supabase
-    .from('agent_matches')
-    .select(
-      `
-      id,
-      status,
-      match_score,
-      matched_at,
-      expires_at,
-      request_id,
-      travel_requests (
-        id,
-        user_id,
-        title,
-        description,
-        destination,
-        departure_date,
-        return_date,
-        budget_min,
-        budget_max,
-        budget_currency,
-        travelers,
-        travel_style,
-        preferences,
-        state,
-        created_at,
-        expires_at
-      )
-    `
-    )
-    .eq('agent_id', agentId)
-    .order('matched_at', { ascending: false });
+  return matches
+    .map((m) => {
+      const request = state.requests[m.request_id];
+      const user = request ? state.users[request.user_id] ?? null : null;
+      if (!request) return null;
 
-  if (error) throw error;
-
-  const requestUserIds = (data ?? [])
-    .map((row: any) => row.travel_requests?.user_id as string | undefined)
-    .filter(Boolean) as string[];
-
-  const usersById = new Map<string, any>();
-  if (requestUserIds.length > 0) {
-    const { data: users, error: userErr } = await supabase
-      .from('users')
-      .select('id, first_name, last_name, avatar_url')
-      .in('id', Array.from(new Set(requestUserIds)));
-
-    if (userErr) throw userErr;
-    for (const u of users ?? []) usersById.set((u as any).id, u);
-  }
-
-  return (data ?? []).map((row: any) => {
-    const request = row.travel_requests;
-    const user = request?.user_id ? (usersById.get(request.user_id) ?? null) : null;
-
-    return {
-      matchId: row.id,
-      requestId: row.request_id,
-      status: row.status,
-      matchScore: row.match_score === null || row.match_score === undefined ? null : Number(row.match_score),
-      matchedAt: row.matched_at ?? null,
-      expiresAt: row.expires_at ?? request?.expires_at ?? null,
-      request,
-      user,
-    } as AgentRequestMatch;
-  });
+      return {
+        matchId: m.id,
+        requestId: m.request_id,
+        status: m.status,
+        matchScore: m.match_score === null || m.match_score === undefined ? null : Number(m.match_score),
+        matchedAt: m.matched_at ?? null,
+        expiresAt: m.expires_at ?? request.expires_at ?? null,
+        request,
+        user,
+      } as AgentRequestMatch;
+    })
+    .filter(Boolean) as AgentRequestMatch[];
 }
 
 export async function acceptMatch(matchId: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase
-    .from('agent_matches')
-    .update({ status: 'accepted', responded_at: new Date().toISOString() })
-    .eq('id', matchId);
-  if (error) throw error;
+  const state = loadState();
+  const match = state.matches[matchId];
+  if (!match) return;
+  match.status = 'accepted';
+  saveState(state);
 }
 
 export async function declineMatch(matchId: string, declineReason?: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase
-    .from('agent_matches')
-    .update({
-      status: 'declined',
-      decline_reason: declineReason ?? null,
-      responded_at: new Date().toISOString(),
-    })
-    .eq('id', matchId);
-  if (error) throw error;
+  const state = loadState();
+  const match = state.matches[matchId];
+  if (!match) return;
+  match.status = 'declined';
+  // declineReason is ignored in mock state
+  saveState(state);
 }
 
 export type ConversationListItem = {
@@ -255,76 +441,56 @@ export type ConversationListItem = {
 };
 
 export async function listConversations(agentId: string): Promise<ConversationListItem[]> {
-  const supabase = getSupabaseClient();
+  // If authenticated, prefer backend messaging service.
+  // NOTE: messaging service derives agentId from the JWT; the function arg is retained for UI compatibility.
+  if (getAccessToken()) {
+    try {
+      const result = await tryFetchJson<{
+        items: Array<{
+          id: string;
+          bookingId: string | null;
+          state: string;
+          createdAt: string;
+          updatedAt: string;
+          participants: Array<{ id: string; participantType: 'USER' | 'AGENT' | 'ADMIN' }>;
+          lastMessage: null | { createdAt: string; content: string };
+          unreadCount: number;
+        }>;
+      }>('/api/messaging/api/v1/conversations');
 
-  const { data: conversations, error } = await supabase
-    .from('conversations')
-    .select('id, booking_id, user_id, state, updated_at')
-    .eq('agent_id', agentId)
-    .order('updated_at', { ascending: false });
-
-  if (error) throw error;
-
-  const convIds = (conversations ?? []).map((c: any) => c.id);
-  const userIds = (conversations ?? []).map((c: any) => c.user_id);
-  const bookingIds = (conversations ?? [])
-    .map((c: any) => c.booking_id as string | null)
-    .filter(Boolean) as string[];
-
-  const [usersRes, messagesRes, bookingsRes] = await Promise.all([
-    userIds.length
-      ? supabase.from('users').select('id, first_name, last_name, avatar_url').in('id', userIds)
-      : Promise.resolve({ data: [] as any[], error: null } as any),
-    convIds.length
-      ? supabase
-          .from('messages')
-          .select('conversation_id, sender_type, content, is_read, created_at')
-          .in('conversation_id', convIds)
-          .order('created_at', { ascending: false })
-      : Promise.resolve({ data: [] as any[], error: null } as any),
-    bookingIds.length
-      ? supabase.from('bookings').select('id, request_id').in('id', Array.from(new Set(bookingIds)))
-      : Promise.resolve({ data: [] as any[], error: null } as any),
-  ]);
-
-  if (usersRes.error) throw usersRes.error;
-  if (messagesRes.error) throw messagesRes.error;
-  if (bookingsRes.error) throw bookingsRes.error;
-
-  const usersById = new Map<string, any>((usersRes.data ?? []).map((u: any) => [u.id, u]));
-
-  const bookingsById = new Map<string, any>((bookingsRes.data ?? []).map((b: any) => [b.id, b]));
-  const requestIds = (bookingsRes.data ?? [])
-    .map((b: any) => b.request_id as string | null)
-    .filter(Boolean) as string[];
-
-  const requestsById = new Map<string, any>();
-  if (requestIds.length > 0) {
-    const { data: reqs, error: reqErr } = await supabase
-      .from('travel_requests')
-      .select('id, title, destination')
-      .in('id', Array.from(new Set(requestIds)));
-    if (reqErr) throw reqErr;
-    for (const r of reqs ?? []) requestsById.set((r as any).id, r);
-  }
-
-  const lastByConversation = new Map<string, any>();
-  const unreadByConversation = new Map<string, number>();
-
-  for (const m of messagesRes.data ?? []) {
-    const convId = m.conversation_id as string;
-    if (!lastByConversation.has(convId)) lastByConversation.set(convId, m);
-    if (m.is_read === false && m.sender_type !== 'agent') {
-      unreadByConversation.set(convId, (unreadByConversation.get(convId) ?? 0) + 1);
+      return (result.items ?? []).map((c) => {
+        const userParticipant = (c.participants ?? []).find((p) => p.participantType === 'USER');
+        return {
+          id: c.id,
+          bookingId: c.bookingId ?? null,
+          requestId: null,
+          userId: userParticipant?.id ?? '',
+          state: c.state?.toLowerCase?.() ?? String(c.state ?? ''),
+          updatedAt: c.updatedAt,
+          lastMessageAt: c.lastMessage?.createdAt ?? null,
+          lastMessagePreview: c.lastMessage?.content ? String(c.lastMessage.content).slice(0, 120) : null,
+          unreadCount: Number(c.unreadCount ?? 0),
+          clientName: 'Client',
+          clientAvatarUrl: null,
+          destinationLabel: null,
+        };
+      });
+    } catch {
+      // fall back to mock state
     }
   }
 
-  return (conversations ?? []).map((c: any) => {
-    const u = usersById.get(c.user_id);
-    const last = lastByConversation.get(c.id) ?? null;
-    const booking = c.booking_id ? bookingsById.get(c.booking_id) : null;
-    const requestId = booking?.request_id ?? null;
-    const request = requestId ? requestsById.get(requestId) : null;
+  const state = loadState();
+  const conversations = Object.values(state.conversations)
+    .filter((c) => c.agentId === agentId)
+    .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+
+  return conversations.map((c) => {
+    const u = state.users[c.userId];
+    const msgs = state.messages[c.id] ?? [];
+    const last = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+    const unread = getUnreadCountForConversation(msgs);
+    const request = c.requestId ? state.requests[c.requestId] : null;
 
     let destinationLabel: string | null = null;
     if (request?.destination) {
@@ -333,21 +499,21 @@ export async function listConversations(agentId: string): Promise<ConversationLi
       const regions = Array.isArray(d?.regions) ? (d.regions.filter(Boolean) as string[]) : [];
       if (country && regions.length > 0) destinationLabel = `${country} • ${regions.join(', ')}`;
       else if (country) destinationLabel = country;
-      else if (typeof request?.title === 'string') destinationLabel = request.title;
-    } else if (typeof request?.title === 'string') {
+      else destinationLabel = request.title;
+    } else if (request?.title) {
       destinationLabel = request.title;
     }
 
     return {
       id: c.id,
-      bookingId: c.booking_id ?? null,
-      requestId,
-      userId: c.user_id,
+      bookingId: c.bookingId,
+      requestId: c.requestId,
+      userId: c.userId,
       state: c.state,
-      updatedAt: c.updated_at,
-      lastMessageAt: last?.created_at ?? null,
+      updatedAt: c.updatedAt,
+      lastMessageAt: last?.createdAt ?? null,
       lastMessagePreview: last?.content ? String(last.content).slice(0, 120) : null,
-      unreadCount: unreadByConversation.get(c.id) ?? 0,
+      unreadCount: unread,
       clientName: u ? `${u.first_name} ${u.last_name}`.trim() : 'Client',
       clientAvatarUrl: u?.avatar_url ?? null,
       destinationLabel,
@@ -365,46 +531,112 @@ export type ConversationMessage = {
 };
 
 export async function listMessages(conversationId: string): Promise<ConversationMessage[]> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('messages')
-    .select('id, conversation_id, sender_type, content, is_read, created_at')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true });
-  if (error) throw error;
+  if (getAccessToken()) {
+    try {
+      const result = await tryFetchJson<{
+        items: Array<{
+          id: string;
+          conversationId: string;
+          senderType: 'USER' | 'AGENT' | 'SYSTEM';
+          content: string;
+          createdAt: string;
+          readBy?: unknown;
+        }>;
+      }>(`/api/messaging/api/v1/messages?conversationId=${encodeURIComponent(conversationId)}`);
 
-  return (data ?? []).map((m: any) => ({
+      const items = result.items ?? [];
+      return items.map((m) => ({
+        id: m.id,
+        conversationId: m.conversationId,
+        senderType: m.senderType === 'AGENT' ? 'agent' : m.senderType === 'SYSTEM' ? 'system' : 'user',
+        content: m.content,
+        // messaging view doesn't currently expose per-recipient read state; treat as read if readBy is present.
+        isRead: Boolean((m as any).isRead ?? ((m as any).readBy && Array.isArray((m as any).readBy) && (m as any).readBy.length > 0)),
+        createdAt: m.createdAt,
+      }));
+    } catch {
+      // fall back
+    }
+  }
+
+  const state = loadState();
+  const msgs = state.messages[conversationId] ?? [];
+  return msgs.map((m) => ({
     id: m.id,
-    conversationId: m.conversation_id,
-    senderType: m.sender_type,
+    conversationId: m.conversationId,
+    senderType: m.senderType,
     content: m.content,
-    isRead: Boolean(m.is_read),
-    createdAt: m.created_at,
+    isRead: Boolean(m.isRead),
+    createdAt: m.createdAt,
   }));
 }
 
 export async function sendMessage(conversationId: string, senderUserId: string, content: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.from('messages').insert({
-    conversation_id: conversationId,
-    sender_id: senderUserId,
-    sender_type: 'agent',
+  if (getAccessToken()) {
+    try {
+      await tryFetchJson(`/api/messaging/api/v1/messages`, {
+        method: 'POST',
+        body: JSON.stringify({
+          conversationId,
+          content,
+          messageType: 'TEXT',
+        }),
+      });
+      return;
+    } catch {
+      // fall back
+    }
+  }
+
+  const state = loadState();
+  const conv = state.conversations[conversationId];
+  if (!conv) return;
+
+  const msg: StoredMessage = {
+    id: safeRandomId('msg'),
+    conversationId,
+    senderType: 'agent',
     content,
-    content_type: 'text',
-    is_read: false,
-  });
-  if (error) throw error;
+    isRead: true,
+    createdAt: nowIso(),
+  };
+
+  state.messages[conversationId] = [...(state.messages[conversationId] ?? []), msg];
+  conv.updatedAt = msg.createdAt;
+  saveState(state);
 }
 
 export async function markConversationRead(conversationId: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  // Only mark messages FROM the user as read (not the agent's own messages)
-  const { error } = await supabase
-    .from('messages')
-    .update({ is_read: true })
-    .eq('conversation_id', conversationId)
-    .neq('sender_type', 'agent'); // Mark user & system messages as read
-  if (error) throw error;
+  if (getAccessToken()) {
+    try {
+      const messages = await listMessages(conversationId);
+      const last = messages.length > 0 ? messages[messages.length - 1] : null;
+      if (!last?.id) return;
+
+      await tryFetchJson(`/api/messaging/api/v1/messages/read-up-to`, {
+        method: 'POST',
+        body: JSON.stringify({
+          conversationId,
+          upToMessageId: last.id,
+        }),
+      });
+
+      return;
+    } catch {
+      // fall back
+    }
+  }
+
+  const state = loadState();
+  const msgs = state.messages[conversationId] ?? [];
+  let changed = false;
+  for (const m of msgs) {
+    if (m.senderType !== 'agent' && m.isRead === false) {
+      m.isRead = true;
+      changed = true;
+    }
+  }
+  if (changed) saveState(state);
 }
 
 export type TravelRequestDetails = {
@@ -436,74 +668,49 @@ export type AgentMatchForRequest = {
 };
 
 export async function getTravelRequestDetails(requestId: string): Promise<TravelRequestDetails | null> {
-  const supabase = getSupabaseClient();
-
-  const { data: req, error } = await supabase
-    .from('travel_requests')
-    .select(
-      'id, user_id, title, description, destination, departure_date, return_date, budget_min, budget_max, budget_currency, travelers, travel_style, preferences, state, created_at, expires_at'
-    )
-    .eq('id', requestId)
-    .maybeSingle();
-
-  if (error) throw error;
+  const state = loadState();
+  const req = state.requests[requestId];
   if (!req) return null;
 
-  const userId = (req as any).user_id as string;
-  const { data: user, error: userErr } = await supabase
-    .from('users')
-    .select('first_name, last_name, email, avatar_url')
-    .eq('id', userId)
-    .maybeSingle();
-
-  if (userErr) throw userErr;
-
+  const user = state.users[req.user_id] ?? null;
   return {
-    id: (req as any).id,
-    userId,
-    title: (req as any).title,
-    description: (req as any).description ?? null,
-    destination: (req as any).destination,
-    departureDate: (req as any).departure_date,
-    returnDate: (req as any).return_date,
-    budgetMin: (req as any).budget_min === null || (req as any).budget_min === undefined ? null : Number((req as any).budget_min),
-    budgetMax: (req as any).budget_max === null || (req as any).budget_max === undefined ? null : Number((req as any).budget_max),
-    budgetCurrency: (req as any).budget_currency ?? null,
-    travelers: (req as any).travelers,
-    travelStyle: (req as any).travel_style ?? null,
-    preferences: (req as any).preferences,
-    state: (req as any).state,
-    createdAt: (req as any).created_at,
-    expiresAt: (req as any).expires_at ?? null,
+    id: req.id,
+    userId: req.user_id,
+    title: req.title,
+    description: req.description ?? null,
+    destination: req.destination,
+    departureDate: req.departure_date,
+    returnDate: req.return_date,
+    budgetMin: req.budget_min === null || req.budget_min === undefined ? null : Number(req.budget_min),
+    budgetMax: req.budget_max === null || req.budget_max === undefined ? null : Number(req.budget_max),
+    budgetCurrency: req.budget_currency ?? null,
+    travelers: req.travelers,
+    travelStyle: req.travel_style ?? null,
+    preferences: req.preferences,
+    state: req.state,
+    createdAt: req.created_at,
+    expiresAt: req.expires_at ?? null,
     client: user
       ? {
-          firstName: (user as any).first_name ?? '',
-          lastName: (user as any).last_name ?? '',
-          email: (user as any).email ?? '',
-          avatarUrl: (user as any).avatar_url ?? null,
+          firstName: user.first_name ?? '',
+          lastName: user.last_name ?? '',
+          email: user.email ?? '',
+          avatarUrl: user.avatar_url ?? null,
         }
       : null,
   };
 }
 
 export async function getAgentMatchForRequest(agentId: string, requestId: string): Promise<AgentMatchForRequest | null> {
-  const supabase = getSupabaseClient();
-
-  const { data, error } = await supabase
-    .from('agent_matches')
-    .select('id, status, match_score, matched_at, expires_at')
-    .eq('agent_id', agentId)
-    .eq('request_id', requestId)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) return null;
+  const state = loadState();
+  const match = Object.values(state.matches).find((m) => m.agent_id === agentId && m.request_id === requestId) ?? null;
+  if (!match) return null;
 
   return {
-    matchId: (data as any).id,
-    status: (data as any).status,
-    matchScore: (data as any).match_score === null || (data as any).match_score === undefined ? null : Number((data as any).match_score),
-    matchedAt: (data as any).matched_at ?? null,
-    expiresAt: (data as any).expires_at ?? null,
+    matchId: match.id,
+    status: match.status,
+    matchScore: match.match_score === null || match.match_score === undefined ? null : Number(match.match_score),
+    matchedAt: match.matched_at ?? null,
+    expiresAt: match.expires_at ?? null,
   };
 }

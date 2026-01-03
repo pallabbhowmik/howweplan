@@ -14,6 +14,7 @@
     "dev:user-web": "npm run dev --workspace=@tripcomposer/user-web",
     "dev:agent-web": "npm run dev --workspace=@tripcomposer/agent-web",
     "dev:admin-web": "npm run dev --workspace=@tripcomposer/admin-web",
+    "check:supabase-frontend": "node scripts/check-frontend-supabase-auth-only.js",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present"

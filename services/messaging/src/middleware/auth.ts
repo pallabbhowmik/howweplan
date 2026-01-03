@@ -5,7 +5,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { createClient } from '@supabase/supabase-js';
+import jwt from 'jsonwebtoken';
 import { config } from '../env';
 import { Errors } from '../api/errors';
 
@@ -39,11 +39,6 @@ export interface AuthMiddleware {
 }
 
 export function createAuthMiddleware(): AuthMiddleware {
-  const supabase = createClient(
-    config.auth.supabaseUrl,
-    config.auth.supabaseServiceRoleKey
-  );
-
   /**
    * Extracts and verifies JWT from Authorization header.
    */
@@ -55,20 +50,52 @@ export function createAuthMiddleware(): AuthMiddleware {
     const token = authHeader.substring(7);
 
     try {
-      const { data: { user }, error } = await supabase.auth.getUser(token);
+      // Prefer Identity-issued JWT validation (fast, no external calls)
+      const algorithm = config.auth.jwtAlgorithm;
+      const verifyKey = algorithm === 'RS256' ? config.auth.jwtPublicKey : config.auth.jwtSecret;
 
-      if (error || !user) {
-        return null;
+      if (verifyKey) {
+        const payload = jwt.verify(token, verifyKey, {
+          algorithms: [algorithm],
+          // Issuer in local dev configs has historically varied; enforce only when explicitly set.
+          ...(config.auth.jwtIssuer ? { issuer: config.auth.jwtIssuer } : {}),
+        }) as any;
+
+        const role = String(payload?.role ?? 'USER').toUpperCase();
+        const userType: 'USER' | 'AGENT' | 'ADMIN' =
+          role === 'AGENT' ? 'AGENT' : role === 'ADMIN' ? 'ADMIN' : 'USER';
+
+        return {
+          userId: String(payload?.sub ?? ''),
+          userType,
+          // Identity access tokens do not currently include email in payload.
+          email: String(payload?.email ?? ''),
+        };
       }
 
-      // Get user type from metadata
-      const userType = (user.user_metadata?.['user_type'] ?? 'USER') as 'USER' | 'AGENT' | 'ADMIN';
+      // Back-compat fallback (slower): validate Supabase access tokens.
+      // This keeps older clients working while we complete the migration.
+      if (config.isDevelopment) {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(config.auth.supabaseUrl, config.auth.supabaseServiceRoleKey);
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser(token);
 
-      return {
-        userId: user.id,
-        userType,
-        email: user.email ?? '',
-      };
+        if (error || !user) {
+          return null;
+        }
+
+        const userType = (user.user_metadata?.['user_type'] ?? 'USER') as 'USER' | 'AGENT' | 'ADMIN';
+        return {
+          userId: user.id,
+          userType,
+          email: user.email ?? '',
+        };
+      }
+
+      return null;
     } catch {
       return null;
     }
