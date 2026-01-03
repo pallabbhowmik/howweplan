@@ -38,6 +38,25 @@ export type AdminAuthMiddleware = (req: Request, res: Response, next: NextFuncti
 
 export function createAuthMiddleware(logger: Logger): AuthMiddleware {
   return (req: Request, res: Response, next: NextFunction): void => {
+    // First, check for gateway-forwarded headers (trusted internal traffic)
+    // The API Gateway validates the JWT and forwards user info in headers
+    const gatewayUserId = req.headers['x-user-id'] as string | undefined;
+    const gatewayUserRole = req.headers['x-user-role'] as string | undefined;
+    const gatewayUserEmail = req.headers['x-user-email'] as string | undefined;
+
+    if (gatewayUserId && gatewayUserRole) {
+      // Trust gateway-forwarded headers
+      req.user = {
+        id: gatewayUserId,
+        email: gatewayUserEmail || '',
+        role: gatewayUserRole as 'user' | 'agent' | 'admin',
+      };
+      logger.debug('User authenticated via gateway headers', { userId: gatewayUserId, role: gatewayUserRole });
+      next();
+      return;
+    }
+
+    // Fallback to JWT validation for direct service calls (dev/testing)
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -64,7 +83,7 @@ export function createAuthMiddleware(logger: Logger): AuthMiddleware {
         role: decoded.role,
       };
 
-      logger.debug('User authenticated', { userId: decoded.sub, role: decoded.role });
+      logger.debug('User authenticated via JWT', { userId: decoded.sub, role: decoded.role });
       next();
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {
