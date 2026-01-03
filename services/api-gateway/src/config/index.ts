@@ -43,6 +43,21 @@ function getJwtPublicKey(): string {
   return '';
 }
 
+/**
+ * Get and validate JWT algorithm.
+ * Must be RS256 or HS256.
+ */
+function getJwtAlgorithm(): 'RS256' | 'HS256' {
+  const alg = process.env['JWT_ALGORITHM'];
+  if (alg === 'RS256' || alg === 'HS256') {
+    return alg;
+  }
+  if (alg) {
+    console.warn(`[config] Invalid JWT_ALGORITHM="${alg}". Must be "RS256" or "HS256". Defaulting to RS256.`);
+  }
+  return 'RS256';
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -54,7 +69,7 @@ export const config = {
     // Legacy HS256 shared secret (fallback)
     secret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
     // Algorithm: RS256 (asymmetric) or HS256 (symmetric)
-    algorithm: (process.env.JWT_ALGORITHM || 'RS256') as 'RS256' | 'HS256',
+    algorithm: getJwtAlgorithm(),
     issuer: process.env.JWT_ISSUER || 'tripcomposer-identity',
     // Must match identity service's JWT_AUDIENCE (default: tripcomposer-platform)
     audience: process.env.JWT_AUDIENCE || 'tripcomposer-platform',
