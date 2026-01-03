@@ -159,12 +159,12 @@ export default function DashboardPage() {
   const journeyStage = determineJourneyStage(requests, bookings, stats);
   
   // Get the most relevant active request
-  const activeRequest = requests.find(r => 
+  const activeRequest = requests.find((r: TravelRequest) => 
     !['BOOKED', 'COMPLETED', 'CANCELLED', 'EXPIRED'].includes(r.state)
   );
   
   // Get upcoming booking
-  const upcomingBooking = bookings.find(b => 
+  const upcomingBooking = bookings.find((b: Booking) => 
     b.state === 'CONFIRMED' && new Date(b.travelStartDate) > new Date()
   );
 

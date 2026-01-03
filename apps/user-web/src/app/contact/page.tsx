@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { 
   Plane, 
@@ -208,7 +208,7 @@ export default function ContactPage() {
                           id="name"
                           placeholder="John Smith"
                           value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
                           required
                         />
                       </div>
@@ -219,7 +219,7 @@ export default function ContactPage() {
                           type="email"
                           placeholder="john@example.com"
                           value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, email: e.target.value })}
                           required
                         />
                       </div>
@@ -248,7 +248,7 @@ export default function ContactPage() {
                           id="subject"
                           placeholder="Brief description of your inquiry"
                           value={formData.subject}
-                          onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, subject: e.target.value })}
                           required
                         />
                       </div>
@@ -261,7 +261,7 @@ export default function ContactPage() {
                         className="w-full min-h-[150px] px-3 py-2 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
                         placeholder="Please provide as much detail as possible so we can assist you better..."
                         value={formData.message}
-                        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                        onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setFormData({ ...formData, message: e.target.value })}
                         required
                       />
                     </div>
@@ -504,7 +504,7 @@ export default function ContactPage() {
                 <div>
                   <h3 className="font-semibold mb-2">Travel Seller Registration</h3>
                   <p className="text-muted-foreground">
-                    {settings.licenses.map((license, i) => (
+                    {settings.licenses.map((license: string, i: number) => (
                       <span key={i}>
                         {license}
                         {i < settings.licenses.length - 1 && <br />}

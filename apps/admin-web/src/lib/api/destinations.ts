@@ -97,7 +97,9 @@ export interface DestinationStats {
 export async function getDestinations(
   params?: DestinationQueryParams
 ): Promise<PaginatedResponse<Destination>> {
-  const queryParams = buildPaginationParams(params);
+  const queryParams: Record<string, string | number | boolean | undefined> = params 
+    ? buildPaginationParams(params)
+    : { page: 1, pageSize: 20 };
   
   if (params?.filters) {
     if (params.filters.region) queryParams.region = params.filters.region;

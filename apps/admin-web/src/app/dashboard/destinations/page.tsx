@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
 import {
@@ -186,7 +186,7 @@ function DestinationForm({ destination, onSubmit, onCancel, isLoading }: Destina
             <Input
               id="id"
               value={formData.id}
-              onChange={e => setFormData(prev => ({ ...prev, id: e.target.value }))}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, id: e.target.value }))}
               placeholder="e.g., in-jaipur"
               required
             />
@@ -202,7 +202,7 @@ function DestinationForm({ destination, onSubmit, onCancel, isLoading }: Destina
           <Input
             id="name"
             value={formData.name}
-            onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, name: e.target.value }))}
             placeholder="e.g., Jaipur"
             required
           />
@@ -214,7 +214,7 @@ function DestinationForm({ destination, onSubmit, onCancel, isLoading }: Destina
           <Input
             id="state"
             value={formData.state}
-            onChange={e => setFormData(prev => ({ ...prev, state: e.target.value }))}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, state: e.target.value }))}
             placeholder="e.g., Rajasthan"
             required
           />
@@ -249,7 +249,7 @@ function DestinationForm({ destination, onSubmit, onCancel, isLoading }: Destina
               min={1}
               max={30}
               value={formData.suggestedDurationMin}
-              onChange={e => setFormData(prev => ({ 
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ 
                 ...prev, 
                 suggestedDurationMin: parseInt(e.target.value) || 1 
               }))}
@@ -261,7 +261,7 @@ function DestinationForm({ destination, onSubmit, onCancel, isLoading }: Destina
               min={1}
               max={60}
               value={formData.suggestedDurationMax}
-              onChange={e => setFormData(prev => ({ 
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ 
                 ...prev, 
                 suggestedDurationMax: parseInt(e.target.value) || 1 
               }))}
@@ -279,7 +279,7 @@ function DestinationForm({ destination, onSubmit, onCancel, isLoading }: Destina
             type="number"
             min={0}
             value={formData.displayOrder}
-            onChange={e => setFormData(prev => ({ 
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ 
               ...prev, 
               displayOrder: parseInt(e.target.value) || 0 
             }))}
@@ -295,7 +295,7 @@ function DestinationForm({ destination, onSubmit, onCancel, isLoading }: Destina
           <Input
             id="imageUrl"
             value={formData.imageUrl}
-            onChange={e => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
             placeholder="https://images.unsplash.com/..."
             className="flex-1"
           />
@@ -322,7 +322,7 @@ function DestinationForm({ destination, onSubmit, onCancel, isLoading }: Destina
         <Textarea
           id="highlight"
           value={formData.highlight}
-          onChange={e => setFormData(prev => ({ ...prev, highlight: e.target.value }))}
+          onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setFormData(prev => ({ ...prev, highlight: e.target.value }))}
           placeholder="Brief description of what makes this destination special..."
           rows={2}
           required
@@ -369,8 +369,8 @@ function DestinationForm({ destination, onSubmit, onCancel, isLoading }: Destina
           <Checkbox
             id="isActive"
             checked={formData.isActive}
-            onCheckedChange={(checked) => 
-              setFormData(prev => ({ ...prev, isActive: !!checked }))
+            onCheckedChange={(checked: boolean | 'indeterminate') => 
+              setFormData(prev => ({ ...prev, isActive: checked === true }))
             }
           />
           <Label htmlFor="isActive" className="cursor-pointer">Active (visible on explore page)</Label>
@@ -380,8 +380,8 @@ function DestinationForm({ destination, onSubmit, onCancel, isLoading }: Destina
           <Checkbox
             id="isFeatured"
             checked={formData.isFeatured}
-            onCheckedChange={(checked) => 
-              setFormData(prev => ({ ...prev, isFeatured: !!checked }))
+            onCheckedChange={(checked: boolean | 'indeterminate') => 
+              setFormData(prev => ({ ...prev, isFeatured: checked === true }))
             }
           />
           <Label htmlFor="isFeatured" className="cursor-pointer">Featured (shown in hero section)</Label>
