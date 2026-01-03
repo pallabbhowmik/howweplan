@@ -5,6 +5,7 @@ import pinoHttp from 'pino-http';
 import { env } from './env.js';
 import { logger } from './utils/logger.js';
 import { errorToResponse, ServiceError } from './utils/errors.js';
+import { idempotencyMiddleware } from './api/middleware/idempotency.middleware.js';
 
 // Repositories
 import { SubmissionRepository } from './repository/submission.repository.js';
@@ -41,6 +42,9 @@ function createApp(): Express {
   // Request parsing
   app.use(express.json({ limit: `${env.MAX_SUBMISSION_SIZE_MB}mb` }));
   app.use(express.urlencoded({ extended: true }));
+
+  // Idempotency middleware for safe retries
+  app.use(idempotencyMiddleware());
 
   // Request logging
   app.use(pinoHttp({

@@ -15,6 +15,7 @@ import {
   errorMiddleware,
   notFoundHandler,
 } from './api/middleware.js';
+import { idempotencyMiddleware } from './api/idempotency.middleware.js';
 import { logger } from './audit/logger.js';
 import { eventSubscriber, registerDefaultHandlers } from './events/subscriber.js';
 
@@ -56,6 +57,9 @@ function createApp(): express.Application {
   // Correlation ID and logging
   app.use(correlationMiddleware);
   app.use(requestLoggingMiddleware);
+
+  // Idempotency middleware for safe retries
+  app.use(idempotencyMiddleware());
 
   // Health check (no auth required)
   app.get('/health', (_req, res) => {

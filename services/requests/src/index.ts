@@ -43,6 +43,10 @@ import {
   createErrorMiddleware,
   createRateLimitMiddleware,
   requestIdMiddleware,
+  idempotencyMiddleware,
+  correlationMiddleware,
+  metricsMiddleware,
+  getMetrics,
 } from './middleware';
 
 async function main() {
@@ -90,7 +94,19 @@ async function main() {
   app.use(cors(corsOptions));
   app.use(express.json());
   app.use(requestIdMiddleware);
+  app.use(correlationMiddleware());
+  app.use(metricsMiddleware());
   app.use(rateLimitMiddleware);
+  app.use(idempotencyMiddleware());
+
+  // Metrics endpoint (before auth)
+  app.get('/metrics', (_req, res) => {
+    res.json({
+      service: 'requests-service',
+      timestamp: new Date().toISOString(),
+      metrics: getMetrics(),
+    });
+  });
 
   // API routes
   const routes = createRoutes({

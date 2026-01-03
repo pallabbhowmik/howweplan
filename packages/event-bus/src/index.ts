@@ -47,8 +47,12 @@ export {
   HandlerTimeoutError,
 } from './errors';
 
+// Resilient Event Bus
+export { ResilientEventBus, createResilientEventBus } from './resilient-event-bus';
+
 // Factory function for creating the default event bus
 import { InMemoryEventBus } from './in-memory-event-bus';
+import { ResilientEventBus } from './resilient-event-bus';
 import type { IEventBus } from './event-bus.interface';
 
 /**
@@ -59,4 +63,19 @@ import type { IEventBus } from './event-bus.interface';
  */
 export function createEventBus(): IEventBus {
   return new InMemoryEventBus();
+}
+
+/**
+ * Create an event bus with resilience features (circuit breaker, DLQ).
+ */
+export function createResilientEventBusWrapper(
+  serviceName: string,
+  onDeadLetter?: (event: unknown, error: Error) => Promise<void>
+): IEventBus {
+  const baseBus = new InMemoryEventBus();
+  return new ResilientEventBus({
+    eventBus: baseBus,
+    serviceName,
+    onDeadLetter: onDeadLetter as ((event: { eventId: string; eventType: string; payload: unknown; metadata: unknown; timestamp: string; version: string }, error: Error) => Promise<void>) | undefined,
+  });
 }

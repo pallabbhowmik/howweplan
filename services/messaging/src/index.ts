@@ -10,6 +10,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import { env, config } from './env';
 import { createAuthMiddleware } from './middleware/auth';
+import { idempotencyMiddleware } from './middleware/idempotency';
 import {
   createConversationRoutes,
   createMessageRoutes,
@@ -56,6 +57,9 @@ export function createApp(): Express {
 
   // Compression
   app.use(compression());
+
+  // Idempotency middleware for safe retries
+  app.use(idempotencyMiddleware());
 
   // Request logging
   app.use((req: Request, _res: Response, next: NextFunction) => {

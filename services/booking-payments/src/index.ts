@@ -11,6 +11,7 @@ import helmet from 'helmet';
 import { config } from './env.js';
 import { logger } from './services/logger.service.js';
 import { router } from './api/routes.js';
+import { idempotencyMiddleware } from './middleware/idempotency.middleware.js';
 
 const app = express();
 
@@ -75,6 +76,9 @@ app.use((req, res, next) => {
   });
   next();
 });
+
+// Idempotency middleware - CRITICAL for payment operations
+app.use(idempotencyMiddleware());
 
 // Mount routes
 app.use(router);
