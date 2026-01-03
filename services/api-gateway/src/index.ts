@@ -221,6 +221,21 @@ app.get('/admin/cache/stats', authMiddleware, rbacMiddleware, getCacheStats);
 app.post('/admin/cache/clear', authMiddleware, rbacMiddleware, clearCache);
 app.post('/admin/cache/invalidate', authMiddleware, rbacMiddleware, invalidateCachePattern);
 
+// JWT configuration status (public diagnostic - no secrets exposed)
+app.get('/debug/jwt-status', (_req: Request, res: Response) => {
+  res.json({
+    timestamp: new Date().toISOString(),
+    algorithm: config.jwt.algorithm,
+    issuer: config.jwt.issuer,
+    audience: config.jwt.audience,
+    hasPublicKey: !!config.jwt.publicKey,
+    publicKeyPrefix: config.jwt.publicKey
+      ? config.jwt.publicKey.substring(0, 40) + '...'
+      : null,
+    hasSecret: !!config.jwt.secret,
+  });
+});
+
 // =============================================================================
 // RATE LIMITING
 // =============================================================================

@@ -5,6 +5,7 @@
 
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import { createPublicKey } from 'crypto';
 import { env } from '../env.js';
 import {
   AuthenticatedRequest,
@@ -104,7 +105,31 @@ router.get('/public-key', async (req: Request, res: Response): Promise<void> => 
   const correlationId = authReq.correlationId ?? 'unknown';
 
   // Only relevant for RS256. If HS256 is used, there is no public key.
-  if (env.JWT_ALGORITHM !== 'RS256' || !env.JWT_PUBLIC_KEY) {
+  if (env.JWT_ALGORITHM !== 'RS256') {
+    res.status(404).json({
+      success: false,
+      error: {
+        code: 'PUBLIC_KEY_NOT_AVAILABLE',
+        message: 'Public key not available',
+      },
+      requestId: correlationId,
+      timestamp: new Date().toISOString(),
+    });
+    return;
+  }
+
+  // Prefer explicit public key; otherwise derive from the configured private key.
+  // This avoids needing to configure both keys in every environment.
+  let publicKeyPem = env.JWT_PUBLIC_KEY;
+  if (!publicKeyPem && env.JWT_PRIVATE_KEY) {
+    try {
+      publicKeyPem = createPublicKey(env.JWT_PRIVATE_KEY).export({ format: 'pem', type: 'spki' }) as string;
+    } catch {
+      // Ignore derivation errors; we'll return a 404 below.
+    }
+  }
+
+  if (!publicKeyPem) {
     res.status(404).json({
       success: false,
       error: {
@@ -123,7 +148,7 @@ router.get('/public-key', async (req: Request, res: Response): Promise<void> => 
       algorithm: env.JWT_ALGORITHM,
       issuer: env.JWT_ISSUER,
       audience: env.JWT_AUDIENCE,
-      publicKey: env.JWT_PUBLIC_KEY,
+      publicKey: publicKeyPem,
     },
     correlationId
   );
