@@ -29,10 +29,32 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 let client: SupabaseClient | null = null;
 
+function isProduction(): boolean {
+  return (
+    process.env.NODE_ENV === 'production' ||
+    process.env.NEXT_PUBLIC_APP_ENV === 'production' ||
+    (typeof window !== 'undefined' && !window.location.hostname.includes('localhost'))
+  );
+}
+
 function getSupabaseUrl(): string {
   const configured = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const fallback = 'http://localhost:54321';
 
+  // In production, require proper Supabase URL
+  if (isProduction()) {
+    if (!configured || configured.includes('localhost')) {
+      console.error(
+        '[user-web] CRITICAL: NEXT_PUBLIC_SUPABASE_URL is not configured for production! ' +
+        'Please set this environment variable in Vercel.'
+      );
+      // Return a placeholder that won't work but won't crash on load
+      return 'https://supabase-not-configured.invalid';
+    }
+    return configured;
+  }
+
+  // Development fallback logic
   if (!configured) return fallback;
 
   if (/localhost:(301[0-9])\b/.test(configured)) {
