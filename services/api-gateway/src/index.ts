@@ -34,10 +34,24 @@ const PORT = config.port;
 // =============================================================================
 
 async function initializeJwtPublicKey(): Promise<void> {
-  if (config.jwt.publicKey) return;
+  if (config.jwt.publicKey) {
+    logger.info({
+      timestamp: new Date().toISOString(),
+      event: 'jwt_public_key_already_configured',
+      source: 'environment',
+    });
+    return;
+  }
 
   const identityUrl = config.services.identity?.url;
-  if (!identityUrl) return;
+  if (!identityUrl) {
+    logger.warn({
+      timestamp: new Date().toISOString(),
+      event: 'jwt_public_key_fetch_skipped',
+      reason: 'no_identity_url_configured',
+    });
+    return;
+  }
 
   // Node 18+ has global fetch.
   if (typeof (globalThis as any).fetch !== 'function') {
@@ -49,53 +63,83 @@ async function initializeJwtPublicKey(): Promise<void> {
     return;
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 4000);
+  // Retry up to 3 times with exponential backoff
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
-  try {
-    const url = `${identityUrl.replace(/\/+$/, '')}/api/v1/auth/public-key`;
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      signal: controller.signal,
-    });
-
-    if (!res.ok) {
-      logger.warn({
-        timestamp: new Date().toISOString(),
-        event: 'jwt_public_key_fetch_failed',
-        url,
-        status: res.status,
-      });
-      return;
-    }
-
-    const body = (await res.json().catch(() => null)) as any;
-    const publicKey = body?.data?.publicKey || body?.publicKey;
-
-    if (typeof publicKey === 'string' && publicKey.includes('PUBLIC KEY')) {
-      config.jwt.publicKey = publicKey;
+    try {
+      const url = `${identityUrl.replace(/\/+$/, '')}/api/v1/auth/public-key`;
       logger.info({
         timestamp: new Date().toISOString(),
-        event: 'jwt_public_key_loaded',
-        source: 'identity_service',
+        event: 'jwt_public_key_fetch_attempt',
+        url,
+        attempt,
       });
-    } else {
+
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        logger.warn({
+          timestamp: new Date().toISOString(),
+          event: 'jwt_public_key_fetch_failed',
+          url,
+          status: res.status,
+          attempt,
+        });
+        if (attempt < maxRetries) {
+          await new Promise((r) => setTimeout(r, attempt * 2000)); // 2s, 4s backoff
+          continue;
+        }
+        return;
+      }
+
+      const body = (await res.json().catch(() => null)) as any;
+      const publicKey = body?.data?.publicKey || body?.publicKey;
+
+      if (typeof publicKey === 'string' && publicKey.includes('PUBLIC KEY')) {
+        config.jwt.publicKey = publicKey;
+        logger.info({
+          timestamp: new Date().toISOString(),
+          event: 'jwt_public_key_loaded',
+          source: 'identity_service',
+          attempt,
+        });
+        return;
+      } else {
+        logger.warn({
+          timestamp: new Date().toISOString(),
+          event: 'jwt_public_key_fetch_invalid_response',
+          url,
+          attempt,
+        });
+      }
+    } catch (err) {
       logger.warn({
         timestamp: new Date().toISOString(),
-        event: 'jwt_public_key_fetch_invalid_response',
-        url,
+        event: 'jwt_public_key_fetch_error',
+        error: err instanceof Error ? err.message : String(err),
+        attempt,
       });
+      if (attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, attempt * 2000));
+        continue;
+      }
+    } finally {
+      clearTimeout(timeout);
     }
-  } catch (err) {
-    logger.warn({
-      timestamp: new Date().toISOString(),
-      event: 'jwt_public_key_fetch_error',
-      error: err instanceof Error ? err.message : String(err),
-    });
-  } finally {
-    clearTimeout(timeout);
   }
+
+  logger.error({
+    timestamp: new Date().toISOString(),
+    event: 'jwt_public_key_fetch_exhausted',
+    message: 'All attempts to fetch JWT public key failed. Token verification will not work.',
+  });
 }
 
 // =============================================================================

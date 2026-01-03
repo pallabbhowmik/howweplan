@@ -28,12 +28,41 @@ function verifyJWT(token: string): JWTPayload | null {
   const algorithms: Array<'RS256' | 'HS256'> = config.jwt.algorithm === 'RS256' 
     ? ['RS256', 'HS256'] // Try RS256 first, fall back to HS256
     : ['HS256'];
+
+  // Log available keys for debugging
+  const hasPublicKey = !!config.jwt.publicKey;
+  const hasSecret = !!config.jwt.secret;
+  
+  logger.debug({
+    timestamp: new Date().toISOString(),
+    event: 'jwt_verify_attempt',
+    algorithm: config.jwt.algorithm,
+    hasPublicKey,
+    hasSecret,
+    issuer: config.jwt.issuer,
+    audience: config.jwt.audience,
+  });
+
+  if (!hasPublicKey && !hasSecret) {
+    logger.error({
+      timestamp: new Date().toISOString(),
+      event: 'jwt_verify_no_keys',
+      message: 'No JWT verification keys available (no public key or secret)',
+    });
+    return null;
+  }
   
   for (const algorithm of algorithms) {
     try {
       const verifyKey = algorithm === 'RS256' ? config.jwt.publicKey : config.jwt.secret;
       
       if (!verifyKey) {
+        logger.debug({
+          timestamp: new Date().toISOString(),
+          event: 'jwt_verify_skip_algorithm',
+          algorithm,
+          reason: 'key_not_available',
+        });
         continue; // Skip this algorithm if key not available
       }
 
@@ -43,23 +72,42 @@ function verifyJWT(token: string): JWTPayload | null {
         audience: config.jwt.audience,
       }) as JWTPayload;
 
+      logger.debug({
+        timestamp: new Date().toISOString(),
+        event: 'jwt_verify_success',
+        algorithm,
+        userId: payload.sub,
+      });
+
       return payload;
     } catch (error) {
       // Log verification failures for debugging
       if (error instanceof jwt.TokenExpiredError) {
-        logger.debug({ timestamp: new Date().toISOString(), message: 'Token expired' });
+        logger.debug({ timestamp: new Date().toISOString(), event: 'jwt_verify_expired' });
         return null; // Don't try other algorithms for expired tokens
       } else if (error instanceof jwt.JsonWebTokenError) {
-        logger.debug({ 
+        logger.warn({ 
           timestamp: new Date().toISOString(), 
+          event: 'jwt_verify_failed',
           algorithm,
           error: (error as Error).message, 
-          message: 'JWT verification failed, trying next algorithm' 
         });
         // Continue to next algorithm
+      } else {
+        logger.error({
+          timestamp: new Date().toISOString(),
+          event: 'jwt_verify_unexpected_error',
+          algorithm,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   }
+  
+  logger.warn({
+    timestamp: new Date().toISOString(),
+    event: 'jwt_verify_all_algorithms_failed',
+  });
   
   return null;
 }
@@ -255,6 +303,13 @@ export function optionalAuthMiddleware(req: Request, res: Response, next: NextFu
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    logger.debug({
+      timestamp: new Date().toISOString(),
+      event: 'optional_auth_no_token',
+      requestId: req.requestId,
+      method: req.method,
+      path: req.path,
+    });
     return next();
   }
 
@@ -270,6 +325,24 @@ export function optionalAuthMiddleware(req: Request, res: Response, next: NextFu
       role: payload.role,
       permissions: payload.permissions,
     };
+    logger.debug({
+      timestamp: new Date().toISOString(),
+      event: 'optional_auth_success',
+      requestId: req.requestId,
+      method: req.method,
+      path: req.path,
+      userId: payload.sub,
+    });
+  } else {
+    logger.warn({
+      timestamp: new Date().toISOString(),
+      event: 'optional_auth_token_invalid',
+      requestId: req.requestId,
+      method: req.method,
+      path: req.path,
+      hasPayload: !!payload,
+      tokenExpired: payload ? payload.exp < Math.floor(Date.now() / 1000) : 'N/A',
+    });
   }
 
   next();
