@@ -240,8 +240,14 @@ export function getRefreshToken(): string | null {
  */
 export function getStoredUser(): AuthUser | null {
   if (typeof window === 'undefined') return null;
-  const stored = localStorage.getItem(USER_KEY);
-  return stored ? JSON.parse(stored) : null;
+  try {
+    const stored = localStorage.getItem(USER_KEY);
+    if (!stored || stored === 'undefined' || stored === 'null') return null;
+    return JSON.parse(stored);
+  } catch (e) {
+    console.warn('[auth] Failed to parse stored user:', e);
+    return null;
+  }
 }
 
 /**
