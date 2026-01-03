@@ -445,56 +445,8 @@ export default function MessagesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConversationId]);
 
-  // Note: Supabase Realtime is disabled for local development since the Docker setup
-  // doesn't include the realtime service. The polling fallback below handles updates.
-  // In production with full Supabase, you can enable realtime by uncommenting below.
-  /*
-  useEffect(() => {
-    if (!selectedConversationId) return;
-
-    const supabase = getSupabaseClient();
-    const channel = supabase
-      .channel(`user-messages:${selectedConversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${selectedConversationId}`,
-        },
-        (payload) => {
-          // Message received via realtime
-          const row: any = payload.new;
-          const next: ConversationMessage = {
-            id: row.id,
-            conversationId: row.conversation_id,
-            senderType: row.sender_type,
-            content: row.content,
-            isRead: Boolean(row.is_read),
-            createdAt: row.created_at,
-          };
-
-          setMessages((prev) => {
-            // Remove any optimistic message with same content and add the real one
-            const filtered = prev.filter((m) => !(m.id.startsWith('optimistic-') && m.content === next.content));
-            if (filtered.some((m) => m.id === next.id)) return filtered;
-            return [...filtered, next];
-          });
-          loadConversations();
-        }
-      )
-      .subscribe((status) => {
-        // Realtime subscription status updated
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedConversationId]);
-  */
-
+  // Real-time updates via polling (WebSocket support can be added through Gateway)
+  // The polling interval checks for new messages every few seconds
   useEffect(() => {
     if (!selectedConversationId) return;
 

@@ -2,7 +2,7 @@
  * API Client - Gateway Communication
  * 
  * All backend requests go through the API gateway.
- * Frontend NEVER calls microservices directly.
+ * Frontend NEVER calls microservices or database directly.
  * 
  * Architecture:
  * Frontend → API Gateway → Microservices → Database
@@ -17,6 +17,9 @@
  *   /api/notifications/* → Notifications Service
  *   /api/disputes/*      → Disputes Service
  *   /api/reviews/*       → Reviews Service
+ * 
+ * Supabase is ONLY used for authentication (supabase.auth.*).
+ * All data operations MUST go through the Gateway API.
  */
 
 const rawApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
@@ -56,27 +59,13 @@ export interface ApiError {
 
 /**
  * Get authorization header with current session token
+ * Uses the Identity Service token from login/register
  */
 async function getAuthHeader(): Promise<Record<string, string>> {
-  // Prefer the custom Identity Service token used by login/register.
-  // Fall back to Supabase session (legacy/dev) if present.
   try {
     const { getAccessToken } = await import('@/lib/api/auth');
     const token = getAccessToken();
     if (token) return { Authorization: `Bearer ${token}` };
-  } catch {
-    // ignore
-  }
-
-  try {
-    const { getSupabaseClient } = await import('@/lib/supabase/client');
-    const supabase = getSupabaseClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      return { Authorization: `Bearer ${session.access_token}` };
-    }
   } catch {
     // ignore
   }

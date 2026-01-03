@@ -3,7 +3,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 // ============================================================================
-// SUPABASE CLIENT - USAGE POLICY
+// SUPABASE CLIENT - AUTHENTICATION ONLY
 // ============================================================================
 // This client should ONLY be used for:
 // 
@@ -12,17 +12,15 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 //      - signInWithPassword, signUp, signOut
 //      - getSession, getUser, onAuthStateChange
 //   2. Session management
-//   3. Public read-only reference data
-//      - destinations, countries (static tables)
-//      - public agent profiles (read-only views)
+//   3. Password reset and email verification
 // 
-// ❌ FORBIDDEN:
-//   - User profile CRUD → Use Identity Service API
-//   - Travel requests CRUD → Use Requests Service API
-//   - Bookings queries → Use Booking-Payments Service API
-//   - Messages CRUD → Use Messaging Service API
-//   - Notifications → Use Notifications Service API
-//   - Any state-changing operations → Use backend services
+// ❌ FORBIDDEN - ALL data operations must go through Gateway API:
+//   - User profile CRUD → Use Gateway /api/identity/*
+//   - Travel requests CRUD → Use Gateway /api/requests/*
+//   - Bookings queries → Use Gateway /api/bookings/*
+//   - Messages CRUD → Use Gateway /api/messaging/*
+//   - Notifications → Use Gateway /api/notifications/*
+//   - Any database queries → Use Gateway API
 // 
 // See docs/FRONTEND-DATA-ACCESS-POLICY.md for complete policy.
 // ============================================================================

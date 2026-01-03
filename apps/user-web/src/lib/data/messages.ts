@@ -1,19 +1,15 @@
 import { messagingApi } from '@/lib/api/client';
 
 // ============================================================================
-// ⚠️ ARCHITECTURE VIOLATION WARNING ⚠️
+// Messaging Data Access - Gateway API
 // ============================================================================
-// This file directly queries Supabase for messaging data.
-// This VIOLATES our architecture - messages should go through Messaging Service.
+// All messaging operations go through the Gateway API to the Messaging Service.
 // 
-// ❌ WRONG: Direct Supabase queries with complex joins
-// ✅ RIGHT: Call Messaging Service API endpoints
-// 
-// TODO: Replace with:
-//   - GET /api/messaging/conversations
-//   - GET /api/messaging/conversations/:id/messages
-//   - POST /api/messaging/messages
-//   - PUT /api/messaging/conversations/:id/read
+// Endpoints used:
+//   - GET  /api/messaging/api/v1/conversations     - List conversations
+//   - GET  /api/messaging/api/v1/messages          - List messages
+//   - POST /api/messaging/api/v1/messages          - Send message
+//   - POST /api/messaging/api/v1/messages/read-up-to - Mark messages read
 // 
 // See docs/FRONTEND-DATA-ACCESS-POLICY.md for details.
 // ============================================================================
