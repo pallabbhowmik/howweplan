@@ -102,7 +102,7 @@ export const config = {
     },
     auth: {
       windowMs: 60 * 1000, // 1 minute
-      max: 5, // 5 login attempts per minute
+      max: 20, // 20 auth attempts per minute (increased from 5)
     },
     api: {
       windowMs: 60 * 1000, // 1 minute

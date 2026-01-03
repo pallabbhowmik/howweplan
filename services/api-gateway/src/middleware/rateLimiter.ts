@@ -53,6 +53,13 @@ function createLimiter(cfg: RateLimitConfig) {
         window: `${cfg.windowMs / 1000}s`,
       });
 
+      // Add CORS headers to rate limit responses
+      const origin = req.headers.origin;
+      if (origin && config.cors.allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+      }
+
       res.status(429).json({
         error: 'Too Many Requests',
         message: cfg.message,
@@ -81,8 +88,8 @@ export const globalRateLimiter = createLimiter({
  * Prevents brute force attacks
  */
 export const authRateLimiter = createLimiter({
-  windowMs: 60 * 1000, // 1 minute
-  max: 5, // 5 login attempts per minute
+  windowMs: config.rateLimit.auth.windowMs,
+  max: config.rateLimit.auth.max,
   message: 'Too many authentication attempts, please try again after 1 minute',
   keyGenerator: (req: Request) => {
     // For auth, use IP + email/username if provided
