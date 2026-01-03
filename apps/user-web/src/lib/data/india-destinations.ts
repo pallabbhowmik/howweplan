@@ -27,10 +27,106 @@ export interface IndiaDestination {
 }
 
 export function destinationImageUrl(destination: IndiaDestination, width = 800, height = 500): string {
-  // Using Lorem Picsum for reliable placeholder images.
-  // We create a deterministic seed from destination ID so each place gets a consistent image.
-  const seed = destination.id.replace(/[^a-z0-9]/gi, '');
-  return `https://picsum.photos/seed/${seed}/${width}/${height}`;
+  // Curated Unsplash photo IDs for accurate destination imagery
+  const CURATED_PHOTOS: Record<string, string> = {
+    // North India
+    'in-delhi': 'photo-1587474260584-136574528ed5', // India Gate
+    'in-agra': 'photo-1564507592333-c60657eea523', // Taj Mahal
+    'in-jaipur': 'photo-1477587458883-47145ed94245', // Hawa Mahal
+    'in-udaipur': 'photo-1568495248636-6432b97bd949', // Lake Palace
+    'in-jodhpur': 'photo-1578662996442-48f60103fc96', // Blue City
+    'in-jaisalmer': 'photo-1609766856923-7e0a1e8d5a2e', // Golden Fort
+    'in-bikaner': 'photo-1599661046289-e31897846e41', // Junagarh Fort
+    'in-pushkar': 'photo-1602216056096-3b40cc0c9944', // Pushkar Lake
+    'in-mount-abu': 'photo-1590050752117-238cb0fb12b1', // Hill station
+    'in-ranthambore': 'photo-1561731216-c3a4d99437d5', // Tiger
+    'in-amritsar': 'photo-1514222134-b57cbb8ce073', // Golden Temple
+    'in-chandigarh': 'photo-1587474260584-136574528ed5', // Rock Garden
+    'in-shimla': 'photo-1597074866923-dc0589150358', // Hill station
+    'in-manali': 'photo-1626621341517-bbf3d9990a23', // Snow mountains
+    'in-kasol': 'photo-1506905925346-21bda4d32df4', // Parvati Valley
+    'in-spiti': 'photo-1589308078059-be1415eab4c3', // Spiti landscape
+    'in-dharamshala': 'photo-1587474260584-136574528ed5', // Mcleodganj
+    'in-rishikesh': 'photo-1482938289607-e9573fc25ebb', // Ganga river
+    'in-haridwar': 'photo-1609766856923-7e0a1e8d5a2e', // Ganga Aarti
+    'in-mussoorie': 'photo-1506905925346-21bda4d32df4', // Hill view
+    'in-nainital': 'photo-1595815771614-ade9d652a65d', // Lake
+    'in-auli': 'photo-1491002052546-bf38f186af56', // Skiing
+    'in-srinagar': 'photo-1566837945700-30057527ade0', // Dal Lake
+    'in-gulmarg': 'photo-1491002052546-bf38f186af56', // Snow
+    'in-pahalgam': 'photo-1506905925346-21bda4d32df4', // Valley
+    'in-leh': 'photo-1593181629936-11c609b8db9b', // Ladakh monastery
+    'in-nubra': 'photo-1589308078059-be1415eab4c3', // Sand dunes
+    'in-pangong': 'photo-1589308078059-be1415eab4c3', // Blue lake
+    'in-varanasi': 'photo-1561361513-2d000a50f0dc', // Ghats
+    'in-lucknow': 'photo-1587474260584-136574528ed5', // Bara Imambara
+    'in-kedarnath': 'photo-1626621341517-bbf3d9990a23', // Temple mountains
+    'in-badrinath': 'photo-1626621341517-bbf3d9990a23', // Himalayan temple
+    'in-jim-corbett': 'photo-1561731216-c3a4d99437d5', // Wildlife
+    
+    // West India
+    'in-mumbai': 'photo-1529253355930-ddbe423a2ac7', // Gateway of India
+    'in-pune': 'photo-1587474260584-136574528ed5', // Shaniwar Wada
+    'in-lonavala': 'photo-1506905925346-21bda4d32df4', // Misty hills
+    'in-mahabaleshwar': 'photo-1506905925346-21bda4d32df4', // Viewpoint
+    'in-aurangabad': 'photo-1590050752117-238cb0fb12b1', // Ajanta caves
+    'in-goa': 'photo-1512343879784-a960bf40e7f2', // Beach sunset
+    'in-gokarna': 'photo-1507525428034-b723cf961d3e', // Beach
+    'in-ahmedabad': 'photo-1587474260584-136574528ed5', // Heritage
+    'in-rann': 'photo-1609766856923-7e0a1e8d5a2e', // White desert
+    'in-gir': 'photo-1561731216-c3a4d99437d5', // Lion
+    'in-dwarka': 'photo-1609766856923-7e0a1e8d5a2e', // Temple
+    'in-somnath': 'photo-1609766856923-7e0a1e8d5a2e', // Sea temple
+    
+    // South India
+    'in-bengaluru': 'photo-1596176530529-78163a4f7af2', // City
+    'in-mysuru': 'photo-1600100397608-e1f6a7b9a4d8', // Mysore Palace
+    'in-hampi': 'photo-1590050752117-238cb0fb12b1', // Ruins
+    'in-coorg': 'photo-1506905925346-21bda4d32df4', // Coffee plantation
+    'in-ooty': 'photo-1506905925346-21bda4d32df4', // Tea gardens
+    'in-kodaikanal': 'photo-1595815771614-ade9d652a65d', // Lake mist
+    'in-chennai': 'photo-1582510003544-4d00b7f74220', // Marina Beach
+    'in-mahabalipuram': 'photo-1590050752117-238cb0fb12b1', // Shore temple
+    'in-madurai': 'photo-1582510003544-4d00b7f74220', // Meenakshi Temple
+    'in-pondicherry': 'photo-1507525428034-b723cf961d3e', // French quarter
+    'in-kerala-kochi': 'photo-1602216056096-3b40cc0c9944', // Chinese nets
+    'in-kerala-alleppey': 'photo-1593693411515-c20261bcad6e', // Backwaters
+    'in-kerala-munnar': 'photo-1506905925346-21bda4d32df4', // Tea hills
+    'in-kerala-varkala': 'photo-1507525428034-b723cf961d3e', // Cliff beach
+    'in-kerala-thekkady': 'photo-1561731216-c3a4d99437d5', // Periyar
+    'in-hyderabad': 'photo-1572445271230-a78d4b434089', // Charminar
+    'in-andaman': 'photo-1544551763-46a013bb70d5', // Beach
+    'in-lakshadweep': 'photo-1544551763-46a013bb70d5', // Lagoon
+    
+    // East India
+    'in-kolkata': 'photo-1558431382-27e303142255', // Victoria Memorial
+    'in-darjeeling': 'photo-1506905925346-21bda4d32df4', // Tea plantation
+    'in-sundarbans': 'photo-1561731216-c3a4d99437d5', // Mangrove
+    'in-puri': 'photo-1507525428034-b723cf961d3e', // Beach temple
+    'in-konark': 'photo-1590050752117-238cb0fb12b1', // Sun Temple
+    'in-gangtok': 'photo-1506905925346-21bda4d32df4', // Mountain view
+    'in-kaziranga': 'photo-1561731216-c3a4d99437d5', // Rhino
+    
+    // Central India
+    'in-bhopal': 'photo-1595815771614-ade9d652a65d', // Lake
+    'in-khajuraho': 'photo-1590050752117-238cb0fb12b1', // Temples
+    'in-bandhavgarh': 'photo-1561731216-c3a4d99437d5', // Tiger
+    'in-kanha': 'photo-1561731216-c3a4d99437d5', // Forest
+    
+    // Northeast India
+    'in-shillong': 'photo-1506905925346-21bda4d32df4', // Hills
+    'in-cherrapunji': 'photo-1506905925346-21bda4d32df4', // Waterfalls
+    'in-tawang': 'photo-1593181629936-11c609b8db9b', // Monastery
+  };
+
+  const photoId = CURATED_PHOTOS[destination.id];
+  if (photoId) {
+    return `https://images.unsplash.com/${photoId}?w=${width}&h=${height}&fit=crop&auto=format&q=80`;
+  }
+  
+  // Fallback: Use Unsplash search-based URL for uncurated destinations
+  const query = `${destination.name} india ${destination.themes[0] || 'travel'}`.toLowerCase();
+  return `https://source.unsplash.com/${width}x${height}/?${encodeURIComponent(query)}`;
 }
 
 // Theme-based gradient backgrounds as elegant fallbacks
