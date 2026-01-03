@@ -11,7 +11,7 @@
  * The only exception is Supabase Auth which is handled in lib/supabase/client.ts
  */
 
-import { getAccessToken } from '@/lib/api/auth';
+import { authenticatedFetch, getAccessToken } from '@/lib/api/auth';
 import { apiConfig } from '@/config';
 
 // Normalize API base URL - remove trailing slashes and /api suffix to avoid duplication
@@ -269,26 +269,32 @@ async function gatewayRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = getAccessToken();
-  
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+
+  // Always default to JSON content-type unless caller overrides.
+  const headers = new Headers(options.headers);
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      ...headers,
-      ...options.headers,
-    },
-  });
+  const url = `${API_BASE}${endpoint}`;
+
+  // If we have a token, use authenticatedFetch so expired tokens get refreshed.
+  // If we don't have a token, keep current behavior (some endpoints are public).
+  const response = token
+    ? await authenticatedFetch(url, { ...options, headers })
+    : await fetch(url, { ...options, headers });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || errorData.error || `Request failed: ${response.status}`);
+
+    // Support multiple backend error shapes.
+    const message =
+      errorData?.error?.message ||
+      errorData?.message ||
+      (typeof errorData?.error === 'string' ? errorData.error : undefined) ||
+      `Request failed: ${response.status}`;
+
+    throw new Error(message);
   }
 
   return response.json();

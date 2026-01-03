@@ -5,6 +5,7 @@
 
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import { env } from '../env.js';
 import {
   AuthenticatedRequest,
   requireAuth,
@@ -92,6 +93,41 @@ function sendError(res: Response, error: IdentityError, correlationId: string): 
 // ─────────────────────────────────────────────────────────────────────────────
 // ROUTES
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /auth/public-key
+ * Public endpoint for services (like the API Gateway) to fetch the RS256 public key.
+ * Safe to expose: this is a public verification key, not a private signing key.
+ */
+router.get('/public-key', async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthenticatedRequest;
+  const correlationId = authReq.correlationId ?? 'unknown';
+
+  // Only relevant for RS256. If HS256 is used, there is no public key.
+  if (env.JWT_ALGORITHM !== 'RS256' || !env.JWT_PUBLIC_KEY) {
+    res.status(404).json({
+      success: false,
+      error: {
+        code: 'PUBLIC_KEY_NOT_AVAILABLE',
+        message: 'Public key not available',
+      },
+      requestId: correlationId,
+      timestamp: new Date().toISOString(),
+    });
+    return;
+  }
+
+  sendSuccess(
+    res,
+    {
+      algorithm: env.JWT_ALGORITHM,
+      issuer: env.JWT_ISSUER,
+      audience: env.JWT_AUDIENCE,
+      publicKey: env.JWT_PUBLIC_KEY,
+    },
+    correlationId
+  );
+});
 
 /**
  * POST /auth/register

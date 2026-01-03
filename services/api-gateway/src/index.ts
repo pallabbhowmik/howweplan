@@ -30,6 +30,75 @@ const app = express();
 const PORT = config.port;
 
 // =============================================================================
+// STARTUP INITIALIZATION
+// =============================================================================
+
+async function initializeJwtPublicKey(): Promise<void> {
+  if (config.jwt.publicKey) return;
+
+  const identityUrl = config.services.identity?.url;
+  if (!identityUrl) return;
+
+  // Node 18+ has global fetch.
+  if (typeof (globalThis as any).fetch !== 'function') {
+    logger.warn({
+      timestamp: new Date().toISOString(),
+      event: 'jwt_public_key_fetch_skipped',
+      reason: 'fetch_not_available',
+    });
+    return;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+
+  try {
+    const url = `${identityUrl.replace(/\/+$/, '')}/api/v1/auth/public-key`;
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      logger.warn({
+        timestamp: new Date().toISOString(),
+        event: 'jwt_public_key_fetch_failed',
+        url,
+        status: res.status,
+      });
+      return;
+    }
+
+    const body = (await res.json().catch(() => null)) as any;
+    const publicKey = body?.data?.publicKey || body?.publicKey;
+
+    if (typeof publicKey === 'string' && publicKey.includes('PUBLIC KEY')) {
+      config.jwt.publicKey = publicKey;
+      logger.info({
+        timestamp: new Date().toISOString(),
+        event: 'jwt_public_key_loaded',
+        source: 'identity_service',
+      });
+    } else {
+      logger.warn({
+        timestamp: new Date().toISOString(),
+        event: 'jwt_public_key_fetch_invalid_response',
+        url,
+      });
+    }
+  } catch (err) {
+    logger.warn({
+      timestamp: new Date().toISOString(),
+      event: 'jwt_public_key_fetch_error',
+      error: err instanceof Error ? err.message : String(err),
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// =============================================================================
 // SECURITY MIDDLEWARE
 // =============================================================================
 
@@ -366,7 +435,10 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 // SERVER STARTUP
 // =============================================================================
 
-app.listen(PORT, () => {
+async function start(): Promise<void> {
+  await initializeJwtPublicKey();
+
+  app.listen(PORT, () => {
   logger.info({
     timestamp: new Date().toISOString(),
     event: 'server_started',
@@ -404,4 +476,14 @@ app.listen(PORT, () => {
   Object.entries(config.services).forEach(([name, url]) => {
     console.log(`   /api/${name} → ${url}`);
   });
+  });
+}
+
+start().catch((err) => {
+  logger.error({
+    timestamp: new Date().toISOString(),
+    event: 'startup_failed',
+    error: err instanceof Error ? err.message : String(err),
+  });
+  process.exit(1);
 });
