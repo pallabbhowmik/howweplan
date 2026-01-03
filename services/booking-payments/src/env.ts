@@ -164,7 +164,11 @@ export const config = {
   },
   auth: {
     internalApiKey: env.INTERNAL_API_KEY,
-    jwtSecret: env.JWT_SECRET,
+    jwtPublicKey: getJwtPublicKey() || env.JWT_PUBLIC_KEY || '',
+    jwtSecret: env.JWT_SECRET || '',
+    jwtAlgorithm: env.JWT_ALGORITHM,
+    jwtIssuer: env.JWT_ISSUER,
+    jwtAudience: env.JWT_AUDIENCE,
   },
   database: {
     supabaseUrl: env.SUPABASE_URL,

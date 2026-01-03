@@ -348,7 +348,9 @@ export const config = {
   auth: {
     supabaseUrl: env.SUPABASE_URL,
     supabaseServiceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
-    jwtSecret: env.JWT_SECRET,
+    jwtPublicKey: getJwtPublicKey() || env.JWT_PUBLIC_KEY || '',
+    jwtSecret: env.JWT_SECRET || '',
+    jwtAlgorithm: env.JWT_ALGORITHM,
     jwtIssuer: env.JWT_ISSUER,
   },
 

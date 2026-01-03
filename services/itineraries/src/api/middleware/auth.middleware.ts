@@ -1,7 +1,37 @@
 import type { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import jwt, { JwtPayload as JwtLibPayload, Algorithm } from 'jsonwebtoken';
+import { readFileSync, existsSync } from 'fs';
 import { env } from '../../env.js';
 import { UnauthorizedError, ForbiddenError } from '../../utils/index.js';
+
+/**
+ * Read a secret file from Render's secret files location.
+ */
+function readSecretFile(filename: string): string | undefined {
+  const paths = [
+    `/etc/secrets/${filename}`,
+    `./secrets/${filename}`,
+    `./${filename}`,
+  ];
+  for (const path of paths) {
+    if (existsSync(path)) {
+      try {
+        return readFileSync(path, 'utf-8').trim();
+      } catch { /* continue */ }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Get JWT public key from secret file or env var.
+ */
+function getJwtPublicKey(): string {
+  const fileContent = readSecretFile('jwt-public.pem');
+  if (fileContent) return fileContent;
+  const envKey = env.JWT_PUBLIC_KEY;
+  return envKey || '';
+}
 
 /**
  * JWT payload structure.
@@ -28,16 +58,36 @@ export interface AuthenticatedRequest extends Request {
  */
 function verifyToken(token: string): JwtPayload {
   try {
-    const payload = jwt.verify(token, env.JWT_SECRET, {
+    const algorithm = (env.JWT_ALGORITHM || 'RS256') as Algorithm;
+    const publicKey = getJwtPublicKey();
+    const secret = env.JWT_SECRET;
+    
+    // Determine verification key based on algorithm
+    const verifyKey = algorithm === 'RS256' ? publicKey : secret;
+    
+    if (!verifyKey) {
+      throw new UnauthorizedError(`JWT verification key not configured (${algorithm})`);
+    }
+
+    const payload = jwt.verify(token, verifyKey, {
       issuer: env.JWT_ISSUER,
       audience: env.JWT_AUDIENCE,
-    }) as JwtPayload;
+      algorithms: [algorithm],
+    }) as JwtLibPayload & JwtPayload;
 
     if (!payload.sub || !payload.role) {
       throw new UnauthorizedError('Invalid token payload');
     }
 
-    return payload;
+    return {
+      sub: payload.sub,
+      role: payload.role,
+      email: payload.email,
+      iss: payload.iss,
+      aud: typeof payload.aud === 'string' ? payload.aud : payload.aud?.[0],
+      exp: payload.exp,
+      iat: payload.iat,
+    };
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
       throw new UnauthorizedError('Token expired');
