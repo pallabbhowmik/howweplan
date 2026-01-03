@@ -8,6 +8,7 @@
 import { Router } from 'express';
 import { RequestService } from '../services/request.service';
 import { CapEnforcementService } from '../services/cap-enforcement.service';
+import { DestinationRepository } from '../domain/destination.repository';
 import { AuthMiddleware, AdminAuthMiddleware } from '../middleware/auth.middleware';
 import {
   createCreateRequestHandler,
@@ -22,10 +23,21 @@ import {
   createAdminTransitionRequestHandler,
   createAdminListRequestsHandler,
 } from './handlers';
+import {
+  createListDestinationsHandler,
+  createGetDestinationHandler,
+  createCreateDestinationHandler,
+  createUpdateDestinationHandler,
+  createDeleteDestinationHandler,
+  createDestinationStatsHandler,
+  createImportDestinationsHandler,
+  createBulkUpdateDestinationsHandler,
+} from './handlers/destinations.handlers';
 
 export interface RoutesDependencies {
   requestService: RequestService;
   capEnforcementService: CapEnforcementService;
+  destinationRepository: DestinationRepository;
   authMiddleware: AuthMiddleware;
   adminAuthMiddleware: AdminAuthMiddleware;
 }
@@ -95,6 +107,38 @@ export function createRoutes(deps: RoutesDependencies): Router {
   );
 
   router.use('/admin', adminRouter);
+
+  // =========================================================================
+  // DESTINATIONS ROUTES (public read, admin write)
+  // =========================================================================
+  
+  const destinationsRouter = Router();
+
+  // Public: GET /destinations - List all active destinations (for explore page)
+  destinationsRouter.get('/', createListDestinationsHandler(deps.destinationRepository));
+
+  // Public: GET /destinations/stats - Get statistics
+  destinationsRouter.get('/stats', createDestinationStatsHandler(deps.destinationRepository));
+
+  // Public: GET /destinations/:id - Get single destination
+  destinationsRouter.get('/:id', createGetDestinationHandler(deps.destinationRepository));
+
+  // Admin only: POST /destinations - Create destination
+  destinationsRouter.post('/', deps.adminAuthMiddleware, createCreateDestinationHandler(deps.destinationRepository));
+
+  // Admin only: POST /destinations/import - Bulk import
+  destinationsRouter.post('/import', deps.adminAuthMiddleware, createImportDestinationsHandler(deps.destinationRepository));
+
+  // Admin only: PATCH /destinations/bulk - Bulk update
+  destinationsRouter.patch('/bulk', deps.adminAuthMiddleware, createBulkUpdateDestinationsHandler(deps.destinationRepository));
+
+  // Admin only: PATCH /destinations/:id - Update destination
+  destinationsRouter.patch('/:id', deps.adminAuthMiddleware, createUpdateDestinationHandler(deps.destinationRepository));
+
+  // Admin only: DELETE /destinations/:id - Delete destination
+  destinationsRouter.delete('/:id', deps.adminAuthMiddleware, createDeleteDestinationHandler(deps.destinationRepository));
+
+  router.use('/destinations', destinationsRouter);
 
   return router;
 }

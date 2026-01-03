@@ -23,6 +23,7 @@ const corsOptions = {
 
 // Domain
 import { createRequestRepository } from './domain/request.repository';
+import { createDestinationRepository } from './domain/destination.repository';
 
 // Services
 import { createLogger } from './services/logger.service';
@@ -59,6 +60,7 @@ async function main() {
 
   // Initialize dependencies
   const repository = createRequestRepository();
+  const destinationRepository = createDestinationRepository();
   const eventEmitter = createEventEmitter(logger);
   const auditService = createAuditService(logger);
   const capEnforcementService = createCapEnforcementService(repository, logger);
@@ -112,6 +114,7 @@ async function main() {
   const routes = createRoutes({
     requestService,
     capEnforcementService,
+    destinationRepository,
     authMiddleware,
     adminAuthMiddleware,
   });

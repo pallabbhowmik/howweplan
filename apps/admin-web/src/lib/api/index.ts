@@ -59,3 +59,30 @@ export {
   getEventsByCorrelationId,
 } from './audit';
 export type { AuditQueryParams } from './audit';
+
+// Destinations APIs
+export {
+  getDestinations,
+  getDestination,
+  createDestination,
+  updateDestination,
+  deleteDestination,
+  getDestinationStats,
+  bulkUpdateDestinations,
+  importDestinations,
+  DESTINATION_REGIONS,
+  DESTINATION_THEMES,
+  MONTH_NAMES,
+  THEME_COLORS,
+  REGION_COLORS,
+} from './destinations';
+export type {
+  Destination,
+  DestinationRegion,
+  DestinationTheme,
+  CreateDestinationDto,
+  UpdateDestinationDto,
+  DestinationFilters,
+  DestinationQueryParams,
+  DestinationStats,
+} from './destinations';
