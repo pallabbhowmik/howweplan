@@ -32,6 +32,41 @@ function handleHealthCheck(res: ServerResponse): void {
 }
 
 /**
+ * Metrics response
+ */
+function handleMetrics(res: ServerResponse): void {
+  const eventBus = getEventBus();
+  const memoryUsage = process.memoryUsage();
+  
+  const metrics = {
+    service: env.SERVICE_NAME,
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: {
+      heapUsed: memoryUsage.heapUsed,
+      heapTotal: memoryUsage.heapTotal,
+      external: memoryUsage.external,
+      rss: memoryUsage.rss,
+    },
+    eventBus: {
+      connected: eventBus.connected,
+    },
+    metrics: {
+      // Placeholder metrics
+      requestsProcessed: 0,
+      matchesCreated: 0,
+      matchingFailures: 0,
+      avgMatchingTimeMs: 0,
+      agentsEvaluated: 0,
+    },
+  };
+
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(metrics));
+}
+
+/**
  * Request handler
  */
 async function requestHandler(
@@ -55,6 +90,11 @@ async function requestHandler(
   // Route requests
   if (url === '/health' && method === 'GET') {
     handleHealthCheck(res);
+    return;
+  }
+
+  if (url === '/metrics' && method === 'GET') {
+    handleMetrics(res);
     return;
   }
 

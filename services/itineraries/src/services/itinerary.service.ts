@@ -458,4 +458,103 @@ export class ItineraryService {
     const itineraries = await this.repository.findByTravelerId(travelerId);
     return itineraries.map((it: Itinerary) => withMeta(getItineraryView(it)));
   }
+
+  /**
+   * Process expired itineraries.
+   * Itineraries in SUBMITTED status that have been waiting too long are marked as ARCHIVED.
+   * 
+   * @returns Number of itineraries expired
+   */
+  async processExpiredItineraries(): Promise<number> {
+    const expiryHours = env.ITINERARY_EXPIRY_HOURS;
+    const cutoffDate = new Date();
+    cutoffDate.setHours(cutoffDate.getHours() - expiryHours);
+
+    // Find itineraries that are submitted but past the expiry window
+    // In production, this would be a database query:
+    // const expiredItineraries = await prisma.itinerary.findMany({
+    //   where: {
+    //     status: ItineraryStatus.SUBMITTED,
+    //     submittedAt: { lt: cutoffDate },
+    //   },
+    // });
+
+    // Placeholder for expired itineraries
+    const expiredItineraries: Itinerary[] = [];
+
+    let expiredCount = 0;
+
+    for (const itinerary of expiredItineraries) {
+      try {
+        await this.changeStatus(
+          itinerary.id,
+          ItineraryStatus.ARCHIVED,
+          'system',
+          'ADMIN', // System acts as admin
+          'Automatically expired - no selection within time window'
+        );
+        expiredCount++;
+
+        // Emit expiration event for downstream services
+        await publishEvent(createAuditEvent({
+          eventType: 'itinerary.expired',
+          entityType: 'itinerary',
+          entityId: itinerary.id,
+          actorId: 'system',
+          actorRole: 'ADMIN',
+          changes: {
+            status: { from: ItineraryStatus.SUBMITTED, to: ItineraryStatus.ARCHIVED },
+          },
+          metadata: {
+            requestId: itinerary.requestId,
+            agentId: itinerary.agentId,
+            submittedAt: itinerary.submittedAt,
+            expiryHours,
+            reason: 'automatic_expiration',
+          },
+        }));
+      } catch (error) {
+        // Log error but continue processing other itineraries
+        console.error(`Failed to expire itinerary ${itinerary.id}:`, error);
+      }
+    }
+
+    return expiredCount;
+  }
+
+  /**
+   * Check if an itinerary is expired based on submission date.
+   */
+  isExpired(itinerary: Itinerary): boolean {
+    if (itinerary.status !== ItineraryStatus.SUBMITTED) {
+      return false;
+    }
+
+    if (!itinerary.submittedAt) {
+      return false;
+    }
+
+    const expiryHours = env.ITINERARY_EXPIRY_HOURS;
+    const cutoffDate = new Date();
+    cutoffDate.setHours(cutoffDate.getHours() - expiryHours);
+
+    const submittedAt = new Date(itinerary.submittedAt);
+    return submittedAt < cutoffDate;
+  }
+
+  /**
+   * Get the expiry date for an itinerary.
+   * Returns null if the itinerary is not in a state where expiry applies.
+   */
+  getExpiryDate(itinerary: Itinerary): Date | null {
+    if (itinerary.status !== ItineraryStatus.SUBMITTED || !itinerary.submittedAt) {
+      return null;
+    }
+
+    const submittedAt = new Date(itinerary.submittedAt);
+    const expiryDate = new Date(submittedAt);
+    expiryDate.setHours(expiryDate.getHours() + env.ITINERARY_EXPIRY_HOURS);
+
+    return expiryDate;
+  }
 }

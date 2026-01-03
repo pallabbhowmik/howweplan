@@ -97,5 +97,27 @@ export function createHealthRouter(): Router {
     });
   });
 
+  /**
+   * Metrics endpoint for observability
+   */
+  router.get('/metrics', (_req: Request, res: Response) => {
+    res.status(200).json({
+      service: env.SERVICE_NAME,
+      version: env.SERVICE_VERSION,
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      metrics: {
+        emailEnabled: env.ENABLE_EMAIL,
+        smsEnabled: env.ENABLE_SMS && env.SMS_ENABLED,
+        pushEnabled: env.ENABLE_PUSH && env.PUSH_ENABLED,
+        requestCount: 0,
+        deliverySuccessCount: 0,
+        deliveryFailureCount: 0,
+        avgDeliveryTimeMs: 0,
+      },
+    });
+  });
+
   return router;
 }

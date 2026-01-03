@@ -310,6 +310,44 @@ export class AuditService {
   }
 
   /**
+   * Logs messages read event (read receipts).
+   * Tracks when users read messages for conversation history.
+   */
+  async logMessagesRead(
+    conversationId: string,
+    messageIds: string[],
+    readById: string,
+    readAt: Date
+  ): Promise<void> {
+    if (!config.observability.auditEnabled) return;
+
+    const eventBus = await getEventBus();
+
+    await eventBus.publish({
+      ...createBaseEvent(EMITTED_EVENT_TYPES.MESSAGE_SENT), // Using closest event type
+      eventType: 'messaging.messages.read',
+      payload: {
+        conversationId,
+        messageIds,
+        readById,
+        messageCount: messageIds.length,
+        readAt: readAt.toISOString(),
+      },
+    });
+
+    // Note: Read receipts are high-volume, so we don't write individual audit logs
+    // The event bus emission is sufficient for real-time tracking
+    if (config.isDevelopment) {
+      console.info('[ReadReceipt]', {
+        conversationId,
+        readById,
+        messageCount: messageIds.length,
+        readAt: readAt.toISOString(),
+      });
+    }
+  }
+
+  /**
    * Writes an audit log entry to the database.
    */
   private async writeAuditLog(params: {

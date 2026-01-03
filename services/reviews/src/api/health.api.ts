@@ -75,4 +75,35 @@ healthApi.get('/live', (c) => {
   });
 });
 
+/**
+ * GET /health/metrics
+ * Metrics endpoint for observability
+ */
+healthApi.get('/metrics', (c) => {
+  const memoryUsage = process.memoryUsage();
+  
+  return c.json({
+    service: appConfig.name,
+    version: appConfig.version,
+    environment: appConfig.environment,
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: {
+      heapUsed: memoryUsage.heapUsed,
+      heapTotal: memoryUsage.heapTotal,
+      external: memoryUsage.external,
+      rss: memoryUsage.rss,
+    },
+    metrics: {
+      // Placeholder metrics - in production, integrate with actual metrics collection
+      requestCount: 0,
+      errorCount: 0,
+      avgLatencyMs: 0,
+      reviewsCreated: 0,
+      reviewsModerated: 0,
+      reviewsPublished: 0,
+    },
+  });
+});
+
 export { healthApi };

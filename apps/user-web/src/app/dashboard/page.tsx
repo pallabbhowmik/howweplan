@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Plus,
   CheckCircle,
@@ -74,6 +75,7 @@ function determineJourneyStage(
 // ============================================================================
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { user, loading: userLoading, error: userError } = useUserSession();
   const [requests, setRequests] = useState<TravelRequest[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -81,6 +83,13 @@ export default function DashboardPage() {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
+
+  // Redirect to login if no user session after loading completes
+  useEffect(() => {
+    if (!userLoading && !user && !userError) {
+      router.replace('/login');
+    }
+  }, [userLoading, user, userError, router]);
 
   useEffect(() => {
     if (!userLoading && !user?.userId) {
@@ -138,17 +147,38 @@ export default function DashboardPage() {
   }
 
   if (userError || dataError || !user) {
+    // If no user and no error, we're redirecting to login - show loading
+    if (!user && !userError && !dataError) {
+      return (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-3" />
+            <p className="text-gray-500 text-sm">Redirecting to login...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Show error state with options
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 max-w-sm">
-          <RefreshCw className="h-8 w-8 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600 mb-4 text-sm">
-            {userError || dataError || 'Unable to load. Please refresh.'}
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 max-w-md">
+          <RefreshCw className="h-8 w-8 text-red-400 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-red-800 mb-2">Unable to Load Dashboard</h2>
+          <p className="text-red-600 mb-6 text-sm">
+            {userError || dataError || 'Session expired. Please sign in again.'}
           </p>
-          <Button onClick={() => window.location.reload()} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex flex-col gap-3">
+            <Button onClick={() => window.location.reload()} variant="outline" size="sm" className="w-full">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh Page
+            </Button>
+            <Link href="/login">
+              <Button variant="default" size="sm" className="w-full">
+                Sign In
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     );

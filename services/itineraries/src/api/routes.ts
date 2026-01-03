@@ -49,6 +49,24 @@ export function createRoutes(
   });
 
   // ============================================================
+  // METRICS ENDPOINT
+  // ============================================================
+  router.get('/metrics', (_req, res) => {
+    res.json({
+      service: 'itineraries-service',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      metrics: {
+        // Placeholder for actual metrics
+        requestCount: 0,
+        errorCount: 0,
+        avgLatencyMs: 0,
+      },
+    });
+  });
+
+  // ============================================================
   // SUBMISSION ROUTES
   // ============================================================
   const submissionsRouter = Router();

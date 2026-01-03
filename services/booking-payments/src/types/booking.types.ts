@@ -68,9 +68,16 @@ export interface Booking {
   readonly totalAmountCents: number;
   readonly agentPayoutCents: number;
 
-  /** Stripe references */
+  /** Payment provider references (Razorpay) */
+  readonly paymentIntentId: string | null;
+  readonly checkoutSessionId: string | null;
+  readonly chargeId: string | null;
+  
+  /** @deprecated Use paymentIntentId - kept for backward compatibility */
   readonly stripePaymentIntentId: string | null;
+  /** @deprecated Use checkoutSessionId - kept for backward compatibility */
   readonly stripeCheckoutSessionId: string | null;
+  /** @deprecated Use chargeId - kept for backward compatibility */
   readonly stripeChargeId: string | null;
 
   /** State transitions */

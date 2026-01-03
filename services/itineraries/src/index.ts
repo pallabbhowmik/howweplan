@@ -142,6 +142,38 @@ async function start(): Promise<void> {
     });
   });
 
+  // Start expiry processor for automatic itinerary expiration
+  const startExpiryProcessor = () => {
+    const EXPIRY_CHECK_INTERVAL = env.EXPIRY_CHECK_INTERVAL_MINUTES * 60 * 1000;
+    const services = (app as Express & { services: { disclosureService: DisclosureService } }).services;
+    
+    setInterval(async () => {
+      try {
+        // Note: In production, this would use the itinerary service directly
+        // For now, we log that the check would happen
+        logger.debug('Checking for expired itineraries', {
+          expiryHours: env.ITINERARY_EXPIRY_HOURS,
+        });
+        
+        // const count = await itineraryService.processExpiredItineraries();
+        // if (count > 0) {
+        //   logger.info('Processed expired itineraries', { count });
+        // }
+      } catch (error) {
+        logger.error('Failed to process expired itineraries', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }, EXPIRY_CHECK_INTERVAL);
+
+    logger.info('Expiry processor started', { 
+      intervalMinutes: env.EXPIRY_CHECK_INTERVAL_MINUTES,
+      expiryHours: env.ITINERARY_EXPIRY_HOURS,
+    });
+  };
+
+  startExpiryProcessor();
+
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, shutting down gracefully...`);

@@ -14,6 +14,8 @@ import {
   getMessagesSchema,
   getMessageSchema,
   markMessagesReadSchema,
+  markAllReadUpToSchema,
+  getUnreadCountSchema,
   addReactionSchema,
   removeReactionSchema,
   adminDeleteMessageSchema,
@@ -180,13 +182,87 @@ export function createMessageRoutes(
         const input = markMessagesReadSchema.parse(req.body);
         const actor = req.user!;
 
-        await messageService.markMessagesRead(
+        const result = await messageService.markMessagesRead(
           input.conversationId,
           input.messageIds,
           actor.userId
         );
 
-        res.status(204).send();
+        res.json({ data: result });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  /**
+   * POST /messages/read-up-to
+   * Mark all messages as read up to a specific message.
+   * More efficient for marking many messages at once.
+   */
+  router.post(
+    '/read-up-to',
+    authMiddleware.requireAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const input = markAllReadUpToSchema.parse(req.body);
+        const actor = req.user!;
+
+        const result = await messageService.markAllReadUpTo(
+          input.conversationId,
+          input.upToMessageId,
+          actor.userId
+        );
+
+        res.json({ data: result });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  /**
+   * GET /messages/unread-count
+   * Get unread message count for a conversation.
+   */
+  router.get(
+    '/unread-count',
+    authMiddleware.requireAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const input = getUnreadCountSchema.parse(req.query);
+        const actor = req.user!;
+
+        const unreadCount = await messageService.getUnreadCount(
+          input.conversationId,
+          actor.userId
+        );
+
+        res.json({ data: { unreadCount } });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  /**
+   * GET /messages/last-read
+   * Get the last read message ID for a conversation.
+   */
+  router.get(
+    '/last-read',
+    authMiddleware.requireAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const input = getUnreadCountSchema.parse(req.query);
+        const actor = req.user!;
+
+        const lastReadMessageId = await messageService.getLastReadMessageId(
+          input.conversationId,
+          actor.userId
+        );
+
+        res.json({ data: { lastReadMessageId } });
       } catch (error) {
         next(error);
       }

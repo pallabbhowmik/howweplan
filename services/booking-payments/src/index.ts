@@ -3,7 +3,8 @@
  *
  * Merchant of Record service for the HowWePlan platform.
  *
- * SECURITY: This is the ONLY service with access to Stripe secret keys.
+ * SECURITY: This is the ONLY service with access to payment provider secret keys.
+ * Uses Razorpay as the primary payment gateway.
  */
 
 import express from 'express';

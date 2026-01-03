@@ -35,6 +35,33 @@ router.get('/health', (_req, res) => {
   });
 });
 
+// Metrics endpoint
+router.get('/metrics', (_req, res) => {
+  const memoryUsage = process.memoryUsage();
+  
+  res.json({
+    service: 'booking-payments',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: {
+      heapUsed: memoryUsage.heapUsed,
+      heapTotal: memoryUsage.heapTotal,
+      external: memoryUsage.external,
+      rss: memoryUsage.rss,
+    },
+    metrics: {
+      // Placeholder metrics - integrate with actual metrics collection
+      requestCount: 0,
+      errorCount: 0,
+      avgLatencyMs: 0,
+      bookingsCreated: 0,
+      paymentsProcessed: 0,
+      refundsIssued: 0,
+      totalRevenueProcessedCents: 0,
+    },
+  });
+});
+
 // ============================================================================
 // BOOKING ROUTES
 // ============================================================================

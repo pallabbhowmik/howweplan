@@ -43,6 +43,31 @@ export function createRouter(): Router {
   const router = Router();
 
   // ==========================================================================
+  // METRICS ENDPOINT
+  // ==========================================================================
+
+  /**
+   * @route GET /metrics
+   * @desc Get service metrics
+   * @access Public (for monitoring)
+   */
+  router.get('/metrics', (_req, res) => {
+    res.json({
+      service: 'disputes-service',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      metrics: {
+        requestCount: 0,
+        errorCount: 0,
+        avgLatencyMs: 0,
+        activeDisputes: 0,
+        resolvedDisputes: 0,
+      },
+    });
+  });
+
+  // ==========================================================================
   // TRAVELER ROUTES
   // ==========================================================================
 

@@ -137,8 +137,39 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
           .eq('id', effectiveUserId)
           .maybeSingle();
 
-        if (uErr) throw uErr;
-        if (!u) throw new Error('User not found');
+        if (uErr) {
+          // Check if this is a connection error vs auth/data error
+          const errorMessage = uErr.message?.toLowerCase() || '';
+          const isConnectionError = 
+            errorMessage.includes('fetch') || 
+            errorMessage.includes('network') ||
+            errorMessage.includes('connection') ||
+            errorMessage.includes('timeout') ||
+            errorMessage.includes('econnrefused');
+          
+          if (isConnectionError) {
+            throw new Error('Unable to connect to server. Please check your connection and try again.');
+          }
+          throw uErr;
+        }
+        
+        if (!u) {
+          // User ID in storage doesn't exist in database - clear stale session
+          console.warn('[session] User not found in database, clearing stale session data');
+          try {
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(AUTH_USER_KEY);
+          } catch {
+            // ignore storage errors
+          }
+          clearAuthData();
+          if (!cancelled) {
+            setUserIdState(null);
+            setUser(null);
+            setLoading(false);
+          }
+          return;
+        }
 
         if (cancelled) return;
 
@@ -150,6 +181,32 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
           avatarUrl: u.avatar_url ?? null,
         });
       } catch (e: unknown) {
+        console.error('[session] Failed to load user:', e);
+        
+        // For authentication/not found errors, clear the stale session
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        const isAuthError = 
+          errorMessage.includes('not found') ||
+          errorMessage.includes('unauthorized') ||
+          errorMessage.includes('invalid') ||
+          errorMessage.includes('expired');
+        
+        if (isAuthError) {
+          try {
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(AUTH_USER_KEY);
+          } catch {
+            // ignore
+          }
+          clearAuthData();
+          if (!cancelled) {
+            setUserIdState(null);
+            setUser(null);
+            setLoading(false);
+          }
+          return;
+        }
+        
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load user');
       } finally {
         if (!cancelled) setLoading(false);

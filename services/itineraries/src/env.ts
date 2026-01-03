@@ -59,6 +59,12 @@ const envSchema = z.object({
   MAX_SUBMISSION_SIZE_MB: z.coerce.number().positive().default(10),
   MAX_VERSIONS_PER_ITINERARY: z.coerce.number().int().positive().default(100),
   OBFUSCATION_CACHE_TTL_SECONDS: z.coerce.number().int().nonnegative().default(300),
+  
+  /** Hours before a SUBMITTED itinerary expires if not selected */
+  ITINERARY_EXPIRY_HOURS: z.coerce.number().int().positive().default(168), // 7 days
+  
+  /** Interval in minutes for checking expired itineraries */
+  EXPIRY_CHECK_INTERVAL_MINUTES: z.coerce.number().int().positive().default(15),
 
   // ============================================================
   // AUDIT / OBSERVABILITY

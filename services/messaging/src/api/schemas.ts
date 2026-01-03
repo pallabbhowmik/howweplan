@@ -98,6 +98,19 @@ export const markMessagesReadSchema = z.object({
   messageIds: z.array(uuidSchema).min(1).max(100),
 });
 
+export const markAllReadUpToSchema = z.object({
+  conversationId: uuidSchema,
+  upToMessageId: uuidSchema,
+});
+
+export const getUnreadCountSchema = z.object({
+  conversationId: uuidSchema,
+});
+
+export const getReadStatusSchema = z.object({
+  conversationId: uuidSchema,
+});
+
 // =============================================================================
 // REACTION SCHEMAS
 // =============================================================================
