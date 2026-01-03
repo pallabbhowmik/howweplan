@@ -26,8 +26,37 @@ const ROLE_HIERARCHY: Record<Role, Role[]> = {
  */
 const ROUTE_PERMISSIONS: RoutePermission[] = [
   // Identity Service - mostly public or self-access
-  { path: /^\/api\/identity\/users\/[^/]+$/, method: 'GET', roles: ['user'], ownershipCheck: (req) => req.params[0] === req.user?.userId },
-  { path: /^\/api\/identity\/users\/[^/]+$/, method: 'PUT', roles: ['user'], ownershipCheck: (req) => req.params[0] === req.user?.userId },
+  // NOTE: RBAC runs before route handlers, so `req.params` is not reliable here.
+  // We must parse resource ids from `req.path`.
+  {
+    path: '/api/identity/users/me',
+    method: ['GET', 'PATCH'],
+    roles: ['user'],
+  },
+  {
+    path: /^\/api\/identity\/users\/[^/]+$/,
+    method: 'GET',
+    roles: ['user'],
+    ownershipCheck: (req) => {
+      const match = req.path.match(/^\/api\/identity\/users\/([^/]+)$/);
+      const requested = match?.[1];
+      if (!requested) return false;
+      if (requested === 'me') return true;
+      return requested === req.user?.userId;
+    },
+  },
+  {
+    path: /^\/api\/identity\/users\/[^/]+$/,
+    method: 'PUT',
+    roles: ['user'],
+    ownershipCheck: (req) => {
+      const match = req.path.match(/^\/api\/identity\/users\/([^/]+)$/);
+      const requested = match?.[1];
+      if (!requested) return false;
+      if (requested === 'me') return true;
+      return requested === req.user?.userId;
+    },
+  },
   { path: '/api/identity/users', method: 'GET', roles: ['admin'] },
   { path: '/api/identity/users', method: 'POST', roles: ['admin'] },
   

@@ -58,16 +58,29 @@ export interface ApiError {
  * Get authorization header with current session token
  */
 async function getAuthHeader(): Promise<Record<string, string>> {
-  // Import here to avoid circular dependency
-  const { getSupabaseClient } = await import('@/lib/supabase/client');
-  const supabase = getSupabaseClient();
-  
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (session?.access_token) {
-    return { 'Authorization': `Bearer ${session.access_token}` };
+  // Prefer the custom Identity Service token used by login/register.
+  // Fall back to Supabase session (legacy/dev) if present.
+  try {
+    const { getAccessToken } = await import('@/lib/api/auth');
+    const token = getAccessToken();
+    if (token) return { Authorization: `Bearer ${token}` };
+  } catch {
+    // ignore
   }
-  
+
+  try {
+    const { getSupabaseClient } = await import('@/lib/supabase/client');
+    const supabase = getSupabaseClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      return { Authorization: `Bearer ${session.access_token}` };
+    }
+  } catch {
+    // ignore
+  }
+
   return {};
 }
 
@@ -180,6 +193,11 @@ async function apiRequest<T>(
 // ============================================================================
 
 export const identityApi = {
+  /**
+   * Get the current user's profile
+   */
+  getMe: () => apiRequest(`/api/identity/users/me`),
+
   /**
    * Get user profile
    */

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { getSupabaseClient } from '@/lib/supabase/client';
+import { identityApi } from '@/lib/api/client';
 import { clearAuthData, getStoredUser, getAccessToken, logout } from '@/lib/api/auth';
 
 const STORAGE_KEY = 'tc_demo_user_id';
@@ -90,10 +90,9 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
       setError(null);
 
       try {
-        const supabase = getSupabaseClient();
-
-        // First check stored user from auth (primary source after login)
+        // Primary source after login
         const storedUser = getStoredUser();
+        const accessToken = getAccessToken();
         
         // Then check legacy demo storage or current state
         let storedDemoId: string | null = null;
@@ -131,65 +130,60 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
           }
         }
 
-        const { data: u, error: uErr } = await supabase
-          .from('users')
-          .select('id, email, first_name, last_name, avatar_url')
-          .eq('id', effectiveUserId)
-          .maybeSingle();
-
-        if (uErr) {
-          // Check if this is a connection error vs auth/data error
-          const errorMessage = uErr.message?.toLowerCase() || '';
-          const isConnectionError = 
-            errorMessage.includes('fetch') || 
-            errorMessage.includes('network') ||
-            errorMessage.includes('connection') ||
-            errorMessage.includes('timeout') ||
-            errorMessage.includes('econnrefused');
-          
-          if (isConnectionError) {
-            throw new Error('Unable to connect to server. Please check your connection and try again.');
-          }
-          throw uErr;
+        // Optimistically hydrate from stored auth user to avoid UI flash.
+        if (storedUser?.id && !cancelled) {
+          setUser({
+            userId: storedUser.id,
+            email: storedUser.email,
+            firstName: storedUser.firstName,
+            lastName: storedUser.lastName,
+            avatarUrl: null,
+          });
         }
-        
-        if (!u) {
-          // User ID in storage doesn't exist in database - clear stale session
-          console.warn('[session] User not found in database, clearing stale session data');
+
+        // Validate/refresh profile via Identity Service when we have a token.
+        // This is the supported architecture path (no direct DB/Supabase profile queries).
+        if (accessToken) {
+          const meResponse: any = await identityApi.getMe();
+          const me = meResponse?.data ?? meResponse;
+          if (!me?.id) {
+            throw new Error('Failed to load user');
+          }
+
+          // Keep stored user in sync for future reloads.
           try {
-            localStorage.removeItem(STORAGE_KEY);
-            localStorage.removeItem(AUTH_USER_KEY);
+            localStorage.setItem(AUTH_USER_KEY, JSON.stringify({
+              id: me.id,
+              email: me.email,
+              firstName: me.firstName,
+              lastName: me.lastName,
+              role: me.role,
+              status: me.status,
+            }));
           } catch {
-            // ignore storage errors
+            // ignore
           }
-          clearAuthData();
-          if (!cancelled) {
-            setUserIdState(null);
-            setUser(null);
-            setLoading(false);
-          }
-          return;
+
+          if (cancelled) return;
+          setUser({
+            userId: me.id,
+            email: me.email,
+            firstName: me.firstName,
+            lastName: me.lastName,
+            avatarUrl: me.photoUrl ?? null,
+          });
         }
-
-        if (cancelled) return;
-
-        setUser({
-          userId: u.id,
-          email: u.email,
-          firstName: u.first_name,
-          lastName: u.last_name,
-          avatarUrl: u.avatar_url ?? null,
-        });
       } catch (e: unknown) {
         console.error('[session] Failed to load user:', e);
         
         // For authentication/not found errors, clear the stale session
         const errorMessage = e instanceof Error ? e.message : String(e);
         const isAuthError = 
-          errorMessage.includes('not found') ||
-          errorMessage.includes('unauthorized') ||
-          errorMessage.includes('invalid') ||
-          errorMessage.includes('expired');
+          errorMessage.toLowerCase().includes('not found') ||
+          errorMessage.toLowerCase().includes('unauthorized') ||
+          errorMessage.toLowerCase().includes('forbidden') ||
+          errorMessage.toLowerCase().includes('invalid') ||
+          errorMessage.toLowerCase().includes('expired');
         
         if (isAuthError) {
           try {
