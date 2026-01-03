@@ -115,7 +115,10 @@ export function formatIdealMonths(months: number[]): string {
   
   // Find ranges
   const sortedMonths = [...months].sort((a, b) => a - b);
-  return `${monthNames[sortedMonths[0] - 1]}-${monthNames[sortedMonths[sortedMonths.length - 1] - 1]}`;
+  const first = sortedMonths[0];
+  const last = sortedMonths[sortedMonths.length - 1];
+  if (first === undefined || last === undefined) return 'Year-round';
+  return `${monthNames[first - 1]}-${monthNames[last - 1]}`;
 }
 
 /**

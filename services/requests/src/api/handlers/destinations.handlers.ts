@@ -5,7 +5,7 @@
  */
 
 import { Request, Response, RequestHandler } from 'express';
-import { DestinationRepository } from '../domain/destination.repository';
+import { DestinationRepository } from '../../domain/destination.repository';
 
 export function createListDestinationsHandler(
   repository: DestinationRepository
