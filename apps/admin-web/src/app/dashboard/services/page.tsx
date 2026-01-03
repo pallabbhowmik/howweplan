@@ -661,23 +661,13 @@ export default function ServicesStatusPage() {
         <CardHeader>
           <CardTitle>Configuration</CardTitle>
           <CardDescription>
-            Configure service URLs in your <code className="bg-muted px-1 rounded">.env.local</code> file
+            Configure the API gateway URL in your <code className="bg-muted px-1 rounded">.env.local</code> file
           </CardDescription>
         </CardHeader>
         <CardContent>
           <pre className="text-xs bg-muted p-4 rounded overflow-auto">
-{`# Base URLs for microservices
-NEXT_PUBLIC_SERVICE_SUPABASE_REST_URL=http://localhost:54321
-NEXT_PUBLIC_SERVICE_AUDIT_URL=http://localhost:3010
-NEXT_PUBLIC_SERVICE_IDENTITY_URL=http://localhost:3011
-NEXT_PUBLIC_SERVICE_REQUESTS_URL=http://localhost:3012
-NEXT_PUBLIC_SERVICE_MATCHING_URL=http://localhost:3013
-NEXT_PUBLIC_SERVICE_ITINERARIES_URL=http://localhost:3014
-NEXT_PUBLIC_SERVICE_BOOKING_PAYMENTS_URL=http://localhost:3015
-NEXT_PUBLIC_SERVICE_MESSAGING_URL=http://localhost:3016
-NEXT_PUBLIC_SERVICE_DISPUTES_URL=http://localhost:3017
-NEXT_PUBLIC_SERVICE_REVIEWS_URL=http://localhost:3018
-NEXT_PUBLIC_SERVICE_NOTIFICATIONS_URL=http://localhost:3019
+{`# API Gateway (single entry point)
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 
 # Health check timeout (ms)
 NEXT_PUBLIC_SERVICE_HEALTH_TIMEOUT_MS=2000`}

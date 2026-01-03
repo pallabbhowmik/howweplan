@@ -236,21 +236,22 @@ export const identityApi = {
 export const requestsApi = {
   /**
    * List user's travel requests
+   * Note: The gateway identifies the user from the JWT token
    */
-  listUserRequests: (userId: string) =>
-    apiRequest(`/api/requests/user/${userId}`),
+  listUserRequests: (_userId?: string) =>
+    apiRequest(`/api/requests/api/v1/requests`),
   
   /**
    * Get specific request
    */
   getRequest: (requestId: string) =>
-    apiRequest(`/api/requests/${requestId}`),
+    apiRequest(`/api/requests/api/v1/requests/${requestId}`),
   
   /**
    * Create new travel request
    */
   createRequest: (data: any) =>
-    apiRequest('/api/requests', {
+    apiRequest('/api/requests/api/v1/requests', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -259,7 +260,7 @@ export const requestsApi = {
    * Update travel request
    */
   updateRequest: (requestId: string, data: any) =>
-    apiRequest(`/api/requests/${requestId}`, {
+    apiRequest(`/api/requests/api/v1/requests/${requestId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
@@ -268,8 +269,8 @@ export const requestsApi = {
    * Cancel travel request
    */
   cancelRequest: (requestId: string) =>
-    apiRequest(`/api/requests/${requestId}`, {
-      method: 'DELETE',
+    apiRequest(`/api/requests/api/v1/requests/${requestId}/cancel`, {
+      method: 'POST',
     }),
 };
 

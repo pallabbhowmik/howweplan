@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 
 type ServiceId =
-  | 'supabase-rest'
   | 'audit'
   | 'identity'
   | 'requests'
@@ -16,20 +15,25 @@ type ServiceId =
 type ServiceConfig = {
   id: ServiceId;
   name: string;
-  baseUrl?: string;
-  healthPath: string;
+  gatewayPath: string;
 };
 
 type ServiceStatus = {
   id: ServiceId;
   name: string;
-  baseUrl?: string;
   healthUrl?: string;
   status: 'healthy' | 'unhealthy' | 'error' | 'not_configured';
   statusCode?: number;
   latencyMs?: number;
   details?: string;
 };
+
+function getGatewayBaseUrl(): string {
+  // Use the public API base URL (gateway). This route runs server-side.
+  const raw = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+  const trimmed = raw.trim().replace(/\/+$/, '');
+  return trimmed || 'http://localhost:3001';
+}
 
 function getTimeoutMs(): number {
   const raw = process.env.NEXT_PUBLIC_SERVICE_HEALTH_TIMEOUT_MS;
@@ -39,73 +43,58 @@ function getTimeoutMs(): number {
 }
 
 function getServiceConfigs(): ServiceConfig[] {
-  // Base URLs from .env; health paths defined here per service convention
+  // In production we route ALL service visibility through the gateway.
+  // This avoids accidental bypass of auth/RBAC and keeps the network perimeter simple.
   return [
-    {
-      id: 'supabase-rest',
-      name: 'Supabase REST',
-      baseUrl: process.env.NEXT_PUBLIC_SERVICE_SUPABASE_REST_URL,
-      healthPath: '/health',
-    },
     {
       id: 'audit',
       name: 'Audit',
-      baseUrl: process.env.NEXT_PUBLIC_SERVICE_AUDIT_URL,
-      healthPath: '/health',
+      gatewayPath: '/api/audit/health',
     },
     {
       id: 'identity',
       name: 'Identity',
-      baseUrl: process.env.NEXT_PUBLIC_SERVICE_IDENTITY_URL,
-      healthPath: '/api/v1/health',
+      gatewayPath: '/api/identity/api/v1/health',
     },
     {
       id: 'requests',
       name: 'Requests',
-      baseUrl: process.env.NEXT_PUBLIC_SERVICE_REQUESTS_URL,
-      healthPath: '/api/v1/health',
+      gatewayPath: '/api/requests/api/v1/health',
     },
     {
       id: 'matching',
       name: 'Matching',
-      baseUrl: process.env.NEXT_PUBLIC_SERVICE_MATCHING_URL,
-      healthPath: '/health',
+      gatewayPath: '/api/matching/health',
     },
     {
       id: 'itineraries',
       name: 'Itineraries',
-      baseUrl: process.env.NEXT_PUBLIC_SERVICE_ITINERARIES_URL,
-      healthPath: '/health',
+      gatewayPath: '/api/itineraries/health',
     },
     {
       id: 'booking-payments',
       name: 'Booking-Payments',
-      baseUrl: process.env.NEXT_PUBLIC_SERVICE_BOOKING_PAYMENTS_URL,
-      healthPath: '/health',
+      gatewayPath: '/api/booking-payments/health',
     },
     {
       id: 'messaging',
       name: 'Messaging',
-      baseUrl: process.env.NEXT_PUBLIC_SERVICE_MESSAGING_URL,
-      healthPath: '/health',
+      gatewayPath: '/api/messaging/health',
     },
     {
       id: 'disputes',
       name: 'Disputes',
-      baseUrl: process.env.NEXT_PUBLIC_SERVICE_DISPUTES_URL,
-      healthPath: '/health',
+      gatewayPath: '/api/disputes/health',
     },
     {
       id: 'reviews',
       name: 'Reviews',
-      baseUrl: process.env.NEXT_PUBLIC_SERVICE_REVIEWS_URL,
-      healthPath: '/health',
+      gatewayPath: '/api/reviews/health',
     },
     {
       id: 'notifications',
       name: 'Notifications',
-      baseUrl: process.env.NEXT_PUBLIC_SERVICE_NOTIFICATIONS_URL,
-      healthPath: '/health',
+      gatewayPath: '/api/notifications/health',
     },
   ];
 }
@@ -117,16 +106,17 @@ function truncateDetails(input: string, maxLen: number = 200): string {
 }
 
 async function checkService(service: ServiceConfig, timeoutMs: number): Promise<ServiceStatus> {
-  if (!service.baseUrl) {
+  const gatewayBaseUrl = getGatewayBaseUrl();
+  if (!gatewayBaseUrl) {
     return {
       id: service.id,
       name: service.name,
       status: 'not_configured',
-      details: 'Base URL not configured',
+      details: 'Gateway base URL not configured',
     };
   }
 
-  const healthUrl = `${service.baseUrl.replace(/\/$/, '')}${service.healthPath}`;
+  const healthUrl = `${gatewayBaseUrl}${service.gatewayPath}`;
   const startedAt = Date.now();
 
   try {
@@ -157,7 +147,6 @@ async function checkService(service: ServiceConfig, timeoutMs: number): Promise<
     return {
       id: service.id,
       name: service.name,
-      baseUrl: service.baseUrl,
       healthUrl,
       status: res.ok ? 'healthy' : 'unhealthy',
       statusCode,
@@ -169,7 +158,6 @@ async function checkService(service: ServiceConfig, timeoutMs: number): Promise<
     return {
       id: service.id,
       name: service.name,
-      baseUrl: service.baseUrl,
       healthUrl,
       status: 'error',
       latencyMs,

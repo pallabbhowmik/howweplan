@@ -276,7 +276,9 @@ export const apiClient = new ApiClient();
  * Uses NEXT_PUBLIC_SERVICE_DISPUTES_URL if available, otherwise falls back to main API.
  */
 function getDisputesBaseUrl(): string {
-  // Use env module which properly validates and exposes the env var
+  if (env.NEXT_PUBLIC_ENVIRONMENT === 'production') {
+    return env.NEXT_PUBLIC_API_BASE_URL;
+  }
   return env.NEXT_PUBLIC_SERVICE_DISPUTES_URL || env.NEXT_PUBLIC_API_BASE_URL;
 }
 
@@ -475,6 +477,9 @@ export const disputesApiClient = new DisputesApiClient();
  * Uses NEXT_PUBLIC_SERVICE_AUDIT_URL if available, otherwise falls back to main API.
  */
 function getAuditBaseUrl(): string {
+  if (env.NEXT_PUBLIC_ENVIRONMENT === 'production') {
+    return env.NEXT_PUBLIC_API_BASE_URL;
+  }
   return env.NEXT_PUBLIC_SERVICE_AUDIT_URL || env.NEXT_PUBLIC_API_BASE_URL;
 }
 
@@ -622,6 +627,9 @@ export const auditApiClient = new AuditApiClient();
  * Get booking payments service base URL.
  */
 function getBookingPaymentsBaseUrl(): string {
+  if (env.NEXT_PUBLIC_ENVIRONMENT === 'production') {
+    return env.NEXT_PUBLIC_API_BASE_URL;
+  }
   return env.NEXT_PUBLIC_SERVICE_BOOKING_PAYMENTS_URL || env.NEXT_PUBLIC_API_BASE_URL;
 }
 
