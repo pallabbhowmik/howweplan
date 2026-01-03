@@ -445,6 +445,13 @@ app.use('*', (req: Request, res: Response) => {
     ip: req.ip || 'unknown',
   });
 
+  // Add CORS headers to 404 responses
+  const origin = req.headers.origin;
+  if (origin && config.cors.allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+
   res.status(404).json({
     error: 'Not Found',
     message: 'The requested endpoint does not exist',
@@ -468,6 +475,13 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     error: err.message,
     stack: config.nodeEnv === 'development' ? err.stack : undefined,
   });
+
+  // Always add CORS headers to error responses
+  const origin = req.headers.origin;
+  if (origin && config.cors.allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
 
   // Handle specific error types
   if (err.message === 'Not allowed by CORS') {
