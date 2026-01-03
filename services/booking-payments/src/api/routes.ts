@@ -8,6 +8,7 @@ import { Router } from 'express';
 import {
   createBooking,
   getBooking,
+  listUserBookings,
   cancelBooking,
   confirmByAgent,
   completeTrip,
@@ -65,6 +66,9 @@ router.get('/metrics', (_req, res) => {
 // ============================================================================
 // BOOKING ROUTES
 // ============================================================================
+
+/** List bookings for authenticated user */
+router.get('/api/v1/bookings', listUserBookings);
 
 /** Create a new booking */
 router.post('/api/v1/bookings', createBooking);

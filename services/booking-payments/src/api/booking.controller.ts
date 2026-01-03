@@ -28,6 +28,55 @@ function extractMetadata(req: Request, actorId: string, actorType: EventMetadata
   };
 }
 
+/** List bookings for authenticated user */
+export async function listUserBookings(
+  req: Request,
+  res: Response,
+  _next: NextFunction
+): Promise<void> {
+  const correlationId = (req.headers['x-correlation-id'] as string) ?? uuid();
+  const logger = createRequestLogger(correlationId);
+
+  try {
+    // User ID comes from the gateway's auth headers
+    const userId = req.headers['x-user-id'] as string;
+    const userRole = req.headers['x-user-role'] as string;
+    
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: 'Authentication required',
+      });
+      return;
+    }
+
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const offset = parseInt(req.query.offset as string) || 0;
+    const status = req.query.status as string | undefined;
+
+    logger.info({ userId, userRole, limit, offset, status }, 'Listing user bookings');
+
+    // Query bookings from database
+    const bookings = await bookingService.listUserBookings(userId, userRole, { limit, offset, status });
+
+    res.json({
+      success: true,
+      data: {
+        bookings,
+        pagination: {
+          limit,
+          offset,
+          hasMore: bookings.length === limit,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error({ error }, 'Failed to list bookings');
+    const formatted = formatErrorResponse(error);
+    res.status(formatted.statusCode).json(formatted);
+  }
+}
+
 /** Create a new booking */
 export async function createBooking(
   req: Request,

@@ -19,7 +19,7 @@
 
 import express, { Express } from 'express';
 import { env, logConfigSummary } from './config/env';
-import { createHealthRouter, createWebhookRouter } from './routes';
+import { createHealthRouter, createWebhookRouter, createNotificationsRouter } from './routes';
 import { EventConsumer } from './events';
 import { NotificationService, AuditService, RateLimiterService } from './services';
 import { DeliveryLogRepository } from './repositories';
@@ -66,6 +66,8 @@ class Application {
 
   private configureRoutes(): void {
     this.app.use(createHealthRouter());
+    // REST API for notification queries
+    this.app.use(createNotificationsRouter());
     // Webhook endpoint for receiving events from HTTP-based event bus
     this.app.use('/webhook', createWebhookRouter(
       this.notificationService,

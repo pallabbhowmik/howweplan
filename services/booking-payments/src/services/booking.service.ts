@@ -6,11 +6,13 @@
  */
 
 import { v4 as uuid } from 'uuid';
+import pg from 'pg';
 import { logger } from './logger.service.js';
 import { feeCalculator } from './fee-calculator.service.js';
 import { auditService } from './audit.service.js';
 import { eventPublisher } from '../events/publisher.js';
 import { idempotencyStore } from '../utils/idempotency.js';
+import { config } from '../env.js';
 import {
   BookingState,
   CancellationReason,
@@ -25,6 +27,13 @@ import type {
   BookingTransitionResult,
 } from '../types/booking.types.js';
 import type { EventMetadata } from '../types/events.types.js';
+
+const { Pool } = pg;
+
+// Database connection pool for bookings queries
+const pool = new Pool({
+  connectionString: config.database.databaseUrl,
+});
 
 /** Booking service for managing booking lifecycle */
 class BookingService {
@@ -501,6 +510,106 @@ class BookingService {
 
     // Admin cancellations are handled case by case
     return reason === CancellationReason.ADMIN_CANCELLED;
+  }
+
+  /**
+   * List bookings for a user.
+   * Agents see bookings where they are the agent.
+   * Users see their own bookings.
+   * Admins can see all bookings.
+   */
+  async listUserBookings(
+    userId: string,
+    userRole: string,
+    options: { limit?: number; offset?: number; status?: string }
+  ): Promise<BookingResponseDTO[]> {
+    const { limit = 20, offset = 0, status } = options;
+
+    let query = `
+      SELECT 
+        b.id,
+        b.user_id,
+        b.agent_id,
+        b.itinerary_id,
+        b.state,
+        b.payment_state,
+        b.trip_start_date,
+        b.trip_end_date,
+        b.destination_city,
+        b.destination_country,
+        b.traveler_count,
+        b.base_price_cents,
+        b.booking_fee_cents,
+        b.platform_commission_cents,
+        b.total_amount_cents,
+        b.agent_payout_cents,
+        b.cancellation_reason,
+        b.cancelled_at,
+        b.agent_confirmed_at,
+        b.trip_completed_at,
+        b.created_at,
+        b.updated_at
+      FROM bookings b
+      WHERE 1=1
+    `;
+    const params: (string | number)[] = [];
+
+    // Role-based filtering
+    if (userRole === 'agent') {
+      params.push(userId);
+      query += ` AND b.agent_id = $${params.length}`;
+    } else if (userRole !== 'admin') {
+      // Regular users see only their bookings
+      params.push(userId);
+      query += ` AND b.user_id = $${params.length}`;
+    }
+    // Admins see all bookings (no user filter)
+
+    // Status filter
+    if (status) {
+      params.push(status.toUpperCase());
+      query += ` AND b.state = $${params.length}`;
+    }
+
+    // Ordering and pagination
+    query += ` ORDER BY b.created_at DESC`;
+    params.push(limit);
+    query += ` LIMIT $${params.length}`;
+    params.push(offset);
+    query += ` OFFSET $${params.length}`;
+
+    try {
+      const result = await pool.query(query, params);
+
+      return result.rows.map((row) => ({
+        id: row.id,
+        userId: row.user_id,
+        agentId: row.agent_id,
+        itineraryId: row.itinerary_id,
+        state: row.state,
+        paymentState: row.payment_state,
+        tripStartDate: row.trip_start_date?.toISOString?.() || row.trip_start_date,
+        tripEndDate: row.trip_end_date?.toISOString?.() || row.trip_end_date,
+        destinationCity: row.destination_city,
+        destinationCountry: row.destination_country,
+        travelerCount: row.traveler_count,
+        basePriceCents: row.base_price_cents,
+        bookingFeeCents: row.booking_fee_cents,
+        platformCommissionCents: row.platform_commission_cents,
+        totalAmountCents: row.total_amount_cents,
+        agentPayoutCents: row.agent_payout_cents,
+        cancellationReason: row.cancellation_reason,
+        cancelledAt: row.cancelled_at?.toISOString?.() || row.cancelled_at,
+        agentConfirmedAt: row.agent_confirmed_at?.toISOString?.() || row.agent_confirmed_at,
+        tripCompletedAt: row.trip_completed_at?.toISOString?.() || row.trip_completed_at,
+        createdAt: row.created_at?.toISOString?.() || row.created_at,
+        updatedAt: row.updated_at?.toISOString?.() || row.updated_at,
+      }));
+    } catch (error) {
+      logger.error({ error }, 'Failed to list user bookings');
+      // Return empty array instead of throwing to avoid breaking the UI
+      return [];
+    }
   }
 }
 
