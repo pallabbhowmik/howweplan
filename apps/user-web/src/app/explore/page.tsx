@@ -1,11 +1,16 @@
 "use client";
 
 import Link from 'next/link';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  fetchDestinations,
+  type Destination,
+  type DestinationRegion,
+} from '@/lib/api/destinations';
 import {
   destinationImageUrl,
   INDIA_DESTINATIONS,
@@ -16,6 +21,79 @@ import {
   type IndiaDestination,
   type IndiaRegion,
 } from '@/lib/data/india-destinations';
+
+// Unified destination type that works with both API and static data
+type UnifiedDestination = {
+  id: string;
+  name: string;
+  state: string;
+  region: IndiaRegion;
+  themes: string[];
+  idealMonths: string;
+  suggestedDuration: string;
+  highlight: string;
+  imageUrl: string | null;
+  isFeatured?: boolean;
+};
+
+// Convert API destination to unified format
+function apiToUnified(d: Destination): UnifiedDestination {
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  let idealMonths = 'Year-round';
+  const months = d.idealMonths;
+  if (months && months.length > 0) {
+    const first = months[0];
+    const last = months[months.length - 1];
+    if (first !== undefined && last !== undefined) {
+      const startMonth = monthNames[first - 1] || 'Jan';
+      const endMonth = monthNames[last - 1] || 'Dec';
+      idealMonths = `${startMonth}–${endMonth}`;
+    }
+  }
+  
+  return {
+    id: d.id,
+    name: d.name,
+    state: d.state,
+    region: d.region as IndiaRegion,
+    themes: d.themes,
+    idealMonths,
+    suggestedDuration: `${d.suggestedDurationMin}–${d.suggestedDurationMax} days`,
+    highlight: d.highlight,
+    imageUrl: d.imageUrl,
+    isFeatured: d.isFeatured,
+  };
+}
+
+// Convert static destination to unified format
+function staticToUnified(d: IndiaDestination): UnifiedDestination {
+  return {
+    id: d.id,
+    name: d.name,
+    state: d.stateOrUt,
+    region: d.region,
+    themes: d.themes,
+    idealMonths: d.idealMonths,
+    suggestedDuration: d.suggestedDuration,
+    highlight: d.highlight,
+    imageUrl: null, // Static data uses destinationImageUrl function
+  };
+}
+
+// Get image URL - prefer database URL, fallback to static lookup
+function getImageUrl(destination: UnifiedDestination): string {
+  if (destination.imageUrl) {
+    return destination.imageUrl;
+  }
+  // Fallback: look up in static data
+  const staticDest = INDIA_DESTINATIONS.find(d => d.id === destination.id);
+  if (staticDest) {
+    return destinationImageUrl(staticDest);
+  }
+  // Final fallback: generate from picsum with consistent seed
+  const seed = destination.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return `https://picsum.photos/seed/${seed}/800/500`;
+}
 
 type RegionFilter = IndiaRegion | 'All';
 type ThemeFilter = DestinationTheme | 'All';
@@ -47,19 +125,19 @@ const REGION_COLORS: Record<IndiaRegion, string> = {
   Northeast: 'bg-teal-500/10 text-teal-700 border-teal-500/30 dark:text-teal-400',
 };
 
-function matchesQuery(destination: IndiaDestination, query: string): boolean {
+function matchesQuery(destination: UnifiedDestination, query: string): boolean {
   if (!query.trim()) return true;
   const q = query.trim().toLowerCase();
   return (
     destination.name.toLowerCase().includes(q) ||
-    destination.stateOrUt.toLowerCase().includes(q) ||
+    destination.state.toLowerCase().includes(q) ||
     destination.region.toLowerCase().includes(q) ||
     destination.highlight.toLowerCase().includes(q) ||
     destination.themes.some((t) => t.toLowerCase().includes(q))
   );
 }
 
-function DestinationCard({ destination, index }: { destination: IndiaDestination; index: number }) {
+function DestinationCard({ destination, index }: { destination: UnifiedDestination; index: number }) {
   const planHref = `/requests/new?destination=${encodeURIComponent(destination.name)}`;
   const primaryTheme = destination.themes[0] as DestinationTheme | undefined;
   const gradient = primaryTheme ? THEME_GRADIENTS[primaryTheme] : THEME_GRADIENTS.Nature;
@@ -77,7 +155,7 @@ function DestinationCard({ destination, index }: { destination: IndiaDestination
         {/* Image */}
         {!imageError && (
           <img
-            src={destinationImageUrl(destination)}
+            src={getImageUrl(destination)}
             alt={destination.name}
             loading="lazy"
             onError={() => setImageError(true)}
@@ -93,6 +171,13 @@ function DestinationCard({ destination, index }: { destination: IndiaDestination
           {primaryTheme ? THEME_ICONS[primaryTheme] : '✨'}
         </div>
 
+        {/* Featured badge */}
+        {destination.isFeatured && (
+          <div className="absolute top-4 left-4 px-2 py-1 rounded-full bg-yellow-500/90 text-yellow-950 text-xs font-semibold">
+            ⭐ Featured
+          </div>
+        )}
+
         {/* Content overlay */}
         <div className="absolute inset-x-0 bottom-0 p-5">
           <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -100,7 +185,7 @@ function DestinationCard({ destination, index }: { destination: IndiaDestination
               {destination.region}
             </span>
             <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-white/20 text-white backdrop-blur-sm">
-              {destination.stateOrUt}
+              {destination.state}
             </span>
           </div>
           <h3 className="text-xl font-bold text-white drop-shadow-lg">{destination.name}</h3>
@@ -117,7 +202,7 @@ function DestinationCard({ destination, index }: { destination: IndiaDestination
               key={t}
               className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-muted border border-border"
             >
-              <span className="text-[10px]">{THEME_ICONS[t]}</span>
+              <span className="text-[10px]">{THEME_ICONS[t as DestinationTheme] || '✨'}</span>
               {t}
             </span>
           ))}
@@ -153,7 +238,7 @@ function DestinationCard({ destination, index }: { destination: IndiaDestination
   );
 }
 
-function FeaturedDestination({ destination }: { destination: IndiaDestination }) {
+function FeaturedDestination({ destination }: { destination: UnifiedDestination }) {
   const planHref = `/requests/new?destination=${encodeURIComponent(destination.name)}`;
   const primaryTheme = destination.themes[0] as DestinationTheme | undefined;
   const gradient = primaryTheme ? THEME_GRADIENTS[primaryTheme] : THEME_GRADIENTS.Nature;
@@ -165,7 +250,7 @@ function FeaturedDestination({ destination }: { destination: IndiaDestination })
       <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
       {!imageError && (
         <img
-          src={destinationImageUrl(destination, 600, 400)}
+          src={getImageUrl(destination)}
           alt={destination.name}
           loading="lazy"
           onError={() => setImageError(true)}
@@ -218,36 +303,74 @@ export default function ExplorePage() {
   const [theme, setTheme] = useState<ThemeFilter>('All');
   const [stateOrUt, setStateOrUt] = useState<StateFilter>('All');
 
+  // Database destinations state
+  const [destinations, setDestinations] = useState<UnifiedDestination[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [usingFallback, setUsingFallback] = useState(false);
+
+  // Fetch from database on mount
+  useEffect(() => {
+    async function loadDestinations() {
+      setIsLoading(true);
+      try {
+        const data = await fetchDestinations();
+        if (data.length > 0) {
+          setDestinations(data.map(apiToUnified));
+          setUsingFallback(false);
+        } else {
+          // No data from API, use static fallback
+          setDestinations(INDIA_DESTINATIONS.map(staticToUnified));
+          setUsingFallback(true);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch destinations, using static fallback:', error);
+        setDestinations(INDIA_DESTINATIONS.map(staticToUnified));
+        setUsingFallback(true);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadDestinations();
+  }, []);
+
+  const totalCount = destinations.length || INDIA_DESTINATIONS_COUNT;
+
   const states = useMemo(() => {
     const set = new Set<string>();
-    for (const d of INDIA_DESTINATIONS) set.add(d.stateOrUt);
+    for (const d of destinations) set.add(d.state);
     return ['All', ...Array.from(set).sort((a, b) => a.localeCompare(b))] as StateFilter[];
-  }, []);
+  }, [destinations]);
 
   const themeCounts = useMemo(() => {
     const counts: Partial<Record<DestinationTheme, number>> = {};
-    for (const d of INDIA_DESTINATIONS) {
+    for (const d of destinations) {
       for (const t of d.themes) {
-        counts[t] = (counts[t] || 0) + 1;
+        counts[t as DestinationTheme] = (counts[t as DestinationTheme] || 0) + 1;
       }
     }
     return counts;
-  }, []);
+  }, [destinations]);
 
   const filtered = useMemo(() => {
-    return INDIA_DESTINATIONS.filter((d) => {
+    return destinations.filter((d) => {
       if (!matchesQuery(d, query)) return false;
       if (region !== 'All' && d.region !== region) return false;
       if (theme !== 'All' && !d.themes.includes(theme)) return false;
-      if (stateOrUt !== 'All' && d.stateOrUt !== stateOrUt) return false;
+      if (stateOrUt !== 'All' && d.state !== stateOrUt) return false;
       return true;
     });
-  }, [query, region, theme, stateOrUt]);
+  }, [destinations, query, region, theme, stateOrUt]);
 
   const featured = useMemo(() => {
+    // First try to get featured from database
+    const dbFeatured = destinations.filter(d => d.isFeatured);
+    if (dbFeatured.length >= 4) {
+      return dbFeatured.slice(0, 4);
+    }
+    // Fallback to hardcoded picks
     const picks = ['in-jaipur', 'in-kerala-munnar', 'in-leh', 'in-goa'];
-    return INDIA_DESTINATIONS.filter((d) => picks.includes(d.id));
-  }, []);
+    return destinations.filter((d) => picks.includes(d.id)).slice(0, 4);
+  }, [destinations]);
 
   const resetFilters = useCallback(() => {
     setQuery('');
@@ -273,7 +396,8 @@ export default function ExplorePage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
               </span>
-              {INDIA_DESTINATIONS_COUNT}+ destinations to explore
+              {totalCount}+ destinations to explore
+              {usingFallback && <span className="text-xs text-muted-foreground ml-2">(cached)</span>}
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
               Discover India
@@ -300,6 +424,16 @@ export default function ExplorePage() {
       </div>
 
       <div className="container mx-auto px-4 pb-16">
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="ml-3 text-muted-foreground">Loading destinations...</span>
+          </div>
+        )}
+
+        {!isLoading && (
+          <>
         {/* Featured Destinations */}
         {!hasActiveFilters && (
           <section className="mb-12">
@@ -390,7 +524,7 @@ export default function ExplorePage() {
               <div className="text-sm">
                 <span className="text-muted-foreground">Showing</span>{' '}
                 <span className="font-semibold text-foreground">{filtered.length}</span>{' '}
-                <span className="text-muted-foreground">of {INDIA_DESTINATIONS_COUNT}</span>
+                <span className="text-muted-foreground">of {totalCount}</span>
               </div>
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" onClick={resetFilters}>
@@ -448,6 +582,8 @@ export default function ExplorePage() {
               </Button>
             </div>
           </section>
+        )}
+          </>
         )}
       </div>
     </div>
