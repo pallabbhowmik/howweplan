@@ -92,9 +92,9 @@ const benefits = [
 
 export default function HowItWorksPage() {
   return (
-    <div>
+    <div className="min-h-screen bg-white flex flex-col">
       <SiteNavigation />
-      <div className="min-h-screen bg-white flex flex-col">
+      <main className="flex-1">
         {/* Hero */}
         <section className="relative py-20 md:py-28 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 opacity-90" />
@@ -107,7 +107,7 @@ export default function HowItWorksPage() {
               How HowWePlan Works
             </h1>
             <p className="text-xl md:text-2xl text-white/95 max-w-3xl mx-auto leading-relaxed drop-shadow">
-              From dream to destination in six simple steps. Our platform connects you with 
+              From dream to destination in six simple steps. Our platform connects you with
               expert travel advisors who craft personalized itineraries just for you.
             </p>
           </div>
@@ -123,17 +123,21 @@ export default function HowItWorksPage() {
                   Follow these simple steps to turn your travel dreams into reality
                 </p>
               </div>
-              
+
               {steps.map((step, index) => (
                 <div key={step.number} className="relative group">
                   {/* Connection line */}
                   {index < steps.length - 1 && (
                     <div className="absolute left-8 md:left-12 top-24 w-0.5 h-32 bg-gradient-to-b from-gray-200 to-gray-100 hidden md:block" />
                   )}
-                  
-                  <div className={`flex flex-col md:flex-row gap-6 mb-16 md:mb-20 ${step.bgColor} p-6 md:p-8 rounded-2xl transition-all duration-300 hover:shadow-xl hover:scale-[1.02]`}>
+
+                  <div
+                    className={`flex flex-col md:flex-row gap-6 mb-16 md:mb-20 ${step.bgColor} p-6 md:p-8 rounded-2xl transition-all duration-300 hover:shadow-xl hover:scale-[1.02]`}
+                  >
                     <div className="flex-shrink-0 flex items-start gap-4 md:gap-6">
-                      <div className={`w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br ${step.color} rounded-2xl flex items-center justify-center shadow-lg transform transition-transform group-hover:scale-110 group-hover:rotate-3`}>
+                      <div
+                        className={`w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br ${step.color} rounded-2xl flex items-center justify-center shadow-lg transform transition-transform group-hover:scale-110 group-hover:rotate-3`}
+                      >
                         <step.icon className="h-8 w-8 md:h-10 md:w-10 text-white" />
                       </div>
                       <div className="flex-1 md:hidden">
@@ -141,7 +145,7 @@ export default function HowItWorksPage() {
                         <h3 className="text-xl font-bold mt-1">{step.title}</h3>
                       </div>
                     </div>
-                    
+
                     <div className="flex-1 md:pt-2">
                       <div className="hidden md:block">
                         <span className="text-sm font-bold text-gray-500 tracking-wider">STEP {step.number}</span>
@@ -167,9 +171,14 @@ export default function HowItWorksPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 max-w-6xl mx-auto">
               {benefits.map((benefit) => (
-                <Card key={benefit.title} className="border-2 hover:border-gray-300 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group">
+                <Card
+                  key={benefit.title}
+                  className="border-2 hover:border-gray-300 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group"
+                >
                   <CardContent className="pt-8 pb-6 text-center">
-                    <div className={`w-16 h-16 ${benefit.bgColor} rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform`}>
+                    <div
+                      className={`w-16 h-16 ${benefit.bgColor} rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform`}
+                    >
                       <benefit.icon className={`h-8 w-8 ${benefit.color}`} />
                     </div>
                     <h3 className="font-bold text-xl mb-3">{benefit.title}</h3>
@@ -190,56 +199,26 @@ export default function HowItWorksPage() {
               <div className="inline-block mb-6 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-white font-medium">
                 🚀 Start Your Journey
               </div>
-              <h2 className="text-3xl md:text-5xl font-bold mb-6 text-white drop-shadow-lg">
-                Ready to Start Planning?
-              </h2>
+              <h2 className="text-3xl md:text-5xl font-bold mb-6 text-white drop-shadow-lg">Ready to Start Planning?</h2>
               <p className="text-lg md:text-xl text-white/95 mb-10 leading-relaxed drop-shadow">
-                Create your first travel request and let our expert agents craft your perfect trip. 
-                It only takes a few minutes to get started!
+                Create your first travel request and let our expert travel advisors craft your perfect trip. It only takes a
+                few minutes to get started!
               </p>
               <Link href="/requests/new">
-                <Button size="lg" className="gap-2 bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-6 rounded-full shadow-xl hover:shadow-2xl transition-all hover:scale-105">
+                <Button
+                  size="lg"
+                  className="gap-2 bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-6 rounded-full shadow-xl hover:shadow-2xl transition-all hover:scale-105"
+                >
                   Create Your Request <ArrowRight className="h-5 w-5" />
                 </Button>
               </Link>
-              <p className="mt-8 text-white/80 text-sm">
-                No credit card required • Free to browse • Expert support included
-              </p>
+              <p className="mt-8 text-white/80 text-sm">No credit card required • Free to browse • Expert support included</p>
             </div>
           </div>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t py-12 bg-slate-50">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <Plane className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-lg font-bold">HowWePlan</span>
-            </div>
-            <div className="text-sm text-muted-foreground text-center md:text-left">
-              <p>© 2025 HowWePlan. All rights reserved.</p>
-            </div>
-            <div className="flex gap-6 text-sm text-muted-foreground">
-              <Link href="/about" className="hover:text-foreground transition-colors">About</Link>
-              <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
-              <Link href="/help" className="hover:text-foreground transition-colors">Help</Link>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-gray-400">&copy; 2024 HowWePlan. All rights reserved.</p>
-        </div>
-      </footer>
-    </div>
-    <SiteFooter />
+      <SiteFooter />
     </div>
   );
 }
