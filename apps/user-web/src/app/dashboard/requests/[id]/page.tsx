@@ -159,7 +159,7 @@ export default function RequestDetailPage() {
     );
   }
 
-  const hasProposals = request.agentsResponded && request.agentsResponded > 0;
+  const hasProposals = (request.agentsResponded ?? 0) > 0;
   const canEdit = ['draft', 'open', 'DRAFT', 'SUBMITTED'].includes(request.state);
   const isActive = !['completed', 'cancelled', 'expired', 'COMPLETED', 'CANCELLED', 'EXPIRED'].includes(request.state);
   const tripDuration = getTripDuration(request.departureDate, request.returnDate);
@@ -196,7 +196,7 @@ export default function RequestDetailPage() {
                   <Calendar className="h-5 w-5" />
                   <span>{formatDateRange(request.departureDate, request.returnDate)}</span>
                 </div>
-                {tripDuration && (
+                {tripDuration !== null && tripDuration > 0 && (
                   <div className="flex items-center gap-2">
                     <Clock className="h-5 w-5" />
                     <span>{tripDuration} days</span>
