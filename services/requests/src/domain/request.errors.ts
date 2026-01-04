@@ -112,8 +112,12 @@ export class UnauthorizedRequestAccessError extends RequestError {
 }
 
 export class RepositoryError extends RequestError {
-  constructor(message: string, public readonly cause?: unknown) {
-    super(message, 'REPOSITORY_ERROR', 500);
+  constructor(
+    message: string,
+    public readonly cause?: unknown,
+    details?: Record<string, unknown>
+  ) {
+    super(message, 'REPOSITORY_ERROR', 500, details);
     this.name = 'RepositoryError';
     Object.setPrototypeOf(this, RepositoryError.prototype);
   }

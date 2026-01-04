@@ -64,6 +64,30 @@ export function createRequestRepository(): RequestRepository {
     config.database.supabaseServiceRoleKey
   );
 
+  const toRepoError = (prefix: string, error: unknown): RepositoryError => {
+    const asRecord = (value: unknown): Record<string, unknown> | null => {
+      if (!value || typeof value !== 'object') return null;
+      return value as Record<string, unknown>;
+    };
+
+    const record = asRecord(error);
+    const messageCandidate =
+      (record?.['message'] as string | undefined) ??
+      (record?.['error'] as string | undefined) ??
+      (record?.['details'] as string | undefined) ??
+      (record?.['hint'] as string | undefined);
+
+    const message = (messageCandidate ?? '').trim() || 'Unknown repository error';
+
+    const details: Record<string, unknown> = {
+      ...(record?.['code'] ? { code: record['code'] } : {}),
+      ...(record?.['details'] ? { details: record['details'] } : {}),
+      ...(record?.['hint'] ? { hint: record['hint'] } : {}),
+    };
+
+    return new RepositoryError(`${prefix}: ${message}`, error, Object.keys(details).length ? details : undefined);
+  };
+
   return {
     async create(request: TravelRequest): Promise<TravelRequest> {
       const row = toRow(request);
@@ -75,7 +99,7 @@ export function createRequestRepository(): RequestRepository {
         .single();
 
       if (error) {
-        throw new RepositoryError(`Failed to create request: ${error.message}`, error);
+        throw toRepoError('Failed to create request', error);
       }
 
       return fromRow(data);
@@ -92,7 +116,7 @@ export function createRequestRepository(): RequestRepository {
         if (error.code === 'PGRST116') {
           return null;
         }
-        throw new RepositoryError(`Failed to find request: ${error.message}`, error);
+        throw toRepoError('Failed to find request', error);
       }
 
       return fromRow(data);
@@ -131,7 +155,7 @@ export function createRequestRepository(): RequestRepository {
       const { data, error } = await query;
 
       if (error) {
-        throw new RepositoryError(`Failed to find requests: ${error.message}`, error);
+        throw toRepoError('Failed to find requests', error);
       }
 
       return data.map(fromRow);
@@ -148,7 +172,7 @@ export function createRequestRepository(): RequestRepository {
         .single();
 
       if (error) {
-        throw new RepositoryError(`Failed to update request: ${error.message}`, error);
+        throw toRepoError('Failed to update request', error);
       }
 
       return fromRow(data);
@@ -162,7 +186,7 @@ export function createRequestRepository(): RequestRepository {
         .in('state', OPEN_REQUEST_STATES.map(toDbState));
 
       if (error) {
-        throw new RepositoryError(`Failed to count open requests: ${error.message}`, error);
+        throw toRepoError('Failed to count open requests', error);
       }
 
       return count ?? 0;
@@ -179,7 +203,7 @@ export function createRequestRepository(): RequestRepository {
         .gte('created_at', todayStart.toISOString());
 
       if (error) {
-        throw new RepositoryError(`Failed to count today's requests: ${error.message}`, error);
+        throw toRepoError("Failed to count today's requests", error);
       }
 
       return count ?? 0;
@@ -191,12 +215,12 @@ export function createRequestRepository(): RequestRepository {
       const { data, error } = await supabase
         .from('travel_requests')
         .select()
-        .in('state', ['open'])  // Database uses 'open' for submitted/matching requests
+        .in('state', OPEN_REQUEST_STATES.map(toDbState))
         .lt('expires_at', now)
         .limit(limit);
 
       if (error) {
-        throw new RepositoryError(`Failed to find expired requests: ${error.message}`, error);
+        throw toRepoError('Failed to find expired requests', error);
       }
 
       return data.map(fromRow);
@@ -204,37 +228,67 @@ export function createRequestRepository(): RequestRepository {
   };
 }
 
-// Row mapping functions
-// Database enum: open, matched, proposals_received, accepted, completed, cancelled
-// Code states: draft, submitted, matching, matched, expired, cancelled, completed
-
-// Map code state to database enum value
 function toDbState(state: string): string {
-  const stateMap: Record<string, string> = {
-    'draft': 'open',        // No draft in DB, treat as open
-    'submitted': 'open',    // submitted maps to open
-    'matching': 'open',     // matching maps to open
-    'matched': 'matched',
-    'proposals_received': 'proposals_received',
-    'accepted': 'accepted',
-    'expired': 'cancelled', // No expired in DB, treat as cancelled
-    'cancelled': 'cancelled',
-    'completed': 'completed',
+  const normalized = state.toLowerCase();
+
+  // Current canonical states (matching `RequestState`)
+  const canonical: Record<string, string> = {
+    draft: 'draft',
+    submitted: 'submitted',
+    matching: 'matching',
+    matched: 'matched',
+    expired: 'expired',
+    cancelled: 'cancelled',
+    completed: 'completed',
   };
-  return stateMap[state.toLowerCase()] ?? 'open';
+  if (canonical[normalized]) return canonical[normalized];
+
+  // Legacy/alternate DB states (defensive; keeps the service working across older schemas)
+  const legacy: Record<string, RequestState> = {
+    open: 'submitted',
+    agents_matched: 'matching',
+    agent_confirmed: 'matched',
+    itineraries_received: 'matched',
+    itinerary_selected: 'matched',
+    ready_for_payment: 'matched',
+    payment_pending: 'matched',
+    booked: 'matched',
+  };
+  if (legacy[normalized]) return legacy[normalized];
+
+  // If we get an unknown value, pass it through (better error message upstream if DB rejects it)
+  return normalized;
 }
 
 // Map database enum value to code state
 function fromDbState(dbState: string): string {
-  const stateMap: Record<string, string> = {
-    'open': 'submitted',    // open maps to submitted (most common)
-    'matched': 'matched',
-    'proposals_received': 'matched', // treat as matched in code
-    'accepted': 'matched',  // treat as matched (booking in progress)
-    'cancelled': 'cancelled',
-    'completed': 'completed',
+  const normalized = dbState.toLowerCase();
+
+  const canonical: Record<string, RequestState> = {
+    draft: 'draft',
+    submitted: 'submitted',
+    matching: 'matching',
+    matched: 'matched',
+    expired: 'expired',
+    cancelled: 'cancelled',
+    completed: 'completed',
   };
-  return stateMap[dbState.toLowerCase()] ?? 'submitted';
+  if (canonical[normalized]) return canonical[normalized];
+
+  const legacy: Record<string, RequestState> = {
+    open: 'submitted',
+    agents_matched: 'matching',
+    agent_confirmed: 'matched',
+    itineraries_received: 'matched',
+    itinerary_selected: 'matched',
+    ready_for_payment: 'matched',
+    payment_pending: 'matched',
+    booked: 'matched',
+  };
+  if (legacy[normalized]) return legacy[normalized];
+
+  // Safe fallback for unknown/older DB values
+  return 'submitted';
 }
 
 function toRow(request: TravelRequest): RequestRow {
