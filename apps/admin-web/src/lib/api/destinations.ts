@@ -292,13 +292,16 @@ export async function uploadDestinationImage(
     throw new Error(uploadError.message);
   }
   
-  // Get public URL
+  // Get public URL with cache-busting timestamp
   const { data: urlData } = supabase.storage
     .from('images')
     .getPublicUrl(filePath);
   
-  // Update destination with image URL
-  return updateDestination(id, { imageUrl: urlData.publicUrl });
+  // Add timestamp to bust caches when image is updated
+  const imageUrlWithCacheBust = `${urlData.publicUrl}?v=${Date.now()}`;
+  
+  // Update destination with image URL (includes cache-busting param)
+  return updateDestination(id, { imageUrl: imageUrlWithCacheBust });
 }
 
 /**

@@ -58,7 +58,7 @@ export async function fetchDestinations(filters?: DestinationFilters): Promise<D
     const response = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      next: { revalidate: 300 }, // Cache for 5 minutes
+      next: { revalidate: 60 }, // Cache for 1 minute (was 5 min)
     });
 
     if (!response.ok) {
@@ -88,7 +88,7 @@ export async function fetchFeaturedDestinations(): Promise<Destination[]> {
     const response = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      next: { revalidate: 300 },
+      next: { revalidate: 60 }, // Cache for 1 minute
     });
 
     if (!response.ok) {
