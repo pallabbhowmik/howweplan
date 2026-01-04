@@ -29,7 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useUserSession } from '@/lib/user/session';
-import { fetchUser, fetchUserRequests, type User as UserType } from '@/lib/data/api';
+import { fetchUser, fetchUserRequests, fetchUserNotifications, markNotificationRead, type User as UserType, type Notification } from '@/lib/data/api';
 
 export function UserLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -40,6 +40,8 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
   const [scrolled, setScrolled] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
 
   // Track scroll for header styling
   useEffect(() => {
@@ -52,9 +54,10 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
     if (!sessionUser?.userId) return;
     
     const loadData = async () => {
-      const [userData, requests] = await Promise.all([
+      const [userData, requests, notifs] = await Promise.all([
         fetchUser(sessionUser.userId),
         fetchUserRequests(sessionUser.userId),
+        fetchUserNotifications(sessionUser.userId, 10),
       ]);
       if (userData) setUserData(userData);
       // Count active requests (not completed/cancelled)
@@ -62,16 +65,34 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
         !['completed', 'cancelled', 'COMPLETED', 'CANCELLED'].includes(r.state)
       );
       setRequestCount(activeRequests.length);
+      setNotifications(notifs);
     };
     
     loadData();
   }, [sessionUser?.userId]);
 
+  // Refresh notifications when dropdown opens
+  useEffect(() => {
+    if (notificationsOpen && sessionUser?.userId) {
+      setNotificationsLoading(true);
+      fetchUserNotifications(sessionUser.userId, 10)
+        .then(setNotifications)
+        .finally(() => setNotificationsLoading(false));
+    }
+  }, [notificationsOpen, sessionUser?.userId]);
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    await markNotificationRead(notificationId);
+    setNotifications(prev => 
+      prev.map(n => n.id === notificationId ? { ...n, isRead: true, readAt: new Date().toISOString() } : n)
+    );
+  };
+
   const navigationItems = [
     { href: '/dashboard', label: 'Home', icon: Home, description: 'Your dashboard' },
     { href: '/dashboard/requests', label: 'Requests', icon: Compass, badge: requestCount > 0 ? String(requestCount) : undefined, description: 'Travel requests' },
     { href: '/dashboard/bookings', label: 'Trips', icon: Calendar, description: 'Booked trips' },
-    { href: '/dashboard/messages', label: 'Messages', icon: MessageSquare, badge: '3', description: 'Agent messages' },
+    { href: '/dashboard/messages', label: 'Messages', icon: MessageSquare, description: 'Agent messages' },
   ];
 
   // Get user display info
@@ -82,7 +103,7 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
     tier: 'Gold', // Could be fetched from user preferences
   };
 
-  const unreadNotifications = 2;
+  const unreadNotifications = notifications.filter(n => !n.isRead).length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/20 flex flex-col">
@@ -198,44 +219,42 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
                             <Bell className="h-4 w-4 text-blue-600" />
                             <h3 className="font-bold text-gray-900">Notifications</h3>
                           </div>
-                          <Badge className="bg-blue-600 text-white border-0">{unreadNotifications} new</Badge>
+                          {unreadNotifications > 0 && (
+                            <Badge className="bg-blue-600 text-white border-0">{unreadNotifications} new</Badge>
+                          )}
                         </div>
                       </div>
                       <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
-                        <NotificationItem
-                          title="New itinerary received"
-                          description="Agent Sarah M. sent you a detailed itinerary for your Tokyo trip."
-                          time="2 hours ago"
-                          unread
-                          icon="📋"
-                          href="/dashboard/requests/1"
-                          onClick={() => setNotificationsOpen(false)}
-                        />
-                        <NotificationItem
-                          title="3 agents matched"
-                          description="Your Rajasthan request has attracted 3 expert agents."
-                          time="5 hours ago"
-                          unread
-                          icon="⚡"
-                          href="/dashboard/requests/2"
-                          onClick={() => setNotificationsOpen(false)}
-                        />
-                        <NotificationItem
-                          title="Booking confirmed"
-                          description="Your Kerala trip is confirmed! Get ready for adventure."
-                          time="2 days ago"
-                          icon="✅"
-                          href="/dashboard/bookings/B001"
-                          onClick={() => setNotificationsOpen(false)}
-                        />
-                        <NotificationItem
-                          title="New message from Priya S."
-                          description="Hi! I've updated the accommodation options for your trip."
-                          time="3 days ago"
-                          icon="💬"
-                          href="/dashboard/messages"
-                          onClick={() => setNotificationsOpen(false)}
-                        />
+                        {notificationsLoading ? (
+                          <div className="px-5 py-8 text-center text-gray-500">
+                            <div className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2" />
+                            <p className="text-sm">Loading notifications...</p>
+                          </div>
+                        ) : notifications.length === 0 ? (
+                          <div className="px-5 py-8 text-center text-gray-500">
+                            <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                            <p className="font-medium">No notifications yet</p>
+                            <p className="text-sm text-gray-400">We&apos;ll notify you when something happens</p>
+                          </div>
+                        ) : (
+                          notifications.map((notification) => (
+                            <NotificationItem
+                              key={notification.id}
+                              title={notification.title}
+                              description={notification.body}
+                              time={formatNotificationTime(notification.createdAt)}
+                              unread={!notification.isRead}
+                              icon={getNotificationIcon(notification.type)}
+                              href={getNotificationHref(notification)}
+                              onClick={() => {
+                                if (!notification.isRead) {
+                                  handleMarkAsRead(notification.id);
+                                }
+                                setNotificationsOpen(false);
+                              }}
+                            />
+                          ))
+                        )}
                       </div>
                       <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
                         <Link href="/dashboard/notifications" className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
@@ -442,6 +461,67 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+function formatNotificationTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+  
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function getNotificationIcon(type: string): string {
+  const iconMap: Record<string, string> = {
+    'proposal_received': '📋',
+    'agents_matched': '⚡',
+    'booking_confirmed': '✅',
+    'booking_cancelled': '❌',
+    'message_received': '💬',
+    'request_expired': '⏰',
+    'request_submitted': '🚀',
+    'payment_received': '💰',
+    'trip_reminder': '🔔',
+    'review_request': '⭐',
+  };
+  return iconMap[type] || '📬';
+}
+
+function getNotificationHref(notification: { type: string; data: Record<string, unknown> }): string {
+  const { type, data } = notification;
+  
+  // Route based on notification type and data
+  if (type.includes('proposal') || type.includes('agent') || type.includes('request')) {
+    if (data.requestId) return `/dashboard/requests/${data.requestId}`;
+    return '/dashboard/requests';
+  }
+  
+  if (type.includes('booking') || type.includes('trip')) {
+    if (data.bookingId) return `/dashboard/bookings/${data.bookingId}`;
+    return '/dashboard/bookings';
+  }
+  
+  if (type.includes('message')) {
+    return '/dashboard/messages';
+  }
+  
+  return '/dashboard';
+}
+
+// ============================================================================
+// Components
+// ============================================================================
 
 function NotificationItem({
   title,
