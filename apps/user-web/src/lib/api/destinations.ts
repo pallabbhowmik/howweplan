@@ -5,7 +5,13 @@
  * Falls back to static data if API is unavailable.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+const rawApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+// Normalize: remove trailing slashes and common API prefixes if present
+// We want API_BASE_URL to be the gateway origin, e.g. http://localhost:3001
+const API_BASE_URL = rawApiBaseUrl
+  .replace(/\/+$/, '')
+  .replace(/\/api\/v1\/?$/, '')
+  .replace(/\/api\/?$/, '');
 
 export type DestinationRegion = 'North' | 'South' | 'East' | 'West' | 'Central' | 'Northeast';
 

@@ -120,6 +120,9 @@ async function main() {
   });
 
   app.use('/api/v1', routes);
+  // Back-compat for gateway/local dev: gateway strips /api/{service} before proxying
+  // so the service should also accept unprefixed routes (e.g. /destinations).
+  app.use('/', routes);
 
   // Error handling (must be last)
   app.use(errorMiddleware);
