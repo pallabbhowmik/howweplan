@@ -6,6 +6,7 @@
  */
 
 import { Router } from 'express';
+import multer from 'multer';
 import { RequestService } from '../services/request.service';
 import { CapEnforcementService } from '../services/cap-enforcement.service';
 import { DestinationRepository } from '../domain/destination.repository';
@@ -32,6 +33,7 @@ import {
   createDestinationStatsHandler,
   createImportDestinationsHandler,
   createBulkUpdateDestinationsHandler,
+  createUploadDestinationImageHandler,
 } from './handlers/destinations.handlers';
 
 export interface RoutesDependencies {
@@ -44,6 +46,14 @@ export interface RoutesDependencies {
 
 export function createRoutes(deps: RoutesDependencies): Router {
   const router = Router();
+
+  const destinationImageUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB
+      files: 1,
+    },
+  });
 
   // Health check (no auth required)
   router.get('/health', (_req, res) => {
@@ -134,6 +144,14 @@ export function createRoutes(deps: RoutesDependencies): Router {
 
   // Admin only: PATCH /destinations/:id - Update destination
   destinationsRouter.patch('/:id', deps.adminAuthMiddleware, createUpdateDestinationHandler(deps.destinationRepository));
+
+  // Admin only: POST /destinations/:id/image - Upload destination image
+  destinationsRouter.post(
+    '/:id/image',
+    deps.adminAuthMiddleware,
+    destinationImageUpload.single('file'),
+    createUploadDestinationImageHandler(deps.destinationRepository)
+  );
 
   // Admin only: DELETE /destinations/:id - Delete destination
   destinationsRouter.delete('/:id', deps.adminAuthMiddleware, createDeleteDestinationHandler(deps.destinationRepository));

@@ -80,6 +80,11 @@ function staticToUnified(d: IndiaDestination): UnifiedDestination {
   };
 }
 
+function picsumUrlForId(id: string, width = 800, height = 500): string {
+  const seed = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return `https://picsum.photos/seed/${seed}/${width}/${height}`;
+}
+
 // Get image URL - prefer database URL, fallback to static lookup
 function getImageUrl(destination: UnifiedDestination): string {
   if (destination.imageUrl) {
@@ -91,8 +96,7 @@ function getImageUrl(destination: UnifiedDestination): string {
     return destinationImageUrl(staticDest);
   }
   // Final fallback: generate from picsum with consistent seed
-  const seed = destination.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return `https://picsum.photos/seed/${seed}/800/500`;
+  return picsumUrlForId(destination.id, 800, 500);
 }
 
 type RegionFilter = IndiaRegion | 'All';
@@ -141,7 +145,23 @@ function DestinationCard({ destination, index }: { destination: UnifiedDestinati
   const planHref = `/requests/new?destination=${encodeURIComponent(destination.name)}`;
   const primaryTheme = destination.themes[0] as DestinationTheme | undefined;
   const gradient = primaryTheme ? THEME_GRADIENTS[primaryTheme] : THEME_GRADIENTS.Nature;
+  const initialSrc = useMemo(() => getImageUrl(destination), [destination]);
+  const [imageSrc, setImageSrc] = useState<string>(initialSrc);
   const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageSrc(initialSrc);
+    setImageError(false);
+  }, [initialSrc]);
+
+  const handleImageError = useCallback(() => {
+    const fallback = picsumUrlForId(destination.id, 800, 500);
+    if (imageSrc !== fallback) {
+      setImageSrc(fallback);
+      return;
+    }
+    setImageError(true);
+  }, [destination.id, imageSrc]);
 
   return (
     <Card
@@ -155,10 +175,10 @@ function DestinationCard({ destination, index }: { destination: UnifiedDestinati
         {/* Image */}
         {!imageError && (
           <img
-            src={getImageUrl(destination)}
+            src={imageSrc}
             alt={destination.name}
             loading="lazy"
-            onError={() => setImageError(true)}
+            onError={handleImageError}
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
           />
         )}
@@ -242,7 +262,23 @@ function FeaturedDestination({ destination }: { destination: UnifiedDestination 
   const planHref = `/requests/new?destination=${encodeURIComponent(destination.name)}`;
   const primaryTheme = destination.themes[0] as DestinationTheme | undefined;
   const gradient = primaryTheme ? THEME_GRADIENTS[primaryTheme] : THEME_GRADIENTS.Nature;
+  const initialSrc = useMemo(() => getImageUrl(destination), [destination]);
+  const [imageSrc, setImageSrc] = useState<string>(initialSrc);
   const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageSrc(initialSrc);
+    setImageError(false);
+  }, [initialSrc]);
+
+  const handleImageError = useCallback(() => {
+    const fallback = picsumUrlForId(destination.id, 800, 500);
+    if (imageSrc !== fallback) {
+      setImageSrc(fallback);
+      return;
+    }
+    setImageError(true);
+  }, [destination.id, imageSrc]);
 
   return (
     <Link href={planHref} className="group relative rounded-2xl overflow-hidden h-[280px] block">
@@ -250,10 +286,10 @@ function FeaturedDestination({ destination }: { destination: UnifiedDestination 
       <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
       {!imageError && (
         <img
-          src={getImageUrl(destination)}
+          src={imageSrc}
           alt={destination.name}
           loading="lazy"
-          onError={() => setImageError(true)}
+          onError={handleImageError}
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
         />
       )}

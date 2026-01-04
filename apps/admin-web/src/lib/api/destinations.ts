@@ -5,8 +5,8 @@
  * Admins can add, edit, and remove destinations with their images.
  */
 
-import { apiClient, buildPaginationParams } from './client';
-import type { PaginationParams, PaginatedResponse } from '@/types';
+import { apiClient } from './client';
+import type { PaginationParams } from '@/types';
 
 // ============================================================================
 // TYPES
@@ -77,7 +77,18 @@ export interface DestinationFilters {
 }
 
 export interface DestinationQueryParams extends PaginationParams {
+  readonly limit?: number;
   readonly filters?: DestinationFilters;
+}
+
+export interface DestinationsListResponse {
+  readonly data: readonly Destination[];
+  readonly pagination: {
+    readonly page: number;
+    readonly limit: number;
+    readonly total: number;
+    readonly totalPages: number;
+  };
 }
 
 export interface DestinationStats {
@@ -96,10 +107,11 @@ export interface DestinationStats {
  */
 export async function getDestinations(
   params?: DestinationQueryParams
-): Promise<PaginatedResponse<Destination>> {
-  const queryParams: Record<string, string | number | boolean | undefined> = params 
-    ? buildPaginationParams(params)
-    : { page: 1, pageSize: 20 };
+): Promise<DestinationsListResponse> {
+  const queryParams: Record<string, string | number | boolean | undefined> = {
+    page: params?.page ?? 1,
+    limit: params?.limit ?? params?.pageSize ?? 20,
+  };
   
   if (params?.filters) {
     if (params.filters.region) queryParams.region = params.filters.region;
@@ -109,7 +121,7 @@ export async function getDestinations(
     if (params.filters.search) queryParams.search = params.filters.search;
   }
 
-  return apiClient.get<PaginatedResponse<Destination>>('/destinations', { params: queryParams });
+  return apiClient.get<DestinationsListResponse>('/destinations', { params: queryParams });
 }
 
 /**
@@ -134,6 +146,18 @@ export async function updateDestination(
   data: UpdateDestinationDto
 ): Promise<Destination> {
   return apiClient.patch<Destination>(`/destinations/${encodeURIComponent(id)}`, data);
+}
+
+/**
+ * Upload (binary) destination image and persist its public URL
+ */
+export async function uploadDestinationImage(
+  id: string,
+  file: File
+): Promise<Destination> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiClient.postForm<Destination>(`/destinations/${encodeURIComponent(id)}/image`, formData);
 }
 
 /**

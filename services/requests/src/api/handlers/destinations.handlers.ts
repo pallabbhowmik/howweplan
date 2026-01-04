@@ -5,7 +5,45 @@
  */
 
 import { Request, Response, RequestHandler } from 'express';
+import { createClient } from '@supabase/supabase-js';
 import { DestinationRepository } from '../../domain/destination.repository';
+import { config } from '../../env';
+
+const DESTINATION_IMAGES_BUCKET = 'destination-images';
+
+function sanitizeFilename(filename: string): string {
+  return filename
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 120);
+}
+
+async function ensurePublicBucketExists(bucket: string) {
+  const supabase = createClient(
+    config.database.supabaseUrl,
+    config.database.supabaseServiceRoleKey
+  );
+
+  const { error } = await supabase.storage.getBucket(bucket);
+  if (!error) {
+    return supabase;
+  }
+
+  const create = await supabase.storage.createBucket(bucket, {
+    public: true,
+  });
+  if (create.error) {
+    // If it already exists (race), ignore; otherwise fail.
+    const message = String(create.error.message || 'Failed to create storage bucket');
+    if (!/already exists/i.test(message)) {
+      throw create.error;
+    }
+  }
+
+  return supabase;
+}
 
 export function createListDestinationsHandler(
   repository: DestinationRepository
@@ -266,6 +304,92 @@ export function createBulkUpdateDestinationsHandler(
       res.status(500).json({
         error: 'INTERNAL_ERROR',
         message: 'Failed to bulk update destinations',
+      });
+    }
+  };
+}
+
+export function createUploadDestinationImageHandler(
+  repository: DestinationRepository
+): RequestHandler {
+  return async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      type UploadedFile = {
+        buffer: Buffer;
+        mimetype: string;
+        originalname: string;
+      };
+      const file = (req as Request & { file?: UploadedFile }).file;
+
+      if (!file) {
+        res.status(400).json({
+          error: 'VALIDATION_ERROR',
+          message: 'Missing file. Send multipart/form-data with field name "file".',
+        });
+        return;
+      }
+
+      if (!file.mimetype || !file.mimetype.startsWith('image/')) {
+        res.status(400).json({
+          error: 'VALIDATION_ERROR',
+          message: 'Invalid file type. Only image uploads are allowed.',
+        });
+        return;
+      }
+
+      // Ensure destination exists first
+      const existing = await repository.findById(id);
+      if (!existing) {
+        res.status(404).json({
+          error: 'NOT_FOUND',
+          message: 'Destination not found',
+        });
+        return;
+      }
+
+      const supabase = await ensurePublicBucketExists(DESTINATION_IMAGES_BUCKET);
+
+      const safeName = sanitizeFilename(file.originalname || 'image');
+      const objectPath = `destinations/${encodeURIComponent(id)}/${Date.now()}-${safeName}`;
+
+      const upload = await supabase.storage
+        .from(DESTINATION_IMAGES_BUCKET)
+        .upload(objectPath, file.buffer, {
+          contentType: file.mimetype,
+          upsert: true,
+        });
+
+      if (upload.error) {
+        console.error('Failed to upload destination image:', upload.error);
+        res.status(500).json({
+          error: 'INTERNAL_ERROR',
+          message: 'Failed to upload destination image',
+        });
+        return;
+      }
+
+      const { data: publicData } = supabase.storage
+        .from(DESTINATION_IMAGES_BUCKET)
+        .getPublicUrl(objectPath);
+
+      const publicUrl = publicData.publicUrl;
+
+      const updated = await repository.update(id, { imageUrl: publicUrl });
+      if (!updated) {
+        res.status(404).json({
+          error: 'NOT_FOUND',
+          message: 'Destination not found',
+        });
+        return;
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error('Failed to upload destination image:', error);
+      res.status(500).json({
+        error: 'INTERNAL_ERROR',
+        message: 'Failed to upload destination image',
       });
     }
   };

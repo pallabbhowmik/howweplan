@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useMemo, ChangeEvent } from 'react';
+import React, { useEffect, useState, useMemo, ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
 import {
   getDestinations,
   createDestination,
   updateDestination,
+  uploadDestinationImage,
   deleteDestination,
   getDestinationStats,
   DESTINATION_REGIONS,
@@ -97,7 +98,7 @@ import {
 
 interface DestinationFormProps {
   destination?: Destination | null;
-  onSubmit: (data: CreateDestinationDto | UpdateDestinationDto) => void;
+  onSubmit: (data: CreateDestinationDto | UpdateDestinationDto, imageFile: File | null) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -121,41 +122,50 @@ function DestinationForm({ destination, onSubmit, onCancel, isLoading }: Destina
     displayOrder: destination?.displayOrder || 0,
   });
 
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreviewUrl(null);
+      return;
+    }
+
+    const url = URL.createObjectURL(imageFile);
+    setImagePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const data = isEditing
-      ? {
-          name: formData.name,
-          state: formData.state,
-          region: formData.region,
-          themes: formData.themes,
-          idealMonths: formData.idealMonths,
-          suggestedDurationMin: formData.suggestedDurationMin,
-          suggestedDurationMax: formData.suggestedDurationMax,
-          highlight: formData.highlight,
-          imageUrl: formData.imageUrl || null,
-          isFeatured: formData.isFeatured,
-          isActive: formData.isActive,
-          displayOrder: formData.displayOrder,
-        }
-      : {
-          id: formData.id,
-          name: formData.name,
-          state: formData.state,
-          region: formData.region,
-          themes: formData.themes,
-          idealMonths: formData.idealMonths,
-          suggestedDurationMin: formData.suggestedDurationMin,
-          suggestedDurationMax: formData.suggestedDurationMax,
-          highlight: formData.highlight,
-          imageUrl: formData.imageUrl || null,
-          isFeatured: formData.isFeatured,
-          isActive: formData.isActive,
-          displayOrder: formData.displayOrder,
-        };
 
-    onSubmit(data);
+    const common = {
+      name: formData.name,
+      state: formData.state,
+      region: formData.region,
+      themes: formData.themes,
+      idealMonths: formData.idealMonths,
+      suggestedDurationMin: formData.suggestedDurationMin,
+      suggestedDurationMax: formData.suggestedDurationMax,
+      highlight: formData.highlight,
+      isFeatured: formData.isFeatured,
+      isActive: formData.isActive,
+      displayOrder: formData.displayOrder,
+    };
+
+    const data = isEditing
+      ? ({
+          ...common,
+          // If a new file is selected, backend upload endpoint will set imageUrl.
+          ...(imageFile ? {} : { imageUrl: formData.imageUrl || null }),
+        } satisfies UpdateDestinationDto)
+      : ({
+          id: formData.id,
+          ...common,
+          imageUrl: formData.imageUrl || null,
+        } satisfies CreateDestinationDto);
+
+    onSubmit(data, imageFile);
   };
 
   const toggleTheme = (theme: DestinationTheme) => {
@@ -288,31 +298,45 @@ function DestinationForm({ destination, onSubmit, onCancel, isLoading }: Destina
         </div>
       </div>
 
-      {/* Image URL */}
+      {/* Image Upload */}
       <div className="space-y-2">
-        <Label htmlFor="imageUrl">Image URL</Label>
-        <div className="flex gap-2">
+        <Label htmlFor="imageFile">Image</Label>
+        <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
           <Input
-            id="imageUrl"
-            value={formData.imageUrl}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
-            placeholder="https://images.unsplash.com/..."
-            className="flex-1"
+            id="imageFile"
+            type="file"
+            accept="image/*"
+            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+              const file = e.target.files?.[0] || null;
+              setImageFile(file);
+            }}
           />
-          {formData.imageUrl && (
-            <div className="relative h-10 w-16 rounded border overflow-hidden">
+          <div className="relative h-10 w-16 rounded border overflow-hidden">
+            {(imagePreviewUrl || formData.imageUrl) ? (
               <Image
-                src={formData.imageUrl}
+                src={imagePreviewUrl || formData.imageUrl}
                 alt="Preview"
                 fill
                 className="object-cover"
                 unoptimized
               />
-            </div>
-          )}
+            ) : (
+              <div className="h-full w-full bg-muted" />
+            )}
+          </div>
         </div>
+
+        {formData.imageUrl && (
+          <div className="space-y-1">
+            <Label htmlFor="imageUrl" className="text-xs text-muted-foreground">
+              Current image URL
+            </Label>
+            <Input id="imageUrl" value={formData.imageUrl} disabled />
+          </div>
+        )}
+
         <p className="text-xs text-muted-foreground">
-          Use Unsplash URLs: https://images.unsplash.com/photo-XXXXX?w=800&h=500&fit=crop
+          Upload an image file. It will be stored in Supabase Storage and shown in user web.
         </p>
       </div>
 
@@ -440,7 +464,6 @@ export default function DestinationsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['destinations'] });
       queryClient.invalidateQueries({ queryKey: ['destination-stats'] });
-      setIsFormOpen(false);
     },
   });
 
@@ -450,7 +473,14 @@ export default function DestinationsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['destinations'] });
       queryClient.invalidateQueries({ queryKey: ['destination-stats'] });
-      setEditingDestination(null);
+    },
+  });
+
+  const uploadImageMutation = useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => uploadDestinationImage(id, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['destinations'] });
+      queryClient.invalidateQueries({ queryKey: ['destination-stats'] });
     },
   });
 
@@ -464,14 +494,21 @@ export default function DestinationsPage() {
   });
 
   // Handlers
-  const handleCreate = (data: CreateDestinationDto | UpdateDestinationDto) => {
-    createMutation.mutate(data as CreateDestinationDto);
+  const handleCreate = async (data: CreateDestinationDto | UpdateDestinationDto, imageFile: File | null) => {
+    const created = await createMutation.mutateAsync(data as CreateDestinationDto);
+    if (imageFile) {
+      await uploadImageMutation.mutateAsync({ id: created.id, file: imageFile });
+    }
+    setIsFormOpen(false);
   };
 
-  const handleUpdate = (data: CreateDestinationDto | UpdateDestinationDto) => {
-    if (editingDestination) {
-      updateMutation.mutate({ id: editingDestination.id, data: data as UpdateDestinationDto });
+  const handleUpdate = async (data: CreateDestinationDto | UpdateDestinationDto, imageFile: File | null) => {
+    if (!editingDestination) return;
+    await updateMutation.mutateAsync({ id: editingDestination.id, data: data as UpdateDestinationDto });
+    if (imageFile) {
+      await uploadImageMutation.mutateAsync({ id: editingDestination.id, file: imageFile });
     }
+    setEditingDestination(null);
   };
 
   const handleDelete = () => {
@@ -494,7 +531,7 @@ export default function DestinationsPage() {
     });
   };
 
-  const destinations = destinationsData?.data || [];
+  const destinations: Destination[] = (destinationsData?.data ?? []) as Destination[];
 
   return (
     <div className="p-6 space-y-6">
@@ -535,7 +572,7 @@ export default function DestinationsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {stats?.active || destinations.filter(d => d.isActive).length}
+              {stats?.active || destinations.filter((d: Destination) => d.isActive).length}
             </div>
           </CardContent>
         </Card>
@@ -547,7 +584,7 @@ export default function DestinationsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-600">
-              {stats?.featured || destinations.filter(d => d.isFeatured).length}
+              {stats?.featured || destinations.filter((d: Destination) => d.isFeatured).length}
             </div>
           </CardContent>
         </Card>
@@ -559,7 +596,7 @@ export default function DestinationsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {destinations.filter(d => !d.imageUrl).length}
+              {destinations.filter((d: Destination) => !d.imageUrl).length}
             </div>
           </CardContent>
         </Card>
@@ -640,7 +677,7 @@ export default function DestinationsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                destinations.map(destination => (
+                destinations.map((destination: Destination) => (
                   <TableRow key={destination.id} className={!destination.isActive ? 'opacity-50' : ''}>
                     <TableCell>
                       {destination.imageUrl ? (
@@ -668,7 +705,7 @@ export default function DestinationsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {destination.themes.slice(0, 2).map(theme => (
+                        {destination.themes.slice(0, 2).map((theme: DestinationTheme) => (
                           <Badge key={theme} variant="outline" className="text-xs">
                             {theme}
                           </Badge>
@@ -754,7 +791,7 @@ export default function DestinationsPage() {
           <DestinationForm
             onSubmit={handleCreate}
             onCancel={() => setIsFormOpen(false)}
-            isLoading={createMutation.isPending}
+            isLoading={createMutation.isPending || uploadImageMutation.isPending}
           />
         </DialogContent>
       </Dialog>
@@ -773,7 +810,7 @@ export default function DestinationsPage() {
               destination={editingDestination}
               onSubmit={handleUpdate}
               onCancel={() => setEditingDestination(null)}
-              isLoading={updateMutation.isPending}
+              isLoading={updateMutation.isPending || uploadImageMutation.isPending}
             />
           )}
         </DialogContent>

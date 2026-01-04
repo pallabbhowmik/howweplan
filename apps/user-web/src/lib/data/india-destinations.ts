@@ -76,8 +76,9 @@ export function destinationImageUrl(destination: IndiaDestination, width = 800, 
     'in-ahmedabad': 'photo-1595658658481-d53d3f999875', // Sabarmati
     'in-rann': 'photo-1583309219338-a582f1f9ca6b', // White desert
     'in-gir': 'photo-1614531341773-3bff8b7cb3fc', // Lion
-    'in-dwarka': 'photo-1621427642826-d8b84d3c9f14', // Temple
-    'in-somnath': 'photo-1621427642826-d8b84d3c9f14', // Sea temple
+    // Wikimedia Commons (stable) for temple destinations (previous Unsplash photo was removed and returned 404)
+    'in-dwarka': 'https://commons.wikimedia.org/wiki/Special:FilePath/Dwarakadheesh_Temple,_2014.jpg',
+    'in-somnath': 'https://commons.wikimedia.org/wiki/Special:FilePath/Somnath_Temple.jpg',
     
     // South India
     'in-bengaluru': 'photo-1596176530529-78163a4f7af2', // City
@@ -87,7 +88,7 @@ export function destinationImageUrl(destination: IndiaDestination, width = 800, 
     'in-ooty': 'photo-1519681393784-d120267933ba', // Tea gardens
     'in-kodaikanal': 'photo-1595815771614-ade9d652a65d', // Lake mist
     'in-chennai': 'photo-1582510003544-4d00b7f74220', // Marina Beach
-    'in-mahabalipuram': 'photo-1621427642826-d8b84d3c9f14', // Shore temple
+    'in-mahabalipuram': 'https://commons.wikimedia.org/wiki/Special:FilePath/Mamallapuram,_Shore_Temple,_India.jpg',
     'in-madurai': 'photo-1605649487212-47bdab064df7', // Meenakshi Temple
     'in-pondicherry': 'photo-1580889272946-49e46e20d29d', // French quarter
     'in-kerala-kochi': 'photo-1602216056096-3b40cc0c9944', // Chinese nets
@@ -120,9 +121,13 @@ export function destinationImageUrl(destination: IndiaDestination, width = 800, 
     'in-tawang': 'photo-1593181629936-11c609b8db9b', // Monastery
   };
 
-  const photoId = CURATED_PHOTOS[destination.id];
-  if (photoId) {
-    return `https://images.unsplash.com/${photoId}?w=${width}&h=${height}&fit=crop&auto=format&q=80`;
+  const curated = CURATED_PHOTOS[destination.id];
+  if (curated) {
+    if (curated.startsWith('http://') || curated.startsWith('https://')) {
+      const joiner = curated.includes('?') ? '&' : '?';
+      return `${curated}${joiner}width=${width}`;
+    }
+    return `https://images.unsplash.com/${curated}?w=${width}&h=${height}&fit=crop&auto=format&q=80`;
   }
   
   // Fallback: Use Picsum for uncurated destinations (source.unsplash.com is deprecated)

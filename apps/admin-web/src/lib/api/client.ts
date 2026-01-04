@@ -94,6 +94,17 @@ class ApiClient {
   }
 
   /**
+   * POST multipart/form-data request
+   */
+  async postForm<T>(path: string, formData: FormData, config?: RequestConfig): Promise<T> {
+    return this.request<T>(path, {
+      ...config,
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  /**
    * PUT request
    */
   async put<T>(path: string, body?: unknown, config?: RequestConfig): Promise<T> {
@@ -129,6 +140,8 @@ class ApiClient {
     const url = this.buildUrl(path, config.params);
     const timeout = config.timeout ?? this.timeout;
 
+    const isFormDataBody = typeof FormData !== 'undefined' && config.body instanceof FormData;
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -137,7 +150,7 @@ class ApiClient {
         ...config,
         signal: controller.signal,
         headers: {
-          'Content-Type': 'application/json',
+          ...(!isFormDataBody ? { 'Content-Type': 'application/json' } : {}),
           ...this.getAuthHeaders(),
           ...config.headers,
         },

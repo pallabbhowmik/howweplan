@@ -66,6 +66,7 @@ export {
   getDestination,
   createDestination,
   updateDestination,
+  uploadDestinationImage,
   deleteDestination,
   getDestinationStats,
   bulkUpdateDestinations,
