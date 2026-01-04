@@ -545,6 +545,34 @@ export default function ServicesStatusPage() {
         </Card>
       )}
 
+      {/* Backend Not Deployed Alert */}
+      {stats.total > 0 && stats.healthy === 0 && stats.unhealthy === stats.total - stats.notConfigured && (
+        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-amber-700 dark:text-amber-400 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              Backend Services Not Reachable
+            </CardTitle>
+            <CardDescription className="text-amber-600 dark:text-amber-300">
+              All backend microservices are showing as unhealthy. This typically means:
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-2 list-disc list-inside">
+              <li><strong>Backend not deployed:</strong> The microservices (identity, requests, audit, etc.) need to be deployed to a server</li>
+              <li><strong>Wrong API URL:</strong> The <code className="bg-amber-200 dark:bg-amber-800 px-1 rounded">NEXT_PUBLIC_API_BASE_URL</code> environment variable may be pointing to localhost</li>
+              <li><strong>Network issue:</strong> The API gateway may not be accessible from this environment</li>
+            </ul>
+            <div className="pt-2 border-t border-amber-200 dark:border-amber-700">
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                <strong>To fix:</strong> Deploy your backend services to a cloud provider (Railway, Render, Fly.io, AWS) 
+                and update <code className="bg-amber-200 dark:bg-amber-800 px-1 rounded">NEXT_PUBLIC_API_BASE_URL</code> in your Vercel environment variables.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Filters & Sort */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
@@ -659,19 +687,42 @@ export default function ServicesStatusPage() {
       {/* Configuration Help */}
       <Card>
         <CardHeader>
-          <CardTitle>Configuration</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            Deployment Configuration
+          </CardTitle>
           <CardDescription>
-            Configure the API gateway URL in your <code className="bg-muted px-1 rounded">.env.local</code> file
+            Configure your environment variables in Vercel or your deployment platform
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <pre className="text-xs bg-muted p-4 rounded overflow-auto">
-{`# API Gateway (single entry point)
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+        <CardContent className="space-y-4">
+          <div>
+            <h4 className="text-sm font-medium mb-2">Required Environment Variables</h4>
+            <pre className="text-xs bg-muted p-4 rounded overflow-auto">
+{`# API Gateway URL (points to your deployed backend)
+NEXT_PUBLIC_API_BASE_URL=https://your-api-gateway.example.com
 
 # Health check timeout (ms)
-NEXT_PUBLIC_SERVICE_HEALTH_TIMEOUT_MS=2000`}
-          </pre>
+NEXT_PUBLIC_SERVICE_HEALTH_TIMEOUT_MS=5000`}
+            </pre>
+          </div>
+          <div className="pt-2 border-t">
+            <h4 className="text-sm font-medium mb-2">Backend Deployment Options</h4>
+            <div className="grid gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Server className="h-4 w-4" />
+                <span><strong>Railway / Render:</strong> Deploy Docker containers from docker-compose.yml</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                <span><strong>Supabase:</strong> Already configured - just need the microservices</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                <span><strong>AWS / GCP:</strong> Use ECS, Cloud Run, or Kubernetes</span>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
