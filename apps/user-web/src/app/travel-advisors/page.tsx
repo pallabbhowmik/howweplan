@@ -50,7 +50,7 @@ const stats = [
 
 export default function TravelAdvisorsPage() {
   return (
-    <>
+    <div>
       <SiteNavigation />
       <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
       {/* Hero Section */}
@@ -181,6 +181,6 @@ export default function TravelAdvisorsPage() {
       </section>
     </div>
     <SiteFooter />
-    </>
+    </div>
   );
 }

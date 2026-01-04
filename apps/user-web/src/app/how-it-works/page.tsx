@@ -92,7 +92,7 @@ const benefits = [
 
 export default function HowItWorksPage() {
   return (
-    <>
+    <div>
       <SiteNavigation />
       <div className="min-h-screen bg-white flex flex-col">
         {/* Hero */}
@@ -240,6 +240,6 @@ export default function HowItWorksPage() {
       </footer>
     </div>
     <SiteFooter />
-    </>
+    </div>
   );
 }

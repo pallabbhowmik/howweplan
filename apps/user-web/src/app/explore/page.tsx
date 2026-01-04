@@ -420,7 +420,7 @@ export default function ExplorePage() {
   const hasActiveFilters = query || region !== 'All' || theme !== 'All' || stateOrUt !== 'All';
 
   return (
-    <>
+    <div>
       <SiteNavigation />
       <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
       {/* Hero Section */}
@@ -628,6 +628,6 @@ export default function ExplorePage() {
       </div>
     </div>
     <SiteFooter />
-    </>
+    </div>
   );
 }
