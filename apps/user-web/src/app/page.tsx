@@ -59,7 +59,7 @@ const testimonials = [
     name: 'Rahul & Neha S.',
     location: 'Delhi',
     avatar: 'RS',
-    text: 'Compared 5 agents side-by-side. Winner included extras we never knew to ask for. ₹20K saved.',
+    text: 'Compared 5 travel advisors side-by-side. Winner included extras we never knew to ask for. ₹20K saved.',
     rating: 5,
     trip: 'Kerala Family Trip',
     savings: '₹20,000',
@@ -89,7 +89,7 @@ const testimonials = [
 
 const stats = [
   { value: '50K+', label: 'trips planned', sublabel: 'and counting', icon: Users },
-  { value: '2,500+', label: 'verified agents', sublabel: 'competing for you', icon: Award },
+  { value: '2,500+', label: 'verified advisors', sublabel: 'competing for you', icon: Award },
   { value: '98%', label: 'rebook rate', sublabel: 'from real travelers', icon: Heart },
   { value: '₹12Cr+', label: 'total savings', sublabel: 'exposed hidden margins', icon: TrendingUp },
 ];
@@ -117,7 +117,7 @@ const tripTypes = [
 const faqItems = [
   {
     question: 'Is it really free to post a trip request?',
-    answer: 'Yes, absolutely! Posting a request and receiving proposals from agents is completely free. You only pay when you decide to book a trip you love.',
+    answer: 'Yes, absolutely! Posting a request and receiving proposals from travel advisors is completely free. You only pay when you decide to book a trip you love.',
     icon: IndianRupee,
   },
   {
@@ -131,13 +131,13 @@ const faqItems = [
     icon: RefreshCcw,
   },
   {
-    question: 'How do I know agents are trustworthy?',
-    answer: 'Every agent on HowWePlan is verified and vetted. You can see their ratings, reviews, and track record before choosing. Star agents have proven excellence.',
+    question: 'How do I know travel advisors are trustworthy?',
+    answer: 'Every travel advisor on HowWePlan is verified and vetted. You can see their ratings, reviews, and track record before choosing. Star advisors have proven excellence.',
     icon: Shield,
   },
   {
     question: 'What support do I get during my trip?',
-    answer: 'Our support team is available 24/7. You can reach your agent directly and our team is always here to help resolve any issues.',
+    answer: 'Our support team is available 24/7. You can reach your travel advisor directly and our team is always here to help resolve any issues.',
     icon: Headphones,
   },
 ];
@@ -297,7 +297,7 @@ export default function Home() {
               
               {/* Contrast line - why this vs DIY */}
               <p className="text-gray-600 mb-6">
-                Instead of researching alone, <span className="text-gray-900 font-medium">let expert agents compete</span> for your business.
+                Instead of researching alone, <span className="text-gray-900 font-medium">let expert travel advisors compete</span> for your business.
               </p>
               
               {/* CTA Button - Intriguing */}
@@ -391,7 +391,7 @@ export default function Home() {
                 {
                   step: '02',
                   icon: Users,
-                  title: 'Agents Compete',
+                  title: 'Advisors Compete',
                   description: '5 proposals avg.',
                   color: 'from-purple-500 to-purple-600',
                   time: '24 hrs',
@@ -472,8 +472,8 @@ export default function Home() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
             <FeatureCard
               icon={<Zap className="h-6 w-6" />}
-              title="Agents Compete For You"
-              description="Multiple experts create proposals, driving better prices and more creative itineraries."
+              title="Advisors Compete For You"
+              description="Multiple travel experts create proposals, driving better prices and more creative itineraries."
               gradient="from-yellow-500 to-orange-500"
             />
             <FeatureCard
@@ -491,13 +491,13 @@ export default function Home() {
             <FeatureCard
               icon={<MessageSquare className="h-6 w-6" />}
               title="Direct Communication"
-              description="Chat seamlessly with your agent to customize every detail of your trip."
+              description="Chat seamlessly with your travel advisor to customize every detail of your trip."
               gradient="from-purple-500 to-pink-500"
             />
             <FeatureCard
               icon={<Award className="h-6 w-6" />}
               title="Verified Experts"
-              description="Every agent is vetted. Star agents have proven track records and fast response times."
+              description="Every travel advisor is vetted. Star advisors have proven track records and fast response times."
               gradient="from-amber-500 to-red-500"
             />
             <FeatureCard
@@ -530,7 +530,7 @@ export default function Home() {
         
         <div className="container mx-auto px-4 relative">
           <div className="text-center mb-10 md:mb-12">
-            <p className="text-blue-300 text-sm uppercase tracking-wider mb-2">Real itineraries our agents created</p>
+            <p className="text-blue-300 text-sm uppercase tracking-wider mb-2">Real itineraries our travel advisors created</p>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-3">
               Trips Planned This Week
             </h2>
@@ -763,7 +763,7 @@ export default function Home() {
             <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
                 <p className="text-white font-semibold mb-1">Is it really free?</p>
-                <p className="text-white/70 text-sm">Yes, 100%. Agents pay us, not you.</p>
+                <p className="text-white/70 text-sm">Yes, 100%. Advisors pay us, not you.</p>
               </div>
               <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
                 <p className="text-white font-semibold mb-1">Do I have to book?</p>
@@ -774,8 +774,8 @@ export default function Home() {
                 <p className="text-white/70 text-sm">Most get proposals within 24 hours.</p>
               </div>
               <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
-                <p className="text-white font-semibold mb-1">Are agents verified?</p>
-                <p className="text-white/70 text-sm">Yes, all agents are vetted & rated.</p>
+                <p className="text-white font-semibold mb-1">Are advisors verified?</p>
+                <p className="text-white/70 text-sm">Yes, all advisors are vetted & rated.</p>
               </div>
             </div>
           </div>
@@ -814,7 +814,7 @@ export default function Home() {
                 <span className="text-xl font-bold text-white">HowWePlan</span>
               </Link>
               <p className="text-sm leading-relaxed mb-4">
-                Connecting travelers with expert agents for unforgettable journeys. 
+                Connecting travelers with expert travel advisors for unforgettable journeys. 
                 Plan smarter, travel better.
               </p>
               <div className="flex items-center gap-1 text-sm">
@@ -832,7 +832,7 @@ export default function Home() {
                 <li><Link href="#how-it-works" className="hover:text-white transition-colors">How It Works</Link></li>
                 <li><Link href="/requests/new" className="hover:text-white transition-colors">Plan a Trip</Link></li>
                 <li><Link href="#destinations" className="hover:text-white transition-colors">Destinations</Link></li>
-                <li><Link href="/agents" className="hover:text-white transition-colors">For Agents</Link></li>
+                <li><Link href="/travel-advisors" className="hover:text-white transition-colors">For Travel Advisors</Link></li>
               </ul>
             </div>
             

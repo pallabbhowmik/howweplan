@@ -54,8 +54,8 @@ import {
 
 type JourneyStage = 
   | 'idea'              // New user - hasn't started
-  | 'request_sent'      // Request submitted, waiting for agents
-  | 'agents_responding' // Agents are viewing/responding
+  | 'request_sent'      // Request submitted, waiting for travel advisors
+  | 'agents_responding' // Travel advisors are viewing/responding
   | 'compare'           // Proposals ready to compare
   | 'booked'            // Trip is booked
   | 'traveling';        // Currently on trip or completed
@@ -413,15 +413,15 @@ function WelcomeHeader({
       case 'idea':
         return "Ready to plan your next adventure?";
       case 'request_sent':
-        return `Your ${destination} request has been sent to agents`;
+        return `Your ${destination} request has been sent to travel advisors`;
       case 'agents_responding':
-        return `Agents are working on your ${destination} trip`;
+        return `Travel advisors are working on your ${destination} trip`;
       case 'compare':
         return `You have ${stats?.awaitingSelection || 'new'} proposals waiting for review!`;
       case 'booked':
         return "Your trip is confirmed. Here's what's happening.";
       case 'traveling':
-        return "Enjoy your trip! Your agent is on standby.";
+        return "Enjoy your trip! Your travel advisor is on standby.";
       default:
         return "Here's what's happening with your trips.";
     }
@@ -504,7 +504,7 @@ function TripTimeline({ stage, activeRequest }: { stage: JourneyStage; activeReq
       key: 'request_sent', 
       label: 'Request', 
       icon: Send, 
-      description: 'Sent to agents',
+      description: 'Sent to advisors',
       timing: null,
       href: activeRequest ? `/dashboard/requests/${activeRequest.id}` : '/dashboard/requests',
     },
@@ -512,9 +512,9 @@ function TripTimeline({ stage, activeRequest }: { stage: JourneyStage; activeReq
       key: 'agents_responding', 
       label: 'Matching', 
       icon: Users, 
-      description: 'Agents reviewing',
+      description: 'Advisors reviewing',
       timing: 'Usually ~4h',
-      currentCopy: 'Agents are crafting proposals',
+      currentCopy: 'Travel advisors are crafting proposals',
       href: activeRequest ? `/dashboard/requests/${activeRequest.id}` : '/dashboard/requests',
     },
     { 
@@ -711,7 +711,7 @@ function ActionPanel({ stage, activeRequest, upcomingBooking, stats, userName }:
   }> = {
     idea: {
       title: 'Start your dream trip',
-      subtitle: 'Tell us where you want to go. Expert agents compete to plan your perfect adventure — free, no commitment.',
+      subtitle: 'Tell us where you want to go. Expert travel advisors compete to plan your perfect adventure — free, no commitment.',
       cta: { label: 'Create Trip Request', href: '/requests/new' },
       gradient: 'from-blue-500 via-indigo-500 to-purple-600',
       bgPattern: 'radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%)',
@@ -719,7 +719,7 @@ function ActionPanel({ stage, activeRequest, upcomingBooking, stats, userName }:
     },
     request_sent: {
       title: `Your ${destination} request is live!`,
-      subtitle: 'Agents are being notified. Most respond within 4 hours with personalized proposals.',
+      subtitle: 'Travel advisors are being notified. Most respond within 4 hours with personalized proposals.',
       cta: { label: 'View Request Details', href: activeRequest ? `/dashboard/requests/${activeRequest.id}` : '/dashboard/requests' },
       secondaryCta: { label: 'Edit Preferences', href: activeRequest ? `/requests/edit/${activeRequest.id}` : '/dashboard/requests' },
       gradient: 'from-amber-500 to-orange-500',
@@ -727,7 +727,7 @@ function ActionPanel({ stage, activeRequest, upcomingBooking, stats, userName }:
       emoji: '📤',
     },
     agents_responding: {
-      title: `Agents are working on your ${destination} trip`,
+      title: `Travel advisors are working on your ${destination} trip`,
       subtitle: `${activeRequest?.agentsResponded ? `${activeRequest.agentsResponded} agent${activeRequest.agentsResponded > 1 ? 's have' : ' has'} already viewed your request.` : 'Expert agents are designing personalized itineraries.'} Most respond within ~4 hours.`,
       cta: { label: 'View Request Details', href: activeRequest ? `/dashboard/requests/${activeRequest.id}` : '/dashboard/requests' },
       secondaryCta: { label: 'Edit Preferences', href: activeRequest ? `/requests/edit/${activeRequest.id}` : '/dashboard/requests' },
@@ -737,9 +737,9 @@ function ActionPanel({ stage, activeRequest, upcomingBooking, stats, userName }:
     },
     compare: {
       title: `${stats?.awaitingSelection || 'New'} proposals for your ${destination} trip!`,
-      subtitle: 'Agents have sent you personalized itineraries. Compare prices, experiences, and reviews to find your perfect match.',
+      subtitle: 'Travel advisors have sent you personalized itineraries. Compare prices, experiences, and reviews to find your perfect match.',
       cta: { label: 'Compare Proposals', href: '/dashboard/requests' },
-      secondaryCta: { label: 'Message Agents', href: '/dashboard/messages' },
+      secondaryCta: { label: 'Message Advisors', href: '/dashboard/messages' },
       gradient: 'from-emerald-500 to-teal-600',
       bgPattern: 'radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.15) 0%, transparent 50%)',
       emoji: '🎯',
@@ -747,7 +747,7 @@ function ActionPanel({ stage, activeRequest, upcomingBooking, stats, userName }:
     booked: {
       title: upcomingBooking ? 'Your trip is confirmed!' : `Welcome back, ${userName}!`,
       subtitle: upcomingBooking 
-        ? 'Everything is set. Your agent is available if you need anything before departure.'
+        ? 'Everything is set. Your travel advisor is available if you need anything before departure.'
         : 'Ready for your next adventure?',
       cta: upcomingBooking 
         ? { label: 'View Itinerary', href: '/dashboard/bookings' }
@@ -847,9 +847,9 @@ function QuickActionsGrid() {
       shadowColor: 'shadow-pink-500/25',
     },
     { 
-      href: '/agents', 
+      href: '/travel-advisors', 
       icon: Award, 
-      label: 'Meet Our Agents', 
+      label: 'Meet Our Advisors', 
       description: 'Expert planners',
       color: 'from-amber-500 to-orange-500',
       shadowColor: 'shadow-amber-500/25',
@@ -890,7 +890,7 @@ function ContextualActionsGrid({ stage, requestId }: { stage: JourneyStage; requ
             href: `/dashboard/requests/${requestId}`, 
             icon: Eye, 
             label: 'Track Progress', 
-            description: 'See agent activity',
+            description: 'See advisor activity',
             color: 'from-blue-500 to-indigo-500',
             shadowColor: 'shadow-blue-500/25',
           },
@@ -924,7 +924,7 @@ function ContextualActionsGrid({ stage, requestId }: { stage: JourneyStage; requ
           { 
             href: '/dashboard/messages', 
             icon: MessageCircle, 
-            label: 'Ask Agents', 
+            label: 'Ask Advisors', 
             description: 'Get answers',
             color: 'from-blue-500 to-indigo-500',
             shadowColor: 'shadow-blue-500/25',
@@ -952,7 +952,7 @@ function ContextualActionsGrid({ stage, requestId }: { stage: JourneyStage; requ
           { 
             href: '/dashboard/messages', 
             icon: MessageCircle, 
-            label: 'Contact Agent', 
+            label: 'Contact Advisor', 
             description: 'Get support',
             color: 'from-blue-500 to-indigo-500',
             shadowColor: 'shadow-blue-500/25',
@@ -1093,7 +1093,7 @@ function ActiveTripCard({
                 ))}
               </div>
               <span className="text-sm text-blue-700 font-medium">
-                {request.agentsResponded} agent{(request.agentsResponded || 0) > 1 ? 's have' : ' has'} viewed your trip
+                {request.agentsResponded} travel advisor{(request.agentsResponded || 0) > 1 ? 's have' : ' has'} viewed your trip
               </span>
             </div>
           )}
@@ -1118,7 +1118,7 @@ function ActiveTripCard({
               <Link href="/dashboard/messages">
                 <Button size="sm" variant="outline" className="border-gray-200 hover:border-purple-200 hover:bg-purple-50">
                   <MessageCircle className="h-4 w-4 mr-1.5" />
-                  Message Agents
+                  Message Advisors
                 </Button>
               </Link>
             ) : (
@@ -1127,7 +1127,7 @@ function ActiveTripCard({
                 variant="ghost" 
                 className="text-gray-400"
                 disabled
-                title="No agents to message yet"
+                title="No advisors to message yet"
               >
                 <MessageCircle className="h-4 w-4 mr-1.5" />
                 Message
@@ -1168,7 +1168,7 @@ function StatusBadge({ stage, agentsResponded }: { stage: JourneyStage; agentsRe
     return (
       <Badge className="bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 font-semibold px-3 py-1.5 rounded-xl">
         <Users className="h-3.5 w-3.5 mr-1.5" />
-        {agentsResponded} agent{agentsResponded > 1 ? 's' : ''} responded
+        {agentsResponded} advisor{agentsResponded > 1 ? 's' : ''} responded
       </Badge>
     );
   }
@@ -1176,7 +1176,7 @@ function StatusBadge({ stage, agentsResponded }: { stage: JourneyStage; agentsRe
   return (
     <Badge className="bg-gray-50 text-gray-600 border border-gray-200 font-semibold px-3 py-1.5 rounded-xl">
       <Clock className="h-3.5 w-3.5 mr-1.5" />
-      Awaiting agents
+      Awaiting advisors
     </Badge>
   );
 }
@@ -1258,7 +1258,7 @@ function MessagingPreview({ unreadCount }: { unreadCount: number }) {
                 <p className="font-bold text-gray-900 text-lg">
                   {unreadCount} new message{unreadCount !== 1 ? 's' : ''}
                 </p>
-                <p className="text-sm text-gray-500">from your agents</p>
+                <p className="text-sm text-gray-500">from your advisors</p>
               </div>
             </div>
             <div className="p-2 rounded-xl bg-blue-50 group-hover:bg-blue-100 transition-colors">
@@ -1291,39 +1291,39 @@ function SignalsPanel({
     switch (stage) {
       case 'idea':
         return [
-          { icon: Zap, text: 'Most agents respond in ~4 hours', color: 'blue', type: 'info' },
+          { icon: Zap, text: 'Most advisors respond in ~4 hours', color: 'blue', type: 'info' },
           { icon: Shield, text: "You're not obligated to book", color: 'green', type: 'reassurance' },
           { icon: Users, text: '127 travelers booked this week', color: 'purple', type: 'social' },
         ];
       case 'request_sent':
         return [
           { icon: Bell, text: "You'll be notified when proposals arrive", color: 'blue', type: 'info' },
-          { icon: Clock, text: 'Agents typically respond within 4 hours', color: 'amber', type: 'timing' },
+          { icon: Clock, text: 'Travel advisors typically respond within 4 hours', color: 'amber', type: 'timing' },
           { icon: Edit, text: 'You can still edit your preferences', color: 'purple', type: 'action' },
         ];
       case 'agents_responding':
         return [
           { icon: Eye, text: activeRequest?.agentsResponded 
-            ? `${activeRequest.agentsResponded} agent${(activeRequest.agentsResponded || 0) > 1 ? 's' : ''} reviewing your request`
-            : 'Agents are viewing your request', color: 'blue', type: 'activity' },
+            ? `${activeRequest.agentsResponded} travel advisor${(activeRequest.agentsResponded || 0) > 1 ? 's' : ''} reviewing your request`
+            : 'Travel advisors are viewing your request', color: 'blue', type: 'activity' },
           { icon: Bell, text: "We'll notify you when proposals arrive", color: 'amber', type: 'info' },
           { icon: Shield, text: 'No commitment until you choose', color: 'green', type: 'reassurance' },
         ];
       case 'compare':
         return [
           { icon: Target, text: 'Compare at least 2-3 proposals', color: 'blue', type: 'advice' },
-          { icon: MessageSquare, text: 'Ask agents any questions', color: 'purple', type: 'action' },
+          { icon: MessageSquare, text: 'Ask advisors any questions', color: 'purple', type: 'action' },
           { icon: Shield, text: 'Book only when ready', color: 'green', type: 'reassurance' },
         ];
       case 'booked':
         return [
-          { icon: MessageSquare, text: 'Your agent is available anytime', color: 'blue', type: 'info' },
+          { icon: MessageSquare, text: 'Your travel advisor is available anytime', color: 'blue', type: 'info' },
           { icon: FileText, text: 'Download itinerary for offline access', color: 'purple', type: 'action' },
           { icon: Star, text: 'Leave a review after your trip', color: 'amber', type: 'action' },
         ];
       case 'traveling':
         return [
-          { icon: MessageSquare, text: 'Agent on standby for support', color: 'blue', type: 'info' },
+          { icon: MessageSquare, text: 'Travel advisor on standby for support', color: 'blue', type: 'info' },
           { icon: Shield, text: 'Emergency support available 24/7', color: 'green', type: 'reassurance' },
           { icon: Star, text: 'Share your experience when back', color: 'amber', type: 'action' },
         ];
@@ -1390,7 +1390,7 @@ function SignalsPanel({
         {stage === 'compare' && (
           <div className="mt-5 pt-4 border-t border-gray-100">
             <Link href="/dashboard/messages" className="flex items-center justify-between text-sm text-gray-500 hover:text-blue-600 transition-colors group">
-              <span>Need clarification? Chat with agents</span>
+              <span>Need clarification? Chat with advisors</span>
               <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
           </div>

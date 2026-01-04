@@ -8,15 +8,15 @@ const steps = [
     number: '01',
     icon: FileText,
     title: 'Submit Your Request',
-    description: 'Tell us about your dream trip - destination, dates, budget, and preferences. The more details you provide, the better our agents can tailor your experience.',
+    description: 'Tell us about your dream trip - destination, dates, budget, and preferences. The more details you provide, the better our travel advisors can tailor your experience.',
     color: 'from-blue-500 to-cyan-500',
     bgColor: 'bg-gradient-to-br from-blue-50 to-cyan-50',
   },
   {
     number: '02',
     icon: Users,
-    title: 'Get Matched with Agents',
-    description: 'Our platform matches your request with specialized travel agents who have expertise in your destination and travel style.',
+    title: 'Get Matched with Travel Advisors',
+    description: 'Our platform matches your request with specialized travel advisors who have expertise in your destination and travel style.',
     color: 'from-purple-500 to-pink-500',
     bgColor: 'bg-gradient-to-br from-purple-50 to-pink-50',
   },
@@ -24,7 +24,7 @@ const steps = [
     number: '03',
     icon: Search,
     title: 'Review Itineraries',
-    description: 'Receive personalized itinerary proposals from multiple agents. Compare options, ask questions, and request modifications.',
+    description: 'Receive personalized itinerary proposals from multiple travel advisors. Compare options, ask questions, and request modifications.',
     color: 'from-emerald-500 to-teal-500',
     bgColor: 'bg-gradient-to-br from-emerald-50 to-teal-50',
   },
@@ -32,7 +32,7 @@ const steps = [
     number: '04',
     icon: MessageSquare,
     title: 'Chat & Refine',
-    description: 'Communicate directly with agents through our secure messaging system. Fine-tune every detail until your trip is perfect.',
+    description: 'Communicate directly with travel advisors through our secure messaging system. Fine-tune every detail until your trip is perfect.',
     color: 'from-orange-500 to-amber-500',
     bgColor: 'bg-gradient-to-br from-orange-50 to-amber-50',
   },
@@ -48,7 +48,7 @@ const steps = [
     number: '06',
     icon: CheckCircle,
     title: 'Travel & Enjoy',
-    description: 'Set off on your adventure! Your agent remains available throughout your trip for support and last-minute changes.',
+    description: 'Set off on your adventure! Your travel advisor remains available throughout your trip for support and last-minute changes.',
     color: 'from-indigo-500 to-violet-500',
     bgColor: 'bg-gradient-to-br from-indigo-50 to-violet-50',
   },
@@ -58,7 +58,7 @@ const benefits = [
   {
     icon: Sparkles,
     title: 'Expert Knowledge',
-    description: 'Our agents have first-hand experience with destinations and can provide insider tips.',
+    description: 'Our travel advisors have first-hand experience with destinations and can provide insider tips.',
     color: 'text-blue-600',
     bgColor: 'bg-blue-100',
   },
@@ -122,7 +122,7 @@ export default function HowItWorksPage() {
             </h1>
             <p className="text-xl md:text-2xl text-white/95 max-w-3xl mx-auto leading-relaxed drop-shadow">
               From dream to destination in six simple steps. Our platform connects you with 
-              expert travel agents who craft personalized itineraries just for you.
+              expert travel advisors who craft personalized itineraries just for you.
             </p>
           </div>
         </section>
