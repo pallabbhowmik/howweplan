@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { env } from '../../../../config/env';
 
 type ServiceId =
+  | 'gateway'
   | 'audit'
   | 'identity'
   | 'requests'
@@ -11,7 +12,8 @@ type ServiceId =
   | 'messaging'
   | 'disputes'
   | 'reviews'
-  | 'notifications';
+  | 'notifications'
+  | 'event-bus';
 
 type ServiceConfig = {
   id: ServiceId;
