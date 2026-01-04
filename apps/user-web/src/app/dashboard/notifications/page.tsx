@@ -40,6 +40,8 @@ import {
 
 type NotificationFilter = 'all' | 'unread' | 'proposals' | 'messages' | 'bookings';
 
+const POLL_INTERVAL = 30000; // 30 seconds for real-time updates
+
 export default function NotificationsPage() {
   const { user, loading: userLoading } = useUserSession();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -49,13 +51,26 @@ export default function NotificationsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [markingAllRead, setMarkingAllRead] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [isPolling, setIsPolling] = useState(true);
 
-  const loadNotifications = useCallback(async () => {
+  const loadNotifications = useCallback(async (silent = false) => {
     if (!user?.userId) return;
     
     try {
       const data = await fetchUserNotifications(user.userId, 100);
-      setNotifications(data);
+      setNotifications(prev => {
+        // Check if there are new notifications
+        const newNotifications = data.filter(
+          n => !prev.find(p => p.id === n.id)
+        );
+        if (newNotifications.length > 0 && !silent) {
+          // Could trigger a toast or sound here
+          console.log(`${newNotifications.length} new notification(s)`);
+        }
+        return data;
+      });
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('Failed to load notifications:', error);
     } finally {
@@ -64,11 +79,33 @@ export default function NotificationsPage() {
     }
   }, [user?.userId]);
 
+  // Initial load
   useEffect(() => {
     if (user?.userId) {
       loadNotifications();
     }
   }, [user?.userId, loadNotifications]);
+
+  // Real-time polling
+  useEffect(() => {
+    if (!user?.userId || !isPolling) return;
+
+    const interval = setInterval(() => {
+      loadNotifications(true); // Silent update
+    }, POLL_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [user?.userId, isPolling, loadNotifications]);
+
+  // Pause polling when tab is not visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsPolling(!document.hidden);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -182,11 +219,22 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 text-transparent bg-clip-text">
-            Notifications
-          </h1>
-          <p className="text-slate-500 mt-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 text-transparent bg-clip-text">
+              Notifications
+            </h1>
+            {isPolling && (
+              <span className="flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 rounded-full text-xs text-green-700 font-medium">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                Live
+              </span>
+            )}
+          </div>
+          <p className="text-slate-500 mt-1 flex items-center gap-2">
             Stay updated on your travel requests and bookings
+            <span className="text-xs text-slate-400">
+              • Updated {lastUpdated.toLocaleTimeString()}
+            </span>
           </p>
         </div>
         <div className="flex items-center gap-2">

@@ -238,8 +238,12 @@ export const requestsApi = {
   getRequest: (requestId: string) =>
     apiRequest(`/api/requests/api/v1/requests/${requestId}`),
   
-  /**
-   * Create new travel request
+  /**   * Get user's request caps info (limits and usage)
+   */
+  getCapsInfo: () =>
+    apiRequest(`/api/requests/api/v1/requests/caps`),
+  
+  /**   * Create new travel request
    */
   createRequest: (data: any) =>
     apiRequest('/api/requests/api/v1/requests', {

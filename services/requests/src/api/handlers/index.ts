@@ -9,3 +9,4 @@ export * from './submit-request.handler';
 export * from './cancel-request.handler';
 export * from './caps-info.handler';
 export * from './admin-actions.handler';
+export * from './settings.handlers';

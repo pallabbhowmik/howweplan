@@ -105,17 +105,17 @@ export const authRateLimiter = createLimiter({
  */
 export const writeRateLimiter = createLimiter({
   windowMs: 60 * 1000, // 1 minute
-  max: 30, // 30 write operations per minute
+  max: 60, // 60 write operations per minute
   message: 'Too many write operations, please slow down',
 });
 
 /**
- * Read operations rate limiter - more generous limits
+ * Read operations rate limiter - generous limits for real-time features
  * For GET operations
  */
 export const readRateLimiter = createLimiter({
   windowMs: 60 * 1000, // 1 minute
-  max: 100, // 100 read operations per minute
+  max: 300, // 300 read operations per minute (supports polling)
   message: 'Too many read requests, please slow down',
 });
 

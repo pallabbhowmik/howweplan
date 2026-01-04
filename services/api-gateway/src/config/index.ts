@@ -98,19 +98,19 @@ export const config = {
   rateLimit: {
     global: {
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 1000, // requests per window
+      max: 3000, // requests per window (increased for real-time features)
     },
     auth: {
       windowMs: 60 * 1000, // 1 minute
-      max: 20, // 20 auth attempts per minute (increased from 5)
+      max: 30, // 30 auth attempts per minute
     },
     api: {
       windowMs: 60 * 1000, // 1 minute
-      max: 60, // 60 requests per minute per user
+      max: 200, // 200 requests per minute per user (increased for polling)
     },
     write: {
       windowMs: 60 * 1000, // 1 minute
-      max: 10, // 10 write operations per minute
+      max: 60, // 60 write operations per minute (increased)
     },
   },
 

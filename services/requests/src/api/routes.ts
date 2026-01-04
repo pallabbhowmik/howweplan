@@ -10,6 +10,7 @@ import multer from 'multer';
 import { RequestService } from '../services/request.service';
 import { CapEnforcementService } from '../services/cap-enforcement.service';
 import { DestinationRepository } from '../domain/destination.repository';
+import { SettingsRepository } from '../domain/settings.repository';
 import { AuthMiddleware, AdminAuthMiddleware } from '../middleware/auth.middleware';
 import {
   createCreateRequestHandler,
@@ -23,6 +24,11 @@ import {
   createAdminExpireRequestHandler,
   createAdminTransitionRequestHandler,
   createAdminListRequestsHandler,
+  createGetAllSettingsHandler,
+  createGetSettingHandler,
+  createUpdateSettingHandler,
+  createBatchUpdateSettingsHandler,
+  createGetSettingsByCategoryHandler,
 } from './handlers';
 import {
   createListDestinationsHandler,
@@ -40,6 +46,7 @@ export interface RoutesDependencies {
   requestService: RequestService;
   capEnforcementService: CapEnforcementService;
   destinationRepository: DestinationRepository;
+  settingsRepository: SettingsRepository;
   authMiddleware: AuthMiddleware;
   adminAuthMiddleware: AdminAuthMiddleware;
 }
@@ -115,6 +122,25 @@ export function createRoutes(deps: RoutesDependencies): Router {
     '/requests/:requestId/transition',
     createAdminTransitionRequestHandler(deps.requestService)
   );
+
+  // =========================================================================
+  // SYSTEM SETTINGS (Admin only)
+  // =========================================================================
+  
+  // GET /admin/settings/system - List all system settings
+  adminRouter.get('/settings/system', createGetAllSettingsHandler(deps.settingsRepository));
+
+  // PUT /admin/settings/system/batch - Batch update settings
+  adminRouter.put('/settings/system/batch', createBatchUpdateSettingsHandler(deps.settingsRepository));
+
+  // GET /admin/settings/system/category/:category - Get settings by category
+  adminRouter.get('/settings/system/category/:category', createGetSettingsByCategoryHandler(deps.settingsRepository));
+
+  // GET /admin/settings/system/:key - Get a specific setting
+  adminRouter.get('/settings/system/:key', createGetSettingHandler(deps.settingsRepository));
+
+  // PUT /admin/settings/system/:key - Update a setting
+  adminRouter.put('/settings/system/:key', createUpdateSettingHandler(deps.settingsRepository));
 
   router.use('/admin', adminRouter);
 

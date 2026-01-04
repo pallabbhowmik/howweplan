@@ -974,6 +974,21 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Quick Links to Live Settings */}
+      <Alert>
+        <AlertDescription className="flex items-center justify-between">
+          <span>
+            <strong>Looking for Request Limits?</strong> Manage max open requests and daily caps with real-time database updates.
+          </span>
+          <a 
+            href="/dashboard/settings/request-limits" 
+            className="text-primary font-medium hover:underline ml-4"
+          >
+            Go to Request Limits →
+          </a>
+        </AlertDescription>
+      </Alert>
+
       {saveSuccess && (
         <Alert className="bg-green-50 border-green-200">
           <AlertDescription className="text-green-800">

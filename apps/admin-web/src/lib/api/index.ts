@@ -87,3 +87,19 @@ export type {
   DestinationQueryParams,
   DestinationStats,
 } from './destinations';
+
+// System Settings APIs
+export {
+  getSystemSettings,
+  getSystemSetting,
+  updateSystemSetting,
+  getRequestLimits,
+  updateRequestLimits,
+  batchUpdateSystemSettings,
+  defaultRequestLimits,
+} from './system-settings';
+export type {
+  SystemSetting,
+  SystemSettingsMap,
+  RequestLimitsSettings,
+} from './system-settings';

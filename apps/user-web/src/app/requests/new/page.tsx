@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   Clock,
   Bell,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,8 +37,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useUserSession } from '@/lib/user/session';
 import { createTravelRequest } from '@/lib/data/api';
+import { requestsApi } from '@/lib/api/client';
 
 const popularDestinations = [
   { name: 'Goa', emoji: '🏖️', type: 'Beach Paradise', image: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=200&h=150&fit=crop', color: 'from-cyan-400 to-blue-500' },
@@ -124,6 +127,43 @@ function NewRequestPageContent() {
   const [destinationSuggestions, setDestinationSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [urlDestinationApplied, setUrlDestinationApplied] = useState(false);
+  
+  // Request caps state
+  const [capsInfo, setCapsInfo] = useState<{
+    dailyCap: { limit: number; used: number; remaining: number };
+    openRequests: { limit: number; count: number; remaining: number };
+    canCreateRequest: boolean;
+  } | null>(null);
+  const [capsLoading, setCapsLoading] = useState(true);
+  const [capsError, setCapsError] = useState<string | null>(null);
+
+  // Fetch caps info on mount
+  useEffect(() => {
+    async function fetchCaps() {
+      if (!user?.userId) {
+        setCapsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await requestsApi.getCapsInfo();
+        if (response?.data) {
+          setCapsInfo(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch caps info:', error);
+        setCapsError('Unable to check request limits');
+      } finally {
+        setCapsLoading(false);
+      }
+    }
+
+    if (!userLoading && user) {
+      fetchCaps();
+    } else if (!userLoading && !user) {
+      setCapsLoading(false);
+    }
+  }, [user, userLoading]);
 
   // Filter destinations as user types
   const handleDestinationChange = (value: string) => {
@@ -440,6 +480,126 @@ function NewRequestPageContent() {
               </p>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state while checking caps
+  if (capsLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-slate-600">Checking availability...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show cap limit reached page
+  if (capsInfo && !capsInfo.canCreateRequest) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+        {/* Hero Header */}
+        <div className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white">
+          <div className="absolute inset-0 bg-[url(&apos;data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtOS45NCAwLTE4IDguMDYtMTggMThzOC4wNiAxOCAxOCAxOCAxOC04LjA2IDE4LTE4LTguMDYtMTgtMTgtMTh6bTAgMzJjLTcuNzMyIDAtMTQtNi4yNjgtMTQtMTRzNi4yNjgtMTQgMTQtMTQgMTQgNi4yNjggMTQgMTQtNi4yNjggMTQtMTQgMTR6IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9Ii4wNSIvPjwvZz48L3N2Zz4=&apos;)] opacity-30" />
+          <div className="relative max-w-4xl mx-auto px-4 py-12">
+            <Link href="/dashboard" className="inline-flex items-center text-amber-100 hover:text-white mb-6 group">
+              <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+              Back to Dashboard
+            </Link>
+            
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                <AlertTriangle className="h-8 w-8" />
+              </div>
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold">Request Limit Reached</h1>
+                <p className="text-amber-100 text-lg">You&apos;ve hit the maximum number of active requests</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="max-w-2xl mx-auto px-4 py-12">
+          <Card className="border-amber-200">
+            <CardHeader className="text-center">
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="h-8 w-8 text-amber-600" />
+              </div>
+              <CardTitle className="text-2xl">Can&apos;t Create New Request</CardTitle>
+              <CardDescription className="text-base">
+                You currently have too many active requests. Please wait for some to be completed or cancel existing ones.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Current Usage */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-amber-50 rounded-xl p-4 text-center border border-amber-100">
+                  <div className="text-3xl font-bold text-amber-600">
+                    {capsInfo.openRequests.count} / {capsInfo.openRequests.limit}
+                  </div>
+                  <div className="text-sm text-amber-700 font-medium">Active Requests</div>
+                  <div className="text-xs text-amber-600 mt-1">
+                    {capsInfo.openRequests.remaining === 0 ? 'Limit reached' : `${capsInfo.openRequests.remaining} remaining`}
+                  </div>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-4 text-center border border-blue-100">
+                  <div className="text-3xl font-bold text-blue-600">
+                    {capsInfo.dailyCap.used} / {capsInfo.dailyCap.limit}
+                  </div>
+                  <div className="text-sm text-blue-700 font-medium">Today&apos;s Requests</div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    {capsInfo.dailyCap.remaining === 0 ? 'Limit reached' : `${capsInfo.dailyCap.remaining} remaining`}
+                  </div>
+                </div>
+              </div>
+
+              {/* What You Can Do */}
+              <div className="bg-slate-50 rounded-xl p-6 border">
+                <h3 className="font-semibold text-slate-800 mb-3">What can you do?</h3>
+                <ul className="space-y-3 text-sm text-slate-600">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span>Wait for agents to send proposals on your existing requests</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span>Accept a proposal to complete a request and free up a slot</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span>Cancel requests you no longer need</span>
+                  </li>
+                  {capsInfo.dailyCap.remaining === 0 && (
+                    <li className="flex items-start gap-2">
+                      <Clock className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                      <span>Daily limit resets at midnight — try again tomorrow</span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  onClick={() => router.push('/dashboard/requests')}
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600"
+                >
+                  View My Requests
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push('/dashboard')}
+                  className="flex-1"
+                >
+                  Go to Dashboard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );

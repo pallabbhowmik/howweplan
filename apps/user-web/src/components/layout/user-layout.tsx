@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -43,6 +43,51 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
 
+  // Refs for hover intent (industry best practice for dropdowns)
+  const notificationsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const userMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const HOVER_DELAY = 150; // ms delay before closing to prevent accidental closes
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (notificationsTimeoutRef.current) clearTimeout(notificationsTimeoutRef.current);
+      if (userMenuTimeoutRef.current) clearTimeout(userMenuTimeoutRef.current);
+    };
+  }, []);
+
+  // Notifications dropdown hover handlers
+  const handleNotificationsEnter = useCallback(() => {
+    if (notificationsTimeoutRef.current) {
+      clearTimeout(notificationsTimeoutRef.current);
+      notificationsTimeoutRef.current = null;
+    }
+    setUserMenuOpen(false);
+    setNotificationsOpen(true);
+  }, []);
+
+  const handleNotificationsLeave = useCallback(() => {
+    notificationsTimeoutRef.current = setTimeout(() => {
+      setNotificationsOpen(false);
+    }, HOVER_DELAY);
+  }, []);
+
+  // User menu dropdown hover handlers
+  const handleUserMenuEnter = useCallback(() => {
+    if (userMenuTimeoutRef.current) {
+      clearTimeout(userMenuTimeoutRef.current);
+      userMenuTimeoutRef.current = null;
+    }
+    setNotificationsOpen(false);
+    setUserMenuOpen(true);
+  }, []);
+
+  const handleUserMenuLeave = useCallback(() => {
+    userMenuTimeoutRef.current = setTimeout(() => {
+      setUserMenuOpen(false);
+    }, HOVER_DELAY);
+  }, []);
+
   // Track scroll for header styling
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -69,6 +114,23 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
     };
     
     loadData();
+  }, [sessionUser?.userId]);
+
+  // Real-time polling for notifications (every 30 seconds)
+  useEffect(() => {
+    if (!sessionUser?.userId) return;
+
+    const pollNotifications = async () => {
+      try {
+        const notifs = await fetchUserNotifications(sessionUser.userId, 10);
+        setNotifications(notifs);
+      } catch (error) {
+        // Silent fail for polling
+      }
+    };
+
+    const interval = setInterval(pollNotifications, 30000);
+    return () => clearInterval(interval);
   }, [sessionUser?.userId]);
 
   // Refresh notifications when dropdown opens
@@ -184,13 +246,14 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
                 </Button>
               </Link>
 
-              {/* Notifications - Enhanced */}
-              <div className="relative">
+              {/* Notifications - Enhanced with hover behavior */}
+              <div 
+                className="relative"
+                onMouseEnter={handleNotificationsEnter}
+                onMouseLeave={handleNotificationsLeave}
+              >
                 <button
-                  onClick={() => {
-                    setNotificationsOpen(!notificationsOpen);
-                    setUserMenuOpen(false);
-                  }}
+                  onClick={() => setNotificationsOpen(!notificationsOpen)}
                   className={cn(
                     "relative p-2.5 rounded-xl transition-all duration-200",
                     notificationsOpen 
@@ -211,7 +274,7 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
 
                 {notificationsOpen && (
                   <>
-                    <div className="fixed inset-0" onClick={() => setNotificationsOpen(false)} />
+                    <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)} />
                     <div className="absolute right-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl shadow-black/10 border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                       <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-blue-50/50">
                         <div className="flex items-center justify-between">
@@ -267,13 +330,14 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
                 )}
               </div>
 
-              {/* User Menu - Enhanced */}
-              <div className="relative">
+              {/* User Menu - Enhanced with hover behavior */}
+              <div 
+                className="relative"
+                onMouseEnter={handleUserMenuEnter}
+                onMouseLeave={handleUserMenuLeave}
+              >
                 <button
-                  onClick={() => {
-                    setUserMenuOpen(!userMenuOpen);
-                    setNotificationsOpen(false);
-                  }}
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className={cn(
                     "flex items-center gap-2 p-1.5 pr-3 rounded-xl transition-all duration-200",
                     userMenuOpen ? "bg-gray-100" : "hover:bg-gray-100"
@@ -289,7 +353,7 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
 
                 {userMenuOpen && (
                   <>
-                    <div className="fixed inset-0" onClick={() => setUserMenuOpen(false)} />
+                    <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
                     <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-2xl shadow-black/10 border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                       <div className="px-5 py-5 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white relative overflow-hidden">
                         {/* Decorative elements */}
