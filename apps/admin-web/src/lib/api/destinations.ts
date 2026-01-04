@@ -7,15 +7,11 @@
  * NOTE: Destinations are stored directly in Supabase as reference data.
  */
 
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/config/env';
+import { getSupabaseClient } from '@/lib/supabase/client';
 import type { PaginationParams } from '@/types';
 
-// Initialize Supabase client
-const supabase = createClient(
-  env.NEXT_PUBLIC_SUPABASE_URL,
-  env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+// Get the shared Supabase client (singleton - no multiple instances)
+const getSupabase = () => getSupabaseClient();
 
 // ============================================================================
 // TYPES
@@ -142,7 +138,7 @@ export async function getDestinations(
   const limit = params?.limit ?? params?.pageSize ?? 20;
   const offset = (page - 1) * limit;
   
-  let query = supabase
+  let query = getSupabase()
     .from('destinations')
     .select('*', { count: 'exact' });
   
@@ -193,7 +189,7 @@ export async function getDestinations(
  * Get a single destination by ID
  */
 export async function getDestination(id: string): Promise<Destination> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('destinations')
     .select('*')
     .eq('id', id)
@@ -210,7 +206,7 @@ export async function getDestination(id: string): Promise<Destination> {
  * Create a new destination
  */
 export async function createDestination(dto: CreateDestinationDto): Promise<Destination> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('destinations')
     .insert({
       id: dto.id,
@@ -259,7 +255,7 @@ export async function updateDestination(
   if (dto.isActive !== undefined) updates.is_active = dto.isActive;
   if (dto.displayOrder !== undefined) updates.display_order = dto.displayOrder;
   
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('destinations')
     .update(updates)
     .eq('id', id)
@@ -284,7 +280,7 @@ export async function uploadDestinationImage(
   const fileExt = file.name.split('.').pop();
   const filePath = `destinations/${id}.${fileExt}`;
   
-  const { error: uploadError } = await supabase.storage
+  const { error: uploadError } = await getSupabase().storage
     .from('images')
     .upload(filePath, file, { upsert: true });
   
@@ -293,7 +289,7 @@ export async function uploadDestinationImage(
   }
   
   // Get public URL with cache-busting timestamp
-  const { data: urlData } = supabase.storage
+  const { data: urlData } = getSupabase().storage
     .from('images')
     .getPublicUrl(filePath);
   
@@ -308,7 +304,7 @@ export async function uploadDestinationImage(
  * Delete a destination
  */
 export async function deleteDestination(id: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from('destinations')
     .delete()
     .eq('id', id);
@@ -322,7 +318,7 @@ export async function deleteDestination(id: string): Promise<void> {
  * Get destination statistics
  */
 export async function getDestinationStats(): Promise<DestinationStats> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('destinations')
     .select('region, is_active, is_featured');
   
