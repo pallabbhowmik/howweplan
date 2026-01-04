@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 import { Plane, Search, Users, FileText, CreditCard, MessageSquare, CheckCircle, ArrowRight, Shield, Clock, Sparkles, HeartHandshake } from 'lucide-react';
