@@ -1,10 +1,14 @@
 /**
  * Destinations Repository
- * 
- * Database operations for destinations (explore page).
+ *
+ * Data access for destinations (explore page).
+ *
+ * Note: We use Supabase service-role access instead of direct pg queries.
+ * This makes the service resilient to DATABASE_URL misconfiguration and
+ * aligns with the source of truth used by image uploads.
  */
 
-import { Pool } from 'pg';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config } from '../env';
 
 export interface Destination {
@@ -79,218 +83,206 @@ export interface DestinationRepository {
   bulkCreate(destinations: CreateDestinationInput[]): Promise<{ imported: number; errors: Array<{ id: string; error: string }> }>;
 }
 
-const pool = new Pool({
-  connectionString: config.database.url,
-});
+type DestinationRow = {
+  id: string;
+  name: string;
+  state: string;
+  region: string;
+  themes: string[] | null;
+  ideal_months: number[] | null;
+  suggested_duration_min: number | null;
+  suggested_duration_max: number | null;
+  highlight: string | null;
+  image_url: string | null;
+  is_featured: boolean | null;
+  is_active: boolean | null;
+  display_order: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
 
-function mapRow(row: any): Destination {
+let supabaseClient: SupabaseClient | null = null;
+
+function getSupabase(): SupabaseClient {
+  if (!supabaseClient) {
+    supabaseClient = createClient(config.database.supabaseUrl, config.database.supabaseServiceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+  return supabaseClient;
+}
+
+function mapRow(row: DestinationRow): Destination {
   return {
     id: row.id,
     name: row.name,
     state: row.state,
-    region: row.region,
+    region: row.region as Destination['region'],
     themes: row.themes || [],
     idealMonths: row.ideal_months || [],
-    suggestedDurationMin: row.suggested_duration_min,
-    suggestedDurationMax: row.suggested_duration_max,
-    highlight: row.highlight,
+    suggestedDurationMin: row.suggested_duration_min ?? 0,
+    suggestedDurationMax: row.suggested_duration_max ?? 0,
+    highlight: row.highlight || '',
     imageUrl: row.image_url,
-    isFeatured: row.is_featured,
-    isActive: row.is_active,
-    displayOrder: row.display_order,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    isFeatured: row.is_featured ?? false,
+    isActive: row.is_active ?? true,
+    displayOrder: row.display_order ?? 0,
+    createdAt: row.created_at ? new Date(row.created_at) : new Date(0),
+    updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(0),
   };
 }
 
 export function createDestinationRepository(): DestinationRepository {
   return {
     async findAll(filters?: DestinationFilters): Promise<Destination[]> {
-      const conditions: string[] = [];
-      const params: any[] = [];
-      let paramIndex = 1;
+      const supabase = getSupabase();
+
+      let query = supabase
+        .from('destinations')
+        .select('*')
+        .order('display_order', { ascending: true })
+        .order('name', { ascending: true });
 
       if (filters?.region) {
-        conditions.push(`region = $${paramIndex++}`);
-        params.push(filters.region);
+        query = query.eq('region', filters.region);
       }
 
       if (filters?.theme) {
-        conditions.push(`$${paramIndex++} = ANY(themes)`);
-        params.push(filters.theme);
+        // themes is TEXT[] (per schema). `.contains` maps to Postgres @>.
+        query = query.contains('themes', [filters.theme]);
       }
 
       if (filters?.isActive !== undefined) {
-        conditions.push(`is_active = $${paramIndex++}`);
-        params.push(filters.isActive);
+        query = query.eq('is_active', filters.isActive);
       }
 
       if (filters?.isFeatured !== undefined) {
-        conditions.push(`is_featured = $${paramIndex++}`);
-        params.push(filters.isFeatured);
+        query = query.eq('is_featured', filters.isFeatured);
       }
 
       if (filters?.search) {
-        conditions.push(`(name ILIKE $${paramIndex} OR state ILIKE $${paramIndex} OR highlight ILIKE $${paramIndex})`);
-        params.push(`%${filters.search}%`);
-        paramIndex++;
+        const term = filters.search.replace(/%/g, '\\%');
+        query = query.or(`name.ilike.%${term}%,state.ilike.%${term}%,highlight.ilike.%${term}%`);
       }
 
-      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const result = await query;
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
 
-      const query = `
-        SELECT * FROM destinations
-        ${whereClause}
-        ORDER BY display_order ASC, name ASC
-      `;
-
-      const result = await pool.query(query, params);
-      return result.rows.map(mapRow);
+      return (result.data || []).map((row) => mapRow(row as DestinationRow));
     },
 
     async findById(id: string): Promise<Destination | null> {
-      const result = await pool.query(
-        'SELECT * FROM destinations WHERE id = $1',
-        [id]
-      );
-      return result.rows.length > 0 ? mapRow(result.rows[0]) : null;
+      const supabase = getSupabase();
+      const result = await supabase.from('destinations').select('*').eq('id', id).maybeSingle();
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+      return result.data ? mapRow(result.data as DestinationRow) : null;
     },
 
     async create(input: CreateDestinationInput): Promise<Destination> {
-      const result = await pool.query(
-        `INSERT INTO destinations (
-          id, name, state, region, themes, ideal_months,
-          suggested_duration_min, suggested_duration_max, highlight,
-          image_url, is_featured, is_active, display_order
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        RETURNING *`,
-        [
-          input.id,
-          input.name,
-          input.state,
-          input.region,
-          input.themes,
-          input.idealMonths,
-          input.suggestedDurationMin,
-          input.suggestedDurationMax,
-          input.highlight,
-          input.imageUrl || null,
-          input.isFeatured ?? false,
-          input.isActive ?? true,
-          input.displayOrder ?? 0,
-        ]
-      );
-      return mapRow(result.rows[0]);
+      const supabase = getSupabase();
+      const payload = {
+        id: input.id,
+        name: input.name,
+        state: input.state,
+        region: input.region,
+        themes: input.themes,
+        ideal_months: input.idealMonths,
+        suggested_duration_min: input.suggestedDurationMin,
+        suggested_duration_max: input.suggestedDurationMax,
+        highlight: input.highlight,
+        image_url: input.imageUrl ?? null,
+        is_featured: input.isFeatured ?? false,
+        is_active: input.isActive ?? true,
+        display_order: input.displayOrder ?? 0,
+      };
+
+      const result = await supabase.from('destinations').insert(payload).select('*').single();
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+      return mapRow(result.data as DestinationRow);
     },
 
     async update(id: string, input: UpdateDestinationInput): Promise<Destination | null> {
-      const updates: string[] = [];
-      const params: any[] = [];
-      let paramIndex = 1;
+      const supabase = getSupabase();
+      const payload: Record<string, unknown> = {};
 
-      if (input.name !== undefined) {
-        updates.push(`name = $${paramIndex++}`);
-        params.push(input.name);
-      }
-      if (input.state !== undefined) {
-        updates.push(`state = $${paramIndex++}`);
-        params.push(input.state);
-      }
-      if (input.region !== undefined) {
-        updates.push(`region = $${paramIndex++}`);
-        params.push(input.region);
-      }
-      if (input.themes !== undefined) {
-        updates.push(`themes = $${paramIndex++}`);
-        params.push(input.themes);
-      }
-      if (input.idealMonths !== undefined) {
-        updates.push(`ideal_months = $${paramIndex++}`);
-        params.push(input.idealMonths);
-      }
-      if (input.suggestedDurationMin !== undefined) {
-        updates.push(`suggested_duration_min = $${paramIndex++}`);
-        params.push(input.suggestedDurationMin);
-      }
-      if (input.suggestedDurationMax !== undefined) {
-        updates.push(`suggested_duration_max = $${paramIndex++}`);
-        params.push(input.suggestedDurationMax);
-      }
-      if (input.highlight !== undefined) {
-        updates.push(`highlight = $${paramIndex++}`);
-        params.push(input.highlight);
-      }
-      if (input.imageUrl !== undefined) {
-        updates.push(`image_url = $${paramIndex++}`);
-        params.push(input.imageUrl);
-      }
-      if (input.isFeatured !== undefined) {
-        updates.push(`is_featured = $${paramIndex++}`);
-        params.push(input.isFeatured);
-      }
-      if (input.isActive !== undefined) {
-        updates.push(`is_active = $${paramIndex++}`);
-        params.push(input.isActive);
-      }
-      if (input.displayOrder !== undefined) {
-        updates.push(`display_order = $${paramIndex++}`);
-        params.push(input.displayOrder);
-      }
+      if (input.name !== undefined) payload.name = input.name;
+      if (input.state !== undefined) payload.state = input.state;
+      if (input.region !== undefined) payload.region = input.region;
+      if (input.themes !== undefined) payload.themes = input.themes;
+      if (input.idealMonths !== undefined) payload.ideal_months = input.idealMonths;
+      if (input.suggestedDurationMin !== undefined) payload.suggested_duration_min = input.suggestedDurationMin;
+      if (input.suggestedDurationMax !== undefined) payload.suggested_duration_max = input.suggestedDurationMax;
+      if (input.highlight !== undefined) payload.highlight = input.highlight;
+      if (input.imageUrl !== undefined) payload.image_url = input.imageUrl;
+      if (input.isFeatured !== undefined) payload.is_featured = input.isFeatured;
+      if (input.isActive !== undefined) payload.is_active = input.isActive;
+      if (input.displayOrder !== undefined) payload.display_order = input.displayOrder;
 
-      if (updates.length === 0) {
+      if (Object.keys(payload).length === 0) {
         return this.findById(id);
       }
 
-      params.push(id);
-      const result = await pool.query(
-        `UPDATE destinations SET ${updates.join(', ')}, updated_at = NOW()
-         WHERE id = $${paramIndex}
-         RETURNING *`,
-        params
-      );
+      // Keep parity with pg implementation updating updated_at
+      payload.updated_at = new Date().toISOString();
 
-      return result.rows.length > 0 ? mapRow(result.rows[0]) : null;
+      const result = await supabase.from('destinations').update(payload).eq('id', id).select('*').maybeSingle();
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+      return result.data ? mapRow(result.data as DestinationRow) : null;
     },
 
     async delete(id: string): Promise<boolean> {
-      const result = await pool.query(
-        'DELETE FROM destinations WHERE id = $1',
-        [id]
-      );
-      return (result.rowCount || 0) > 0;
+      const supabase = getSupabase();
+      const result = await supabase.from('destinations').delete().eq('id', id);
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+      // Supabase doesn't always provide affected rows in a consistent way; treat success as deleted.
+      return true;
     },
 
     async getStats() {
-      // Get total counts
-      const totalsResult = await pool.query(`
-        SELECT
-          COUNT(*) as total,
-          COUNT(*) FILTER (WHERE is_active = true) as active,
-          COUNT(*) FILTER (WHERE is_featured = true) as featured
-        FROM destinations
-      `);
+      const supabase = getSupabase();
 
-      // Get counts by region
-      const regionResult = await pool.query(`
-        SELECT region, COUNT(*) as count
-        FROM destinations
-        GROUP BY region
-      `);
+      const total = await supabase.from('destinations').select('id', { count: 'exact', head: true });
+      if (total.error) throw new Error(total.error.message);
 
-      const stats = {
-        total: parseInt(totalsResult.rows[0]?.total || '0'),
-        active: parseInt(totalsResult.rows[0]?.active || '0'),
-        featured: parseInt(totalsResult.rows[0]?.featured || '0'),
-        byRegion: {} as Record<string, number>,
-      };
+      const active = await supabase
+        .from('destinations')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_active', true);
+      if (active.error) throw new Error(active.error.message);
 
-      for (const row of regionResult.rows) {
-        if (row.region) {
-          stats.byRegion[row.region] = parseInt(row.count);
-        }
+      const featured = await supabase
+        .from('destinations')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_featured', true);
+      if (featured.error) throw new Error(featured.error.message);
+
+      // Aggregate by region in-memory (destinations volume is small).
+      const regions = await supabase.from('destinations').select('region');
+      if (regions.error) throw new Error(regions.error.message);
+
+      const byRegion: Record<string, number> = {};
+      for (const row of regions.data || []) {
+        const region = (row as { region?: string | null }).region;
+        if (!region) continue;
+        byRegion[region] = (byRegion[region] || 0) + 1;
       }
 
-      return stats;
+      return {
+        total: total.count ?? 0,
+        active: active.count ?? 0,
+        featured: featured.count ?? 0,
+        byRegion,
+      };
     },
 
     async bulkCreate(destinations: CreateDestinationInput[]) {
