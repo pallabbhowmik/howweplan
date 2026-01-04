@@ -192,8 +192,23 @@ app.use(
     allowedHeaders: config.cors.allowedHeaders,
     exposedHeaders: ['X-Request-Id', 'X-Cache', 'ETag', 'RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
     maxAge: 86400, // 24 hours
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   })
 );
+
+// Explicit OPTIONS handling for preflight requests (before any auth/rate limiting)
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  if (origin && config.cors.allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', config.cors.methods.join(', '));
+    res.setHeader('Access-Control-Allow-Headers', config.cors.allowedHeaders.join(', '));
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Max-Age', '86400');
+  }
+  res.status(204).end();
+});
 
 // =============================================================================
 // BODY PARSING & REQUEST PROCESSING
