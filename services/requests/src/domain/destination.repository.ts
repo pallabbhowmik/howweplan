@@ -261,31 +261,32 @@ export function createDestinationRepository(): DestinationRepository {
     },
 
     async getStats() {
-      const result = await pool.query(`
+      // Get total counts
+      const totalsResult = await pool.query(`
         SELECT
           COUNT(*) as total,
           COUNT(*) FILTER (WHERE is_active = true) as active,
-          COUNT(*) FILTER (WHERE is_featured = true) as featured,
-          region,
-          COUNT(*) as region_count
+          COUNT(*) FILTER (WHERE is_featured = true) as featured
         FROM destinations
-        GROUP BY GROUPING SETS ((), (region))
+      `);
+
+      // Get counts by region
+      const regionResult = await pool.query(`
+        SELECT region, COUNT(*) as count
+        FROM destinations
+        GROUP BY region
       `);
 
       const stats = {
-        total: 0,
-        active: 0,
-        featured: 0,
+        total: parseInt(totalsResult.rows[0]?.total || '0'),
+        active: parseInt(totalsResult.rows[0]?.active || '0'),
+        featured: parseInt(totalsResult.rows[0]?.featured || '0'),
         byRegion: {} as Record<string, number>,
       };
 
-      for (const row of result.rows) {
-        if (row.region === null) {
-          stats.total = parseInt(row.total);
-          stats.active = parseInt(row.active);
-          stats.featured = parseInt(row.featured);
-        } else {
-          stats.byRegion[row.region] = parseInt(row.region_count);
+      for (const row of regionResult.rows) {
+        if (row.region) {
+          stats.byRegion[row.region] = parseInt(row.count);
         }
       }
 
