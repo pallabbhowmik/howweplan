@@ -43,6 +43,11 @@ function getServiceConfigs(): ServiceConfig[] {
   // This avoids accidental bypass of auth/RBAC and keeps the network perimeter simple.
   return [
     {
+      id: 'gateway',
+      name: 'Gateway',
+      gatewayPath: '/health',
+    },
+    {
       id: 'audit',
       name: 'Audit',
       gatewayPath: '/api/audit/health',
@@ -91,6 +96,11 @@ function getServiceConfigs(): ServiceConfig[] {
       id: 'notifications',
       name: 'Notifications',
       gatewayPath: '/api/notifications/health',
+    },
+    {
+      id: 'event-bus',
+      name: 'Event Bus',
+      gatewayPath: '/api/event-bus/health',
     },
   ];
 }

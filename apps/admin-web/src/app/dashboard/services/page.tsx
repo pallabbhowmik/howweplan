@@ -132,6 +132,18 @@ const SERVICE_META: Record<string, {
     category: 'support',
     icon: Bell,
   },
+  'gateway': {
+    description: 'API Gateway and request routing',
+    port: 3001,
+    category: 'core',
+    icon: Globe,
+  },
+  'event-bus': {
+    description: 'Event-driven messaging and pub/sub',
+    port: 3020,
+    category: 'core',
+    icon: Zap,
+  },
 };
 
 // ============================================================================
