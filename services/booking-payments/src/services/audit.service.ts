@@ -174,7 +174,7 @@ class AuditService {
    * Record an admin action.
    * ALL admin actions require a reason and are logged.
    */
-  async recordAdminAction(params: {
+  recordAdminAction(params: {
     adminId: string;
     action: string;
     bookingId: string;
@@ -182,7 +182,7 @@ class AuditService {
     metadata?: Record<string, unknown>;
   }): Promise<void> {
     if (!this.enabled) {
-      return;
+      return Promise.resolve();
     }
 
     // Admin actions MUST have a reason
@@ -220,12 +220,14 @@ class AuditService {
       },
       'Admin action recorded'
     );
+
+    return Promise.resolve();
   }
 
   /**
    * Record a refund decision.
    */
-  async recordRefundDecision(params: {
+  recordRefundDecision(params: {
     refundId: string;
     bookingId: string;
     decision: 'approved' | 'denied';
@@ -235,7 +237,7 @@ class AuditService {
     metadata: EventMetadata;
   }): Promise<void> {
     if (!this.enabled) {
-      return;
+      return Promise.resolve();
     }
 
     logger.info(
@@ -249,6 +251,8 @@ class AuditService {
       },
       `Refund ${params.decision}`
     );
+
+    return Promise.resolve();
   }
 }
 

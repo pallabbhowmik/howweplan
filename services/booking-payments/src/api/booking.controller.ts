@@ -115,11 +115,11 @@ export async function createBooking(
 }
 
 /** Get booking by ID */
-export async function getBooking(
+export function getBooking(
   req: Request,
   res: Response,
   _next: NextFunction
-): Promise<void> {
+): void {
   const correlationId = (req.headers['x-correlation-id'] as string) ?? uuid();
   const logger = createRequestLogger(correlationId);
 
@@ -143,11 +143,11 @@ export async function getBooking(
 }
 
 /** Cancel a booking */
-export async function cancelBooking(
+export function cancelBooking(
   req: Request,
   res: Response,
   _next: NextFunction
-): Promise<void> {
+): void {
   const correlationId = (req.headers['x-correlation-id'] as string) ?? uuid();
   const logger = createRequestLogger(correlationId);
 
@@ -188,11 +188,11 @@ export async function cancelBooking(
 }
 
 /** Confirm booking by agent */
-export async function confirmByAgent(
+export function confirmByAgent(
   req: Request,
   res: Response,
   _next: NextFunction
-): Promise<void> {
+): void {
   const correlationId = (req.headers['x-correlation-id'] as string) ?? uuid();
   const logger = createRequestLogger(correlationId);
 
@@ -223,11 +223,11 @@ export async function confirmByAgent(
 }
 
 /** Complete trip */
-export async function completeTrip(
+export function completeTrip(
   req: Request,
   res: Response,
   _next: NextFunction
-): Promise<void> {
+): void {
   const correlationId = (req.headers['x-correlation-id'] as string) ?? uuid();
   const logger = createRequestLogger(correlationId);
 

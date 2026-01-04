@@ -32,27 +32,27 @@ class IdempotencyStore {
    * Get a stored value by idempotency key.
    * Returns undefined if not found or expired.
    */
-  async get(key: string): Promise<unknown | undefined> {
+  get<T = unknown>(key: string): Promise<T | undefined> {
     const entry = this.store.get(key);
 
     if (!entry) {
-      return undefined;
+      return Promise.resolve(undefined);
     }
 
     // Check expiration
     if (new Date() > entry.expiresAt) {
       this.store.delete(key);
-      return undefined;
+      return Promise.resolve(undefined);
     }
 
     logger.debug({ key }, 'Idempotency cache hit');
-    return entry.value;
+    return Promise.resolve(entry.value as T);
   }
 
   /**
    * Store a value with an idempotency key.
    */
-  async set(key: string, value: unknown): Promise<void> {
+  set(key: string, value: unknown): Promise<void> {
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + this.ttlSeconds);
 
@@ -69,6 +69,8 @@ class IdempotencyStore {
       },
       'Idempotency key stored'
     );
+
+    return Promise.resolve();
   }
 
   /**
@@ -82,8 +84,10 @@ class IdempotencyStore {
   /**
    * Delete an idempotency key.
    */
-  async delete(key: string): Promise<void> {
+  delete(key: string): Promise<void> {
     this.store.delete(key);
+
+    return Promise.resolve();
   }
 
   /**

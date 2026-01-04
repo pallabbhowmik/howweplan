@@ -1099,7 +1099,7 @@ router.get(
         },
         authReq.correlationId
       );
-    } catch (error) {
+    } catch {
       sendApiError(res, authReq.correlationId, 500, 'INTERNAL', 'Failed to load dispute');
     }
   }
@@ -1174,7 +1174,7 @@ router.patch(
         },
         authReq.correlationId
       );
-    } catch (error) {
+    } catch {
       sendApiError(res, authReq.correlationId, 500, 'INTERNAL', 'Failed to update dispute status');
     }
   }
@@ -1309,7 +1309,7 @@ router.post(
         },
         authReq.correlationId
       );
-    } catch (error) {
+    } catch {
       sendApiError(res, authReq.correlationId, 500, 'INTERNAL', 'Failed to resolve dispute');
     }
   }
@@ -1403,7 +1403,7 @@ router.get(
         },
         authReq.correlationId
       );
-    } catch (error) {
+    } catch {
       sendApiError(res, authReq.correlationId, 500, 'INTERNAL', 'Failed to list refunds');
     }
   }

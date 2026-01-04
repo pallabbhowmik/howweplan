@@ -186,7 +186,7 @@ async function handlePaymentFailed(
 /**
  * Handle order.paid event.
  */
-async function handleOrderPaid(
+function handleOrderPaid(
   order: any,
   log: typeof import('../services/logger.service.js').logger
 ): Promise<void> {
@@ -194,7 +194,7 @@ async function handleOrderPaid(
 
   if (!bookingId) {
     log.warn({ orderId: order.id }, 'Order missing booking_id in notes');
-    return;
+    return Promise.resolve();
   }
 
   log.info(
@@ -205,12 +205,14 @@ async function handleOrderPaid(
     },
     'Order paid webhook processed'
   );
+
+  return Promise.resolve();
 }
 
 /**
  * Handle refund.processed event.
  */
-async function handleRefundProcessed(
+function handleRefundProcessed(
   refund: any,
   log: typeof import('../services/logger.service.js').logger
 ): Promise<void> {
@@ -222,12 +224,14 @@ async function handleRefundProcessed(
     },
     'Refund processed webhook received'
   );
+
+  return Promise.resolve();
 }
 
 /**
  * Handle refund.failed event.
  */
-async function handleRefundFailed(
+function handleRefundFailed(
   refund: any,
   log: typeof import('../services/logger.service.js').logger
 ): Promise<void> {
@@ -239,4 +243,6 @@ async function handleRefundFailed(
     },
     'Refund failed webhook received'
   );
+
+  return Promise.resolve();
 }

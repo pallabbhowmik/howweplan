@@ -108,7 +108,7 @@ class PaymentService {
     // Record the successful charge
     await auditService.recordMoneyMovement({
       bookingId,
-      paymentId: paymentId,
+      paymentId,
       movementType: 'charge',
       amountCents,
       fromAccount: 'razorpay_customer',
@@ -127,7 +127,7 @@ class PaymentService {
       correlationId: bookingId,
       payload: {
         bookingId,
-        paymentId: paymentId,
+        paymentId,
         amountCents,
         razorpayPaymentId: paymentId,
         razorpayOrderId: orderId,
@@ -172,7 +172,7 @@ class PaymentService {
       correlationId: bookingId,
       payload: {
         bookingId,
-        paymentId: paymentId,
+        paymentId,
         amountCents,
         failureCode,
         failureMessage,

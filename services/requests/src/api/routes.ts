@@ -149,7 +149,7 @@ export function createRoutes(deps: RoutesDependencies): Router {
   destinationsRouter.post(
     '/:id/image',
     deps.adminAuthMiddleware,
-    destinationImageUpload.single('file'),
+    destinationImageUpload.single('file') as any,
     createUploadDestinationImageHandler(deps.destinationRepository)
   );
 

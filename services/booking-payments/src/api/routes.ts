@@ -27,6 +27,12 @@ import { handleRazorpayWebhook } from '../webhooks/razorpay.handler.js';
 
 export const router = Router();
 
+function wrapAsync(handler: (req: any, res: any, next: any) => Promise<unknown>) {
+  return (req: any, res: any, next: any) => {
+    void handler(req, res, next).catch(next);
+  };
+}
+
 // Health check
 router.get('/health', (_req, res) => {
   res.json({
@@ -68,10 +74,10 @@ router.get('/metrics', (_req, res) => {
 // ============================================================================
 
 /** List bookings for authenticated user */
-router.get('/api/v1/bookings', listUserBookings);
+router.get('/api/v1/bookings', wrapAsync(listUserBookings));
 
 /** Create a new booking */
-router.post('/api/v1/bookings', createBooking);
+router.post('/api/v1/bookings', wrapAsync(createBooking));
 
 /** Get booking by ID */
 router.get('/api/v1/bookings/:bookingId', getBooking);
@@ -103,13 +109,13 @@ router.get('/api/v1/payments/fees', getFeeBreakdown);
 router.get('/api/v1/admin/refunds/stats', getRefundStats);
 
 /** Create a refund request */
-router.post('/api/v1/refunds', createRefundRequest);
+router.post('/api/v1/refunds', wrapAsync(createRefundRequest));
 
 /** Approve a refund (admin) */
-router.post('/api/v1/refunds/:refundId/approve', approveRefund);
+router.post('/api/v1/refunds/:refundId/approve', wrapAsync(approveRefund));
 
 /** Deny a refund (admin) */
-router.post('/api/v1/refunds/:refundId/deny', denyRefund);
+router.post('/api/v1/refunds/:refundId/deny', wrapAsync(denyRefund));
 
 // ============================================================================
 // WEBHOOK ROUTES
@@ -119,5 +125,5 @@ router.post('/api/v1/refunds/:refundId/deny', denyRefund);
 router.post(
   '/api/v1/webhooks/razorpay',
   // Note: The main app configures raw body parsing for this route
-  handleRazorpayWebhook
+  wrapAsync(handleRazorpayWebhook)
 );

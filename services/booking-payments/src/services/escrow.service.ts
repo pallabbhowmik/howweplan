@@ -138,7 +138,7 @@ class EscrowService {
   /**
    * Update escrow release date after trip completion.
    */
-  async scheduleRelease(params: {
+  scheduleRelease(params: {
     escrowId: string;
     bookingId: string;
     tripCompletedAt: Date;
@@ -155,7 +155,7 @@ class EscrowService {
       'Escrow release scheduled'
     );
 
-    return releaseDate;
+    return Promise.resolve(releaseDate);
   }
 
   /**

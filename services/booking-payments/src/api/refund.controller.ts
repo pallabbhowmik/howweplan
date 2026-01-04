@@ -192,11 +192,11 @@ export async function denyRefund(
 }
 
 /** Get refund statistics (admin only) */
-export async function getRefundStats(
+export function getRefundStats(
   _req: Request,
   res: Response,
   _next: NextFunction
-): Promise<void> {
+): void {
   // In production, this would query the database
   // For now, return mock statistics
   const stats = {

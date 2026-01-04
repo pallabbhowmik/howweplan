@@ -15,11 +15,11 @@ import {
 import { formatErrorResponse, ValidationError } from '../utils/errors.js';
 
 /** Create a checkout session for a booking */
-export async function createCheckoutSession(
+export function createCheckoutSession(
   req: Request,
   res: Response,
   _next: NextFunction
-): Promise<void> {
+): void {
   const correlationId = (req.headers['x-correlation-id'] as string) ?? uuid();
   const logger = createRequestLogger(correlationId);
 
@@ -51,11 +51,11 @@ export async function createCheckoutSession(
 }
 
 /** Get fee breakdown for a booking amount */
-export async function getFeeBreakdown(
+export function getFeeBreakdown(
   req: Request,
   res: Response,
   _next: NextFunction
-): Promise<void> {
+): void {
   const correlationId = (req.headers['x-correlation-id'] as string) ?? uuid();
   const logger = createRequestLogger(correlationId);
 
