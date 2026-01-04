@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { env } from '../../../../config/env';
 
 type ServiceId =
   | 'audit'
@@ -30,16 +31,11 @@ type ServiceStatus = {
 
 function getGatewayBaseUrl(): string {
   // Use the public API base URL (gateway). This route runs server-side.
-  const raw = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-  const trimmed = raw.trim().replace(/\/+$/, '');
-  return trimmed || 'http://localhost:3001';
+  return env.NEXT_PUBLIC_API_BASE_URL;
 }
 
 function getTimeoutMs(): number {
-  const raw = process.env.NEXT_PUBLIC_SERVICE_HEALTH_TIMEOUT_MS;
-  const parsed = raw ? Number(raw) : NaN;
-  if (!Number.isFinite(parsed)) return 2000;
-  return Math.min(Math.max(parsed, 250), 30000);
+  return env.NEXT_PUBLIC_SERVICE_HEALTH_TIMEOUT_MS;
 }
 
 function getServiceConfigs(): ServiceConfig[] {

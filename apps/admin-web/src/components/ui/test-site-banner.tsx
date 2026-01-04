@@ -9,6 +9,7 @@
 
 import { AlertTriangle, X } from 'lucide-react';
 import { useState } from 'react';
+import { env } from '../../config/env';
 
 interface TestSiteBannerProps {
   message?: string;
@@ -19,7 +20,7 @@ export function TestSiteBanner({
 }: TestSiteBannerProps) {
   const [dismissed, setDismissed] = useState(false);
   
-  const showBanner = process.env.NEXT_PUBLIC_SHOW_TEST_BANNER === 'true';
+  const showBanner = env.NEXT_PUBLIC_SHOW_TEST_BANNER;
   
   if (!showBanner || dismissed) {
     return null;

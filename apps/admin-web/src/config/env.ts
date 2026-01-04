@@ -9,6 +9,15 @@
 
 import { z } from 'zod';
 
+const optionalUrl = (message: string) =>
+  z.preprocess(
+    (value) => {
+      if (typeof value === 'string' && value.trim() === '') return undefined;
+      return value;
+    },
+    z.string().url(message).optional()
+  );
+
 // ============================================================================
 // SCHEMA DEFINITION
 // ============================================================================
@@ -27,27 +36,43 @@ const envSchema = z.object({
     .enum(['development', 'staging', 'production'])
     .default('development'),
 
+  // UI
+  NEXT_PUBLIC_SHOW_TEST_BANNER: z.coerce.boolean().default(false),
+
   // API Connectivity
   NEXT_PUBLIC_API_BASE_URL: z
     .string()
+    .trim()
     .url('API base URL must be a valid URL')
-    .min(1, 'API base URL is required'),
-  NEXT_PUBLIC_API_TIMEOUT_MS: z
-    .string()
-    .transform((val: string) => parseInt(val, 10))
-    .pipe(z.number().min(1000).max(120000))
-    .default('30000'),
+    .min(1, 'API base URL is required')
+    .transform((val: string) => val.replace(/\/+$/, '')),
+  NEXT_PUBLIC_API_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1000)
+    .max(120000)
+    .default(30000),
   NEXT_PUBLIC_WS_URL: z
     .string()
+    .trim()
     .min(1, 'WebSocket URL is required')
     .refine(
       (val: string) => val.startsWith('ws://') || val.startsWith('wss://'),
       'WebSocket URL must start with ws:// or wss://'
     ),
 
+  // Microservices / Health checks
+  NEXT_PUBLIC_SERVICE_HEALTH_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(250)
+    .max(30000)
+    .default(2000),
+
   // Authentication (Supabase Public Keys Only)
   NEXT_PUBLIC_SUPABASE_URL: z
     .string()
+    .trim()
     .url('Supabase URL must be a valid URL')
     .min(1, 'Supabase URL is required'),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z
@@ -59,58 +84,21 @@ const envSchema = z.object({
     ),
 
   // Feature Toggles
-  NEXT_PUBLIC_FEATURE_BULK_ACTIONS: z
-    .string()
-    .transform((val: string) => val === 'true')
-    .default('true'),
-  NEXT_PUBLIC_FEATURE_ADVANCED_FILTERS: z
-    .string()
-    .transform((val: string) => val === 'true')
-    .default('true'),
-  NEXT_PUBLIC_FEATURE_EXPORT_CSV: z
-    .string()
-    .transform((val: string) => val === 'true')
-    .default('true'),
-  NEXT_PUBLIC_FEATURE_REAL_TIME_AUDIT: z
-    .string()
-    .transform((val: string) => val === 'true')
-    .default('true'),
+  NEXT_PUBLIC_FEATURE_BULK_ACTIONS: z.coerce.boolean().default(true),
+  NEXT_PUBLIC_FEATURE_ADVANCED_FILTERS: z.coerce.boolean().default(true),
+  NEXT_PUBLIC_FEATURE_EXPORT_CSV: z.coerce.boolean().default(true),
+  NEXT_PUBLIC_FEATURE_REAL_TIME_AUDIT: z.coerce.boolean().default(true),
 
   // Service URLs
-  NEXT_PUBLIC_SERVICE_DISPUTES_URL: z
-    .string()
-    .url('Disputes service URL must be a valid URL')
-    .optional(),
-  NEXT_PUBLIC_SERVICE_AUDIT_URL: z
-    .string()
-    .url('Audit service URL must be a valid URL')
-    .optional(),
-  NEXT_PUBLIC_SERVICE_BOOKING_PAYMENTS_URL: z
-    .string()
-    .url('Booking payments service URL must be a valid URL')
-    .optional(),
+  NEXT_PUBLIC_SERVICE_DISPUTES_URL: optionalUrl('Disputes service URL must be a valid URL'),
+  NEXT_PUBLIC_SERVICE_AUDIT_URL: optionalUrl('Audit service URL must be a valid URL'),
+  NEXT_PUBLIC_SERVICE_BOOKING_PAYMENTS_URL: optionalUrl('Booking payments service URL must be a valid URL'),
 
   // Operational Limits
-  NEXT_PUBLIC_DEFAULT_PAGE_SIZE: z
-    .string()
-    .transform((val: string) => parseInt(val, 10))
-    .pipe(z.number().min(10).max(100))
-    .default('25'),
-  NEXT_PUBLIC_MAX_PAGE_SIZE: z
-    .string()
-    .transform((val: string) => parseInt(val, 10))
-    .pipe(z.number().min(25).max(500))
-    .default('100'),
-  NEXT_PUBLIC_AUDIT_LOG_RETENTION_DAYS: z
-    .string()
-    .transform((val: string) => parseInt(val, 10))
-    .pipe(z.number().min(30).max(365))
-    .default('90'),
-  NEXT_PUBLIC_SESSION_TIMEOUT_MINUTES: z
-    .string()
-    .transform((val: string) => parseInt(val, 10))
-    .pipe(z.number().min(5).max(480))
-    .default('30'),
+  NEXT_PUBLIC_DEFAULT_PAGE_SIZE: z.coerce.number().int().min(10).max(100).default(25),
+  NEXT_PUBLIC_MAX_PAGE_SIZE: z.coerce.number().int().min(25).max(500).default(100),
+  NEXT_PUBLIC_AUDIT_LOG_RETENTION_DAYS: z.coerce.number().int().min(30).max(365).default(90),
+  NEXT_PUBLIC_SESSION_TIMEOUT_MINUTES: z.coerce.number().int().min(5).max(480).default(30),
 
   // Observability (Optional)
   NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
@@ -122,7 +110,7 @@ const envSchema = z.object({
 // ============================================================================
 
 type EnvInput = {
-  [K in keyof z.infer<typeof envSchema>]?: string;
+  [K in keyof z.infer<typeof envSchema>]?: unknown;
 };
 
 function validateEnv(): z.infer<typeof envSchema> {
@@ -130,9 +118,11 @@ function validateEnv(): z.infer<typeof envSchema> {
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
     NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION,
     NEXT_PUBLIC_ENVIRONMENT: process.env.NEXT_PUBLIC_ENVIRONMENT,
+    NEXT_PUBLIC_SHOW_TEST_BANNER: process.env.NEXT_PUBLIC_SHOW_TEST_BANNER,
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
     NEXT_PUBLIC_API_TIMEOUT_MS: process.env.NEXT_PUBLIC_API_TIMEOUT_MS,
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
+    NEXT_PUBLIC_SERVICE_HEALTH_TIMEOUT_MS: process.env.NEXT_PUBLIC_SERVICE_HEALTH_TIMEOUT_MS,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_FEATURE_BULK_ACTIONS: process.env.NEXT_PUBLIC_FEATURE_BULK_ACTIONS,
