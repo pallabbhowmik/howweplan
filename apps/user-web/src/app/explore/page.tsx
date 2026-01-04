@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { SiteNavigation } from '@/components/navigation/site-navigation';
+import { SiteFooter } from '@/components/navigation/site-footer';
 import {
   fetchDestinations,
   type Destination,
@@ -418,7 +420,9 @@ export default function ExplorePage() {
   const hasActiveFilters = query || region !== 'All' || theme !== 'All' || stateOrUt !== 'All';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
+    <>
+      <SiteNavigation />
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
@@ -623,5 +627,7 @@ export default function ExplorePage() {
         )}
       </div>
     </div>
+    <SiteFooter />
+    </>
   );
 }

@@ -4,6 +4,8 @@ import { Award, Shield, Clock, Star, Users, MessageSquare, Globe, Sparkles } fro
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { SiteNavigation } from '@/components/navigation/site-navigation';
+import { SiteFooter } from '@/components/navigation/site-footer';
 
 const advisorQualities = [
   {
@@ -45,7 +47,9 @@ const stats = [
 
 export default function TravelAdvisorsPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
+    <>
+      <SiteNavigation />
+      <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
       {/* Hero Section */}
       <section className="relative py-16 md:py-24 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 opacity-90" />
@@ -173,5 +177,7 @@ export default function TravelAdvisorsPage() {
         </div>
       </section>
     </div>
+    <SiteFooter />
+    </>
   );
 }

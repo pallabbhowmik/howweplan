@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useUserSession } from '@/lib/user/session';
 import {
   Plane,
   MessageSquare,
@@ -143,11 +145,20 @@ const faqItems = [
 ];
 
 export default function Home() {
+  const router = useRouter();
+  const { user, loading } = useUserSession();
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [, setActiveTravelers] = useState(127);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace('/dashboard');
+    }
+  }, [user, loading, router]);
 
   // Handle scroll for sticky nav enhancement
   useEffect(() => {
@@ -173,6 +184,23 @@ export default function Home() {
     }, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render homepage if user is authenticated (will redirect)
+  if (user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col">

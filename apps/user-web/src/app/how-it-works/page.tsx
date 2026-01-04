@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { Plane, Search, Users, FileText, CreditCard, MessageSquare, CheckCircle, ArrowRight, Shield, Clock, Sparkles, HeartHandshake } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { SiteNavigation } from '@/components/navigation/site-navigation';
+import { SiteFooter } from '@/components/navigation/site-footer';
 
 const steps = [
   {
@@ -87,28 +89,9 @@ const benefits = [
 
 export default function HowItWorksPage() {
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      {/* Navigation */}
-      <nav className="border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Plane className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-bold">HowWePlan</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="ghost">Dashboard</Button>
-            </Link>
-            <Link href="/login">
-              <Button variant="outline">Login</Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      <main className="flex-1">
+    <>
+      <SiteNavigation />
+      <div className="min-h-screen bg-white flex flex-col">
         {/* Hero */}
         <section className="relative py-20 md:py-28 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 opacity-90" />
@@ -244,7 +227,16 @@ export default function HowItWorksPage() {
             </div>
           </div>
         </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-8">
+        <div className="container mx-auto px-4 text-center">
+          <p className="text-gray-400">&copy; 2024 HowWePlan. All rights reserved.</p>
+        </div>
       </footer>
     </div>
+    <SiteFooter />
+    </>
   );
 }
