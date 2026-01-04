@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import { Award, Shield, Clock, Star, Users, MessageSquare, Globe, Sparkles } from 'lucide-react';
 
