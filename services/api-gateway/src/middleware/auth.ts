@@ -18,6 +18,27 @@ interface JWTPayload {
 }
 
 /**
+ * Supabase JWT payload structure
+ */
+interface SupabaseJWTPayload {
+  sub: string; // User UUID
+  email?: string;
+  role?: string; // Usually 'authenticated'
+  user_metadata?: {
+    role?: string;
+    email?: string;
+  };
+  app_metadata?: {
+    role?: string;
+    provider?: string;
+  };
+  iss: string;
+  aud: string;
+  exp: number;
+  iat: number;
+}
+
+/**
  * Verify JWT using the configured algorithm (RS256 or HS256)
  * RS256: Uses public key for verification (recommended)
  * HS256: Uses shared secret (legacy fallback)
@@ -110,6 +131,71 @@ function verifyJWT(token: string): JWTPayload | null {
   });
   
   return null;
+}
+
+/**
+ * Verify Supabase JWT token
+ * Supabase uses HS256 with SUPABASE_JWT_SECRET
+ * Returns normalized JWTPayload compatible with our system
+ */
+function verifySupabaseJWT(token: string): JWTPayload | null {
+  const supabaseSecret = config.supabase?.jwtSecret;
+  
+  if (!supabaseSecret) {
+    logger.debug({
+      timestamp: new Date().toISOString(),
+      event: 'supabase_jwt_verify_skip',
+      reason: 'no_secret_configured',
+    });
+    return null;
+  }
+
+  try {
+    // Supabase tokens are HS256 signed
+    const payload = jwt.verify(token, supabaseSecret, {
+      algorithms: ['HS256'],
+    }) as SupabaseJWTPayload;
+
+    // Determine role from Supabase metadata
+    // Check app_metadata.role first (set by admin), then user_metadata.role
+    let role: 'user' | 'agent' | 'admin' = 'user';
+    if (payload.app_metadata?.role === 'admin' || payload.user_metadata?.role === 'admin') {
+      role = 'admin';
+    } else if (payload.app_metadata?.role === 'agent' || payload.user_metadata?.role === 'agent') {
+      role = 'agent';
+    }
+
+    // Normalize to our JWTPayload format
+    const normalized: JWTPayload = {
+      sub: payload.sub,
+      email: payload.email || payload.user_metadata?.email || '',
+      role,
+      iss: payload.iss,
+      aud: typeof payload.aud === 'string' ? payload.aud : Array.isArray(payload.aud) ? payload.aud[0] : 'authenticated',
+      exp: payload.exp,
+      iat: payload.iat,
+    };
+
+    logger.debug({
+      timestamp: new Date().toISOString(),
+      event: 'supabase_jwt_verify_success',
+      userId: payload.sub,
+      role,
+    });
+
+    return normalized;
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      logger.debug({ timestamp: new Date().toISOString(), event: 'supabase_jwt_expired' });
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      logger.debug({ 
+        timestamp: new Date().toISOString(), 
+        event: 'supabase_jwt_verify_failed',
+        error: (error as Error).message, 
+      });
+    }
+    return null;
+  }
 }
 
 /**
@@ -214,6 +300,7 @@ function isPublicRoute(method: string, path: string): boolean {
 
 /**
  * JWT Authentication Middleware
+ * Supports both internal JWTs (Identity Service) and Supabase JWTs
  */
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   // Skip auth for public routes
@@ -243,8 +330,15 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 
   const token = authHeader.substring(7);
   
-  // Verify the JWT using configured algorithm (RS256 or HS256)
-  const payload = verifyJWT(token);
+  // Try internal JWT verification first (Identity Service tokens)
+  let payload = verifyJWT(token);
+  let tokenSource = 'internal';
+  
+  // If internal verification fails, try Supabase JWT
+  if (!payload) {
+    payload = verifySupabaseJWT(token);
+    tokenSource = 'supabase';
+  }
 
   if (!payload) {
     logger.warn({
@@ -253,13 +347,13 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
       method: req.method,
       path: req.path,
       ip: req.ip || 'unknown',
-      error: 'Invalid JWT',
+      error: 'Invalid JWT - failed both internal and Supabase verification',
       algorithm: config.jwt.algorithm,
     });
 
     res.status(401).json({
       error: 'Unauthorized',
-      message: 'Invalid token',
+      message: 'Invalid authentication token',
       code: 'AUTH_INVALID_TOKEN',
     });
     return;
@@ -286,8 +380,8 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     return;
   }
 
-  // Check issuer and audience
-  if (payload.iss !== config.jwt.issuer) {
+  // Skip issuer check for Supabase tokens (they have different issuers)
+  if (tokenSource === 'internal' && payload.iss !== config.jwt.issuer) {
     res.status(401).json({
       error: 'Unauthorized',
       message: 'Invalid token issuer',
@@ -313,12 +407,22 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     role: payload.role,
     permissions: payload.permissions,
   };
+  
+  logger.debug({
+    timestamp: new Date().toISOString(),
+    event: 'auth_success',
+    requestId: req.requestId,
+    userId: payload.sub,
+    role: payload.role,
+    tokenSource,
+  });
 
   next();
 }
 
 /**
  * Optional auth - doesn't fail if no token, just doesn't set user
+ * Supports both internal JWTs (Identity Service) and Supabase JWTs
  */
 export function optionalAuthMiddleware(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
@@ -336,8 +440,15 @@ export function optionalAuthMiddleware(req: Request, res: Response, next: NextFu
 
   const token = authHeader.substring(7);
   
-  // Verify the JWT using configured algorithm
-  const payload = verifyJWT(token);
+  // Try internal JWT verification first (Identity Service tokens)
+  let payload = verifyJWT(token);
+  let tokenSource = 'internal';
+
+  // If internal verification fails, try Supabase JWT
+  if (!payload) {
+    payload = verifySupabaseJWT(token);
+    tokenSource = 'supabase';
+  }
 
   if (payload && payload.exp >= Math.floor(Date.now() / 1000)) {
     req.user = {
@@ -353,6 +464,8 @@ export function optionalAuthMiddleware(req: Request, res: Response, next: NextFu
       method: req.method,
       path: req.path,
       userId: payload.sub,
+      role: payload.role,
+      tokenSource,
     });
   } else {
     logger.warn({

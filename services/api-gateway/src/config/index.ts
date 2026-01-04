@@ -77,6 +77,13 @@ export const config = {
     refreshTokenExpiry: '7d',
   },
 
+  // Supabase JWT Configuration (for admin-web Supabase auth)
+  supabase: {
+    jwtSecret: process.env.SUPABASE_JWT_SECRET || '',
+    // Supabase uses 'authenticated' as the role for logged-in users
+    // and has issuer like 'https://xxx.supabase.co/auth/v1'
+  },
+
   // CORS Configuration
   cors: {
     allowedOrigins: process.env.CORS_ALLOWED_ORIGINS?.split(',') || [
