@@ -177,6 +177,27 @@ const PUBLIC_ROUTES = [
   { method: 'POST', path: '/api/identity/auth/forgot-password' },
   { method: 'POST', path: '/api/identity/auth/reset-password' },
   { method: 'GET', path: '/health' },
+
+  // Public health checks (used by dashboards and uptime monitors)
+  { method: 'GET', path: '/api/identity/health' },
+  { method: 'GET', path: '/api/identity/api/v1/health' },
+  { method: 'GET', path: '/api/requests/health' },
+  { method: 'GET', path: '/api/requests/api/v1/health' },
+  { method: 'GET', path: '/api/itineraries/health' },
+  { method: 'GET', path: '/api/itineraries/api/v1/health' },
+  { method: 'GET', path: '/api/booking-payments/health' },
+  { method: 'GET', path: '/api/booking-payments/api/v1/health' },
+  { method: 'GET', path: '/api/messaging/health' },
+  { method: 'GET', path: '/api/messaging/api/v1/health' },
+  { method: 'GET', path: '/api/disputes/health' },
+  { method: 'GET', path: '/api/disputes/api/v1/health' },
+  { method: 'GET', path: '/api/reviews/health' },
+  { method: 'GET', path: '/api/reviews/api/v1/health' },
+  { method: 'GET', path: '/api/notifications/health' },
+  { method: 'GET', path: '/api/notifications/api/v1/health' },
+  { method: 'GET', path: '/api/audit/health' },
+  { method: 'GET', path: '/api/audit/api/v1/health' },
+
   { method: 'GET', path: '/api/reviews' }, // Public reviews
   { method: 'GET', path: '/api/itineraries/public' }, // Public itineraries
 ];
