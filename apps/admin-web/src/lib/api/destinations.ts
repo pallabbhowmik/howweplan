@@ -3,10 +3,19 @@
  * 
  * Manage explore page destinations.
  * Admins can add, edit, and remove destinations with their images.
+ * 
+ * NOTE: Destinations are stored directly in Supabase as reference data.
  */
 
-import { apiClient } from './client';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '@/config/env';
 import type { PaginationParams } from '@/types';
+
+// Initialize Supabase client
+const supabase = createClient(
+  env.NEXT_PUBLIC_SUPABASE_URL,
+  env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 // ============================================================================
 // TYPES
@@ -98,6 +107,27 @@ export interface DestinationStats {
   readonly byRegion: Record<DestinationRegion, number>;
 }
 
+// Helper to convert DB row to Destination
+function toDestination(row: any): Destination {
+  return {
+    id: row.id,
+    name: row.name,
+    state: row.state,
+    region: row.region,
+    themes: row.themes || [],
+    idealMonths: row.ideal_months || [],
+    suggestedDurationMin: row.suggested_duration_min || 1,
+    suggestedDurationMax: row.suggested_duration_max || 7,
+    highlight: row.highlight || '',
+    imageUrl: row.image_url,
+    isFeatured: row.is_featured || false,
+    isActive: row.is_active ?? true,
+    displayOrder: row.display_order || 0,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 // ============================================================================
 // API FUNCTIONS
 // ============================================================================
@@ -108,34 +138,103 @@ export interface DestinationStats {
 export async function getDestinations(
   params?: DestinationQueryParams
 ): Promise<DestinationsListResponse> {
-  const queryParams: Record<string, string | number | boolean | undefined> = {
-    page: params?.page ?? 1,
-    limit: params?.limit ?? params?.pageSize ?? 20,
-  };
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? params?.pageSize ?? 20;
+  const offset = (page - 1) * limit;
   
+  let query = supabase
+    .from('destinations')
+    .select('*', { count: 'exact' });
+  
+  // Apply filters
   if (params?.filters) {
-    if (params.filters.region) queryParams.region = params.filters.region;
-    if (params.filters.theme) queryParams.theme = params.filters.theme;
-    if (params.filters.isActive !== undefined) queryParams.isActive = String(params.filters.isActive);
-    if (params.filters.isFeatured !== undefined) queryParams.isFeatured = String(params.filters.isFeatured);
-    if (params.filters.search) queryParams.search = params.filters.search;
+    if (params.filters.region) {
+      query = query.eq('region', params.filters.region);
+    }
+    if (params.filters.theme) {
+      query = query.contains('themes', [params.filters.theme]);
+    }
+    if (params.filters.isActive !== undefined) {
+      query = query.eq('is_active', params.filters.isActive);
+    }
+    if (params.filters.isFeatured !== undefined) {
+      query = query.eq('is_featured', params.filters.isFeatured);
+    }
+    if (params.filters.search) {
+      query = query.or(`name.ilike.%${params.filters.search}%,state.ilike.%${params.filters.search}%`);
+    }
   }
-
-  return apiClient.get<DestinationsListResponse>('/destinations', { params: queryParams });
+  
+  // Apply pagination and ordering
+  query = query
+    .order('display_order', { ascending: true })
+    .order('name', { ascending: true })
+    .range(offset, offset + limit - 1);
+  
+  const { data, error, count } = await query;
+  
+  if (error) {
+    console.error('Failed to fetch destinations:', error);
+    throw new Error(error.message);
+  }
+  
+  return {
+    data: (data || []).map(toDestination),
+    pagination: {
+      page,
+      limit,
+      total: count || 0,
+      totalPages: Math.ceil((count || 0) / limit),
+    },
+  };
 }
 
 /**
  * Get a single destination by ID
  */
 export async function getDestination(id: string): Promise<Destination> {
-  return apiClient.get<Destination>(`/destinations/${encodeURIComponent(id)}`);
+  const { data, error } = await supabase
+    .from('destinations')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) {
+    throw new Error(error.message);
+  }
+  
+  return toDestination(data);
 }
 
 /**
  * Create a new destination
  */
-export async function createDestination(data: CreateDestinationDto): Promise<Destination> {
-  return apiClient.post<Destination>('/destinations', data);
+export async function createDestination(dto: CreateDestinationDto): Promise<Destination> {
+  const { data, error } = await supabase
+    .from('destinations')
+    .insert({
+      id: dto.id,
+      name: dto.name,
+      state: dto.state,
+      region: dto.region,
+      themes: dto.themes,
+      ideal_months: dto.idealMonths,
+      suggested_duration_min: dto.suggestedDurationMin,
+      suggested_duration_max: dto.suggestedDurationMax,
+      highlight: dto.highlight,
+      image_url: dto.imageUrl,
+      is_featured: dto.isFeatured ?? false,
+      is_active: dto.isActive ?? true,
+      display_order: dto.displayOrder ?? 0,
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    throw new Error(error.message);
+  }
+  
+  return toDestination(data);
 }
 
 /**
@@ -143,35 +242,112 @@ export async function createDestination(data: CreateDestinationDto): Promise<Des
  */
 export async function updateDestination(
   id: string,
-  data: UpdateDestinationDto
+  dto: UpdateDestinationDto
 ): Promise<Destination> {
-  return apiClient.patch<Destination>(`/destinations/${encodeURIComponent(id)}`, data);
+  const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+  
+  if (dto.name !== undefined) updates.name = dto.name;
+  if (dto.state !== undefined) updates.state = dto.state;
+  if (dto.region !== undefined) updates.region = dto.region;
+  if (dto.themes !== undefined) updates.themes = dto.themes;
+  if (dto.idealMonths !== undefined) updates.ideal_months = dto.idealMonths;
+  if (dto.suggestedDurationMin !== undefined) updates.suggested_duration_min = dto.suggestedDurationMin;
+  if (dto.suggestedDurationMax !== undefined) updates.suggested_duration_max = dto.suggestedDurationMax;
+  if (dto.highlight !== undefined) updates.highlight = dto.highlight;
+  if (dto.imageUrl !== undefined) updates.image_url = dto.imageUrl;
+  if (dto.isFeatured !== undefined) updates.is_featured = dto.isFeatured;
+  if (dto.isActive !== undefined) updates.is_active = dto.isActive;
+  if (dto.displayOrder !== undefined) updates.display_order = dto.displayOrder;
+  
+  const { data, error } = await supabase
+    .from('destinations')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) {
+    throw new Error(error.message);
+  }
+  
+  return toDestination(data);
 }
 
 /**
- * Upload (binary) destination image and persist its public URL
+ * Upload destination image and persist its public URL
  */
 export async function uploadDestinationImage(
   id: string,
   file: File
 ): Promise<Destination> {
-  const formData = new FormData();
-  formData.append('file', file);
-  return apiClient.postForm<Destination>(`/destinations/${encodeURIComponent(id)}/image`, formData);
+  // Upload to Supabase Storage
+  const fileExt = file.name.split('.').pop();
+  const filePath = `destinations/${id}.${fileExt}`;
+  
+  const { error: uploadError } = await supabase.storage
+    .from('images')
+    .upload(filePath, file, { upsert: true });
+  
+  if (uploadError) {
+    throw new Error(uploadError.message);
+  }
+  
+  // Get public URL
+  const { data: urlData } = supabase.storage
+    .from('images')
+    .getPublicUrl(filePath);
+  
+  // Update destination with image URL
+  return updateDestination(id, { imageUrl: urlData.publicUrl });
 }
 
 /**
  * Delete a destination
  */
 export async function deleteDestination(id: string): Promise<void> {
-  return apiClient.delete(`/destinations/${encodeURIComponent(id)}`);
+  const { error } = await supabase
+    .from('destinations')
+    .delete()
+    .eq('id', id);
+  
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 /**
  * Get destination statistics
  */
 export async function getDestinationStats(): Promise<DestinationStats> {
-  return apiClient.get<DestinationStats>('/destinations/stats');
+  const { data, error } = await supabase
+    .from('destinations')
+    .select('region, is_active, is_featured');
+  
+  if (error) {
+    throw new Error(error.message);
+  }
+  
+  const stats: DestinationStats = {
+    total: data?.length || 0,
+    active: data?.filter(d => d.is_active).length || 0,
+    featured: data?.filter(d => d.is_featured).length || 0,
+    byRegion: {
+      'North': 0,
+      'South': 0,
+      'East': 0,
+      'West': 0,
+      'Central': 0,
+      'Northeast': 0,
+    },
+  };
+  
+  data?.forEach(d => {
+    if (d.region && stats.byRegion[d.region as DestinationRegion] !== undefined) {
+      stats.byRegion[d.region as DestinationRegion]++;
+    }
+  });
+  
+  return stats;
 }
 
 /**
@@ -180,7 +356,14 @@ export async function getDestinationStats(): Promise<DestinationStats> {
 export async function bulkUpdateDestinations(
   updates: Array<{ id: string; updates: UpdateDestinationDto }>
 ): Promise<Destination[]> {
-  return apiClient.patch<Destination[]>('/destinations/bulk', { updates });
+  const results: Destination[] = [];
+  
+  for (const { id, updates: dto } of updates) {
+    const result = await updateDestination(id, dto);
+    results.push(result);
+  }
+  
+  return results;
 }
 
 /**
@@ -189,7 +372,19 @@ export async function bulkUpdateDestinations(
 export async function importDestinations(
   destinations: CreateDestinationDto[]
 ): Promise<{ imported: number; errors: Array<{ id: string; error: string }> }> {
-  return apiClient.post('/destinations/import', { destinations });
+  const errors: Array<{ id: string; error: string }> = [];
+  let imported = 0;
+  
+  for (const dest of destinations) {
+    try {
+      await createDestination(dest);
+      imported++;
+    } catch (err: any) {
+      errors.push({ id: dest.id, error: err.message });
+    }
+  }
+  
+  return { imported, errors };
 }
 
 // ============================================================================
