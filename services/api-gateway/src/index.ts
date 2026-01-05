@@ -143,31 +143,23 @@ async function initializeJwtPublicKey(): Promise<void> {
 }
 
 // =============================================================================
-// SECURITY MIDDLEWARE
+// CORS MIDDLEWARE (MUST BE FIRST - before Helmet and everything else)
 // =============================================================================
 
-// Security headers with Helmet
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", 'data:', 'https:'],
-        connectSrc: ["'self'", ...config.cors.allowedOrigins],
-        fontSrc: ["'self'", 'https:', 'data:'],
-        objectSrc: ["'none'"],
-        mediaSrc: ["'self'"],
-        frameSrc: ["'none'"],
-      },
-    },
-    crossOriginEmbedderPolicy: false,
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-  })
-);
+// Handle preflight OPTIONS requests immediately - before ANY other middleware
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  if (origin && config.cors.allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', config.cors.methods.join(', '));
+    res.setHeader('Access-Control-Allow-Headers', config.cors.allowedHeaders.join(', '));
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Max-Age', '86400');
+  }
+  res.status(204).end();
+});
 
-// CORS configuration
+// CORS configuration for all other requests
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -197,18 +189,30 @@ app.use(
   })
 );
 
-// Explicit OPTIONS handling for preflight requests (before any auth/rate limiting)
-app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  if (origin && config.cors.allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Methods', config.cors.methods.join(', '));
-    res.setHeader('Access-Control-Allow-Headers', config.cors.allowedHeaders.join(', '));
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Max-Age', '86400');
-  }
-  res.status(204).end();
-});
+// =============================================================================
+// SECURITY MIDDLEWARE
+// =============================================================================
+
+// Security headers with Helmet
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'", ...config.cors.allowedOrigins],
+        fontSrc: ["'self'", 'https:', 'data:'],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 
 // =============================================================================
 // BODY PARSING & REQUEST PROCESSING
