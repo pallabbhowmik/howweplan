@@ -13,9 +13,21 @@ docker ps --filter "name=tripcomposer" --format "table {{.Names}}\t{{.Status}}\t
 
 ## Service Endpoints Map
 
+### Single Backend Entry Point (Recommended)
+
+For local Docker Compose, access backend APIs through the API Gateway only:
+
+- **Gateway (HTTP):** http://localhost:8081
+- **Gateway Health:** http://localhost:8081/health
+- **Gateway WebSocket:** ws://localhost:8081/ws
+
+If port 8081 is in use, override with `GATEWAY_PORT` (example: `GATEWAY_PORT=8090`).
+
+All microservices run on the Docker network and are **not** published to host ports by default.
+
 ### Backend Microservices
 
-| Service | Container | Port | Health Endpoint | API Prefix | Status |
+| Service | Container | Port (internal) | Health Endpoint | API Prefix | Status |
 |---------|-----------|------|-----------------|------------|--------|
 | **Audit** | tripcomposer-audit | 3010 | `/health` | `/api/v1` | ✅ |
 | **Identity** | tripcomposer-identity | 3011 | `/api/v1/health` | `/api/v1` | ✅ |
@@ -48,6 +60,17 @@ docker ps --filter "name=tripcomposer" --format "table {{.Names}}\t{{.Status}}\t
 | **Agent Web** | 3003 | http://localhost:3003 |
 
 ## API Routing
+
+### API Gateway (Port 8080)
+
+All frontend traffic should go through the gateway:
+
+```
+GET  http://localhost:8081/health
+GET  http://localhost:8081/ready
+ANY  http://localhost:8081/api/{service}/*
+WS   ws://localhost:8081/ws
+```
 
 ### Identity Service (Port 3011)
 ```

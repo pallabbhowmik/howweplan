@@ -29,6 +29,14 @@ declare global {
 const app = express();
 const PORT = config.port;
 
+// WebSocket proxy (kept separate so we can attach upgrade handler)
+const wsProxy = createProxyMiddleware({
+  target: config.services.messaging.url,
+  changeOrigin: true,
+  ws: true,
+  // Keep the path as-is so messaging can serve WS at /ws
+});
+
 // =============================================================================
 // STARTUP INITIALIZATION
 // =============================================================================
@@ -236,6 +244,13 @@ app.use(sanitizeInput);
 
 // Content-Type validation for mutations
 app.use(requireJson);
+
+// =============================================================================
+// WEBSOCKET PROXY
+// =============================================================================
+
+// WebSocket endpoint (no auth middleware here; messaging service handles auth for WS)
+app.use('/ws', wsProxy);
 
 // =============================================================================
 // HEALTH & STATUS ENDPOINTS
@@ -530,7 +545,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 async function start(): Promise<void> {
   await initializeJwtPublicKey();
 
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
   logger.info({
     timestamp: new Date().toISOString(),
     event: 'server_started',
@@ -568,6 +583,19 @@ async function start(): Promise<void> {
   Object.entries(config.services).forEach(([name, url]) => {
     console.log(`   /api/${name} → ${url}`);
   });
+  });
+
+  // Attach WS upgrade handler
+  server.on('upgrade', (req, socket, head) => {
+    try {
+      if (req.url && req.url.startsWith('/ws')) {
+        (wsProxy as any).upgrade(req, socket, head);
+        return;
+      }
+    } catch {
+      // If upgrade handling fails, close the socket.
+    }
+    socket.destroy();
   });
 }
 

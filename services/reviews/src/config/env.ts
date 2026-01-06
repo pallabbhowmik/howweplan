@@ -3,9 +3,52 @@
  * 
  * This module validates all required environment variables at startup.
  * The service will fail fast with clear errors if configuration is invalid.
+ * 
+ * Render stores secret files at /etc/secrets/<filename>
  */
 
 import { z } from 'zod';
+import { readFileSync, existsSync } from 'fs';
+
+// =============================================================================
+// SECRET FILE READER (for Render deployment)
+// =============================================================================
+
+function readSecretFile(filename: string): string | undefined {
+  const paths = [
+    `/etc/secrets/${filename}`,           // Render secret files location
+    `./secrets/${filename}`,              // Local dev fallback
+    `./${filename}`,                      // Current directory fallback
+  ];
+  for (const path of paths) {
+    if (existsSync(path)) {
+      try {
+        const content = readFileSync(path, 'utf-8').trim();
+        console.info(`✓ Loaded ${filename} from: ${path}`);
+        return content;
+      } catch { /* continue */ }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Get JWT public key from secret file or env var.
+ */
+function getJwtPublicKey(): string {
+  const fileContent = readSecretFile('jwt-public.pem');
+  if (fileContent) return fileContent;
+  const envKey = process.env['JWT_PUBLIC_KEY'];
+  return envKey ? envKey.replace(/\\n/g, '\n') : '';
+}
+
+// Inject JWT_PUBLIC_KEY from secret file if not already set
+if (!process.env['JWT_PUBLIC_KEY'] || process.env['JWT_PUBLIC_KEY'].trim() === '') {
+  const key = getJwtPublicKey();
+  if (key) {
+    process.env['JWT_PUBLIC_KEY'] = key;
+  }
+}
 
 // =============================================================================
 // SCHEMA DEFINITION
@@ -28,7 +71,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 
   // ---------------------------------------------------------------------------
-  // EVENT BUS
+  // EVENT BUS (HTTP-based internal event bus)
   // ---------------------------------------------------------------------------
   EVENT_BUS_URL: z.string().optional().refine(
     (val) => !val || val.trim() === '' || /^(amqp|redis|kafka|http|https):/.test(val),
@@ -43,11 +86,11 @@ const envSchema = z.object({
   INTERNAL_API_BASE_URL: z.string().url().default('http://localhost:3000/internal'),
 
   // ---------------------------------------------------------------------------
-  // AUTHENTICATION
+  // AUTHENTICATION (reads from /etc/secrets/jwt-public.pem on Render)
   // ---------------------------------------------------------------------------
-  JWT_PUBLIC_KEY: z.string().min(1, 'JWT_PUBLIC_KEY is required'),
+  JWT_PUBLIC_KEY: z.string().min(1, 'JWT_PUBLIC_KEY is required (set via env or /etc/secrets/jwt-public.pem)'),
   JWT_ISSUER: z.string().default('tripcomposer'),
-  JWT_AUDIENCE: z.string().default('reviews-service'),
+  JWT_AUDIENCE: z.string().default('tripcomposer-services'),
 
   // ---------------------------------------------------------------------------
   // OPERATIONAL LIMITS
