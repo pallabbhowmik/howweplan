@@ -136,46 +136,46 @@ export const config = {
     maxSize: 1000, // Max items in cache
   },
 
-  // Services Configuration
+  // Services Configuration (default to localhost for monolithic deployment)
   services: {
     identity: {
-      url: process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001',
+      url: process.env.IDENTITY_SERVICE_URL || 'http://localhost:3011',
       timeout: 5000,
     },
     requests: {
-      url: process.env.REQUESTS_SERVICE_URL || 'http://localhost:3002',
+      url: process.env.REQUESTS_SERVICE_URL || 'http://localhost:3012',
       timeout: 10000,
     },
     itineraries: {
-      url: process.env.ITINERARIES_SERVICE_URL || 'http://localhost:3003',
+      url: process.env.ITINERARIES_SERVICE_URL || 'http://localhost:3014',
       timeout: 10000,
     },
     matching: {
-      url: process.env.MATCHING_SERVICE_URL || 'http://localhost:3004',
+      url: process.env.MATCHING_SERVICE_URL || 'http://localhost:3013',
       timeout: 15000,
     },
     'booking-payments': {
-      url: process.env.BOOKING_PAYMENTS_SERVICE_URL || 'http://localhost:3005',
+      url: process.env.BOOKING_PAYMENTS_SERVICE_URL || 'http://localhost:3015',
       timeout: 30000, // Longer for payment processing
     },
     messaging: {
-      url: process.env.MESSAGING_SERVICE_URL || 'http://localhost:3006',
+      url: process.env.MESSAGING_SERVICE_URL || 'http://localhost:3016',
       timeout: 5000,
     },
     notifications: {
-      url: process.env.NOTIFICATIONS_SERVICE_URL || 'http://localhost:3007',
+      url: process.env.NOTIFICATIONS_SERVICE_URL || 'http://localhost:3019',
       timeout: 5000,
     },
     disputes: {
-      url: process.env.DISPUTES_SERVICE_URL || 'http://localhost:3008',
+      url: process.env.DISPUTES_SERVICE_URL || 'http://localhost:3017',
       timeout: 10000,
     },
     audit: {
-      url: process.env.AUDIT_SERVICE_URL || 'http://localhost:3009',
+      url: process.env.AUDIT_SERVICE_URL || 'http://localhost:3010',
       timeout: 5000,
     },
     reviews: {
-      url: process.env.REVIEWS_SERVICE_URL || 'http://localhost:3010',
+      url: process.env.REVIEWS_SERVICE_URL || 'http://localhost:3018',
       timeout: 5000,
     },
   },
