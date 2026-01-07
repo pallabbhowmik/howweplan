@@ -71,6 +71,7 @@ function getClientIp(req: Request): string {
 /**
  * Middleware that requires authentication.
  * Validates the JWT and attaches identity context to the request.
+ * Trusts gateway-forwarded headers (X-User-Id, X-User-Role, X-User-Email) for internal traffic.
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   // Generate or extract correlation ID
@@ -82,7 +83,30 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   // Attach correlation ID to response headers
   res.setHeader('X-Correlation-Id', correlationId);
 
-  // Extract and validate token
+  // First, check for gateway-forwarded headers (trusted internal traffic)
+  // The API Gateway validates the JWT and forwards user info in these headers
+  const gatewayUserId = req.headers['x-user-id'] as string | undefined;
+  const gatewayUserRole = req.headers['x-user-role'] as string | undefined;
+  const gatewayUserEmail = req.headers['x-user-email'] as string | undefined;
+
+  if (gatewayUserId && gatewayUserRole) {
+    // Trust gateway-forwarded headers
+    const identity: IdentityContext = {
+      sub: gatewayUserId,
+      email: gatewayUserEmail || '',
+      role: gatewayUserRole.toUpperCase() as 'USER' | 'AGENT' | 'ADMIN',
+      status: 'ACTIVE' as AccountStatus,
+    };
+
+    (req as AuthenticatedRequest).identity = identity;
+    (req as AuthenticatedRequest).correlationId = correlationId;
+    (req as AuthenticatedRequest).clientIp = getClientIp(req);
+    
+    next();
+    return;
+  }
+
+  // Fallback: Extract and validate token directly (for direct service calls)
   const token = extractBearerToken(req.headers.authorization);
 
   if (!token) {
@@ -127,6 +151,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
  * Middleware that optionally authenticates.
  * If a token is present, validates it and attaches identity context.
  * If no token is present, continues without authentication.
+ * Trusts gateway-forwarded headers (X-User-Id, X-User-Role, X-User-Email) for internal traffic.
  */
 export function optionalAuth(req: Request, res: Response, next: NextFunction): void {
   // Generate or extract correlation ID
@@ -140,7 +165,26 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction): v
   (req as AuthenticatedRequest).correlationId = correlationId;
   (req as AuthenticatedRequest).clientIp = getClientIp(req);
 
-  // Extract token (optional)
+  // First, check for gateway-forwarded headers (trusted internal traffic)
+  const gatewayUserId = req.headers['x-user-id'] as string | undefined;
+  const gatewayUserRole = req.headers['x-user-role'] as string | undefined;
+  const gatewayUserEmail = req.headers['x-user-email'] as string | undefined;
+
+  if (gatewayUserId && gatewayUserRole) {
+    // Trust gateway-forwarded headers
+    const identity: IdentityContext = {
+      sub: gatewayUserId,
+      email: gatewayUserEmail || '',
+      role: gatewayUserRole.toUpperCase() as 'USER' | 'AGENT' | 'ADMIN',
+      status: 'ACTIVE' as AccountStatus,
+    };
+
+    (req as AuthenticatedRequest).identity = identity;
+    next();
+    return;
+  }
+
+  // Fallback: Extract token (optional) for direct service calls
   const token = extractBearerToken(req.headers.authorization);
 
   if (!token) {
