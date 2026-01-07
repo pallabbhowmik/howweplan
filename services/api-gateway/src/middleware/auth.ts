@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import jwksClient from 'jwks-rsa';
 import { config } from '../config';
 import { logger } from './logger';
 
@@ -135,58 +136,158 @@ function verifyJWT(token: string): JWTPayload | null {
 
 /**
  * Verify Supabase JWT token
- * Supabase uses HS256 with SUPABASE_JWT_SECRET
+ * Supabase can use ES256 or HS256 depending on project settings
+ * - ES256: Requires fetching public key from JWKS endpoint
+ * - HS256: Uses SUPABASE_JWT_SECRET
  * Returns normalized JWTPayload compatible with our system
  */
-function verifySupabaseJWT(token: string): JWTPayload | null {
-  const supabaseSecret = config.supabase?.jwtSecret;
+async function verifySupabaseJWT(token: string): Promise<JWTPayload | null> {
+  // Decode header to check algorithm
+  const decoded = jwt.decode(token, { complete: true });
+  if (!decoded || typeof decoded === 'string') {
+    logger.warn({
+      timestamp: new Date().toISOString(),
+      event: 'supabase_jwt_decode_failed',
+    });
+    return null;
+  }
+
+  const algorithm = decoded.header.alg;
+  const kid = decoded.header.kid;
   
-  // Log at warn level so we can see this in production
-  logger.warn({
+  logger.info({
     timestamp: new Date().toISOString(),
     event: 'supabase_jwt_verify_attempt',
-    hasSecret: !!supabaseSecret,
-    secretLength: supabaseSecret?.length || 0,
+    algorithm,
+    hasKid: !!kid,
   });
+
+  // For ES256, we need to fetch the public key from JWKS
+  if (algorithm === 'ES256') {
+    // Extract Supabase project URL from issuer
+    const payload = decoded.payload as SupabaseJWTPayload;
+    const issuer = payload.iss; // e.g., https://xxx.supabase.co/auth/v1
+    
+    if (!issuer || !issuer.includes('supabase')) {
+      logger.warn({
+        timestamp: new Date().toISOString(),
+        event: 'supabase_jwt_invalid_issuer',
+        issuer,
+      });
+      return null;
+    }
+
+    // Build JWKS URL from issuer
+    const jwksUri = issuer.replace('/auth/v1', '/auth/v1/.well-known/jwks.json');
+    
+    try {
+      const client = jwksClient({
+        jwksUri,
+        cache: true,
+        cacheMaxAge: 600000, // 10 minutes
+      });
+
+      const getKey = (header: jwt.JwtHeader, callback: jwt.SigningKeyCallback) => {
+        client.getSigningKey(header.kid, (err, key) => {
+          if (err) {
+            callback(err);
+            return;
+          }
+          const signingKey = key?.getPublicKey();
+          callback(null, signingKey);
+        });
+      };
+
+      return new Promise((resolve) => {
+        jwt.verify(token, getKey, { algorithms: ['ES256'] }, (err, verifiedPayload) => {
+          if (err) {
+            logger.warn({
+              timestamp: new Date().toISOString(),
+              event: 'supabase_jwt_es256_verify_failed',
+              error: err.message,
+            });
+            resolve(null);
+            return;
+          }
+
+          const supaPayload = verifiedPayload as SupabaseJWTPayload;
+          
+          // Determine role from Supabase metadata
+          let role: 'user' | 'agent' | 'admin' = 'user';
+          if (supaPayload.app_metadata?.role === 'admin' || supaPayload.user_metadata?.role === 'admin' || supaPayload.user_metadata?.role === 'super_admin') {
+            role = 'admin';
+          } else if (supaPayload.app_metadata?.role === 'agent' || supaPayload.user_metadata?.role === 'agent') {
+            role = 'agent';
+          }
+
+          const normalized: JWTPayload = {
+            sub: supaPayload.sub,
+            email: supaPayload.email || supaPayload.user_metadata?.email || '',
+            role,
+            iss: supaPayload.iss,
+            aud: typeof supaPayload.aud === 'string' ? supaPayload.aud : 'authenticated',
+            exp: supaPayload.exp,
+            iat: supaPayload.iat,
+          };
+
+          logger.info({
+            timestamp: new Date().toISOString(),
+            event: 'supabase_jwt_es256_verify_success',
+            userId: supaPayload.sub,
+            role,
+          });
+
+          resolve(normalized);
+        });
+      });
+    } catch (error) {
+      logger.warn({
+        timestamp: new Date().toISOString(),
+        event: 'supabase_jwt_es256_error',
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
+  // For HS256, use the shared secret
+  const supabaseSecret = config.supabase?.jwtSecret;
   
   if (!supabaseSecret) {
     logger.warn({
       timestamp: new Date().toISOString(),
-      event: 'supabase_jwt_verify_skip',
+      event: 'supabase_jwt_hs256_skip',
       reason: 'no_secret_configured',
     });
     return null;
   }
 
   try {
-    // Supabase tokens are HS256 signed
     const payload = jwt.verify(token, supabaseSecret, {
       algorithms: ['HS256'],
     }) as SupabaseJWTPayload;
 
     // Determine role from Supabase metadata
-    // Check app_metadata.role first (set by admin), then user_metadata.role
     let role: 'user' | 'agent' | 'admin' = 'user';
-    if (payload.app_metadata?.role === 'admin' || payload.user_metadata?.role === 'admin') {
+    if (payload.app_metadata?.role === 'admin' || payload.user_metadata?.role === 'admin' || payload.user_metadata?.role === 'super_admin') {
       role = 'admin';
     } else if (payload.app_metadata?.role === 'agent' || payload.user_metadata?.role === 'agent') {
       role = 'agent';
     }
 
-    // Normalize to our JWTPayload format
     const normalized: JWTPayload = {
       sub: payload.sub,
       email: payload.email || payload.user_metadata?.email || '',
       role,
       iss: payload.iss,
-      aud: typeof payload.aud === 'string' ? payload.aud : Array.isArray(payload.aud) ? payload.aud[0] : 'authenticated',
+      aud: typeof payload.aud === 'string' ? payload.aud : 'authenticated',
       exp: payload.exp,
       iat: payload.iat,
     };
 
     logger.info({
       timestamp: new Date().toISOString(),
-      event: 'supabase_jwt_verify_success',
+      event: 'supabase_jwt_hs256_verify_success',
       userId: payload.sub,
       role,
     });
@@ -198,13 +299,13 @@ function verifySupabaseJWT(token: string): JWTPayload | null {
     } else if (error instanceof jwt.JsonWebTokenError) {
       logger.warn({ 
         timestamp: new Date().toISOString(), 
-        event: 'supabase_jwt_verify_failed',
+        event: 'supabase_jwt_hs256_verify_failed',
         error: (error as Error).message, 
       });
     } else {
       logger.warn({
         timestamp: new Date().toISOString(),
-        event: 'supabase_jwt_verify_error',
+        event: 'supabase_jwt_hs256_error',
         error: error instanceof Error ? error.message : String(error),
       });
     }
@@ -316,7 +417,7 @@ function isPublicRoute(method: string, path: string): boolean {
  * JWT Authentication Middleware
  * Supports both internal JWTs (Identity Service) and Supabase JWTs
  */
-export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+export async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   // Skip auth for public routes
   if (isPublicRoute(req.method, req.path)) {
     return next();
@@ -350,7 +451,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   
   // If internal verification fails, try Supabase JWT
   if (!payload) {
-    payload = verifySupabaseJWT(token);
+    payload = await verifySupabaseJWT(token);
     tokenSource = 'supabase';
   }
 
@@ -438,7 +539,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
  * Optional auth - doesn't fail if no token, just doesn't set user
  * Supports both internal JWTs (Identity Service) and Supabase JWTs
  */
-export function optionalAuthMiddleware(req: Request, res: Response, next: NextFunction): void {
+export async function optionalAuthMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -460,7 +561,7 @@ export function optionalAuthMiddleware(req: Request, res: Response, next: NextFu
 
   // If internal verification fails, try Supabase JWT
   if (!payload) {
-    payload = verifySupabaseJWT(token);
+    payload = await verifySupabaseJWT(token);
     tokenSource = 'supabase';
   }
 
