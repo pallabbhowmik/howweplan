@@ -3,6 +3,17 @@ import { config } from '../config';
 import { logger } from './logger';
 
 /**
+ * Helper to add CORS headers to error responses
+ */
+function addCorsHeaders(req: Request, res: Response): void {
+  const origin = req.headers.origin;
+  if (origin && config.cors.allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+}
+
+/**
  * Circuit Breaker State
  */
 enum CircuitState {
@@ -245,6 +256,9 @@ export function circuitBreakerMiddleware(req: Request, res: Response, next: Next
       service: serviceName,
       nextRetryTime: status?.nextRetryTime ? new Date(status.nextRetryTime).toISOString() : null,
     });
+
+    // Add CORS headers to circuit breaker error responses
+    addCorsHeaders(req, res);
 
     res.status(503).json({
       error: 'Service Unavailable',
