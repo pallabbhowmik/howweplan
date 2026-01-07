@@ -141,8 +141,16 @@ function verifyJWT(token: string): JWTPayload | null {
 function verifySupabaseJWT(token: string): JWTPayload | null {
   const supabaseSecret = config.supabase?.jwtSecret;
   
+  // Log at warn level so we can see this in production
+  logger.warn({
+    timestamp: new Date().toISOString(),
+    event: 'supabase_jwt_verify_attempt',
+    hasSecret: !!supabaseSecret,
+    secretLength: supabaseSecret?.length || 0,
+  });
+  
   if (!supabaseSecret) {
-    logger.debug({
+    logger.warn({
       timestamp: new Date().toISOString(),
       event: 'supabase_jwt_verify_skip',
       reason: 'no_secret_configured',
@@ -176,7 +184,7 @@ function verifySupabaseJWT(token: string): JWTPayload | null {
       iat: payload.iat,
     };
 
-    logger.debug({
+    logger.info({
       timestamp: new Date().toISOString(),
       event: 'supabase_jwt_verify_success',
       userId: payload.sub,
@@ -186,12 +194,18 @@ function verifySupabaseJWT(token: string): JWTPayload | null {
     return normalized;
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
-      logger.debug({ timestamp: new Date().toISOString(), event: 'supabase_jwt_expired' });
+      logger.warn({ timestamp: new Date().toISOString(), event: 'supabase_jwt_expired' });
     } else if (error instanceof jwt.JsonWebTokenError) {
-      logger.debug({ 
+      logger.warn({ 
         timestamp: new Date().toISOString(), 
         event: 'supabase_jwt_verify_failed',
         error: (error as Error).message, 
+      });
+    } else {
+      logger.warn({
+        timestamp: new Date().toISOString(),
+        event: 'supabase_jwt_verify_error',
+        error: error instanceof Error ? error.message : String(error),
       });
     }
     return null;
