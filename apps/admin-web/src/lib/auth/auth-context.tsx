@@ -30,6 +30,15 @@ interface AdminUser {
   readonly lastLoginAt: string | null;
 }
 
+type IdentityMeResponse = {
+  readonly id: string;
+  readonly email: string;
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly photoUrl: string | null;
+  readonly role: string;
+};
+
 interface AuthState {
   readonly isAuthenticated: boolean;
   readonly isLoading: boolean;
@@ -112,7 +121,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loadAdminProfile = useCallback(async (accessToken: string, email?: string) => {
     try {
       apiClient.setAuthToken(accessToken);
-      const profile = await apiClient.get<AdminUser>('/admin/profile');
+      // Route: admin-web → API gateway → identity service
+      // Identity exposes the canonical current-user endpoint at /api/v1/users/me.
+      const me = await apiClient.get<IdentityMeResponse>('/api/identity/api/v1/users/me');
+
+      const profile: AdminUser = {
+        id: me.id,
+        email: me.email,
+        firstName: me.firstName,
+        lastName: me.lastName,
+        role: me.role?.toLowerCase() === 'admin' ? 'admin' : 'support',
+        permissions: ['all'],
+        avatarUrl: me.photoUrl,
+        lastLoginAt: null,
+      };
       const sessionId = generateSessionId();
 
       // Initialize audit logger

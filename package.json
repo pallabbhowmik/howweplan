@@ -20,6 +20,7 @@
     "clean": "npm run clean --workspaces --if-present"
   },
   "devDependencies": {
+    "@types/node": "^20.19.27",
     "typescript": "^5.3.3"
   },
   "engines": {
