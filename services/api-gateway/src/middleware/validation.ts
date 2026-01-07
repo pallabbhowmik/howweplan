@@ -297,10 +297,11 @@ export function requireJson(req: Request, res: Response, next: NextFunction): vo
   if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
     const contentType = req.headers['content-type'];
 
-    if (!contentType || !contentType.includes('application/json')) {
+    // Allow both application/json and multipart/form-data (for file uploads)
+    if (!contentType || (!contentType.includes('application/json') && !contentType.includes('multipart/form-data'))) {
       res.status(415).json({
         error: 'Unsupported Media Type',
-        message: 'Content-Type must be application/json',
+        message: 'Content-Type must be application/json or multipart/form-data',
         code: 'INVALID_CONTENT_TYPE',
       });
       return;
