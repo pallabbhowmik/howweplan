@@ -659,7 +659,7 @@ export default function ExplorePage() {
               </span>
             </h1>
             <p className="mt-6 text-lg md:text-xl text-white/80 max-w-2xl leading-relaxed">
-              From the snow-capped Himalayas to the tropical beaches of Kerala — find your perfect destination and let our expert agents craft your dream trip.
+              From majestic mountains to sun-kissed shores, ancient temples to vibrant cities — your perfect adventure awaits. Let our expert agents craft an unforgettable journey just for you.
             </p>
 
             <div className="mt-10 flex flex-wrap gap-4">
