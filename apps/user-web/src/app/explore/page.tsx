@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -350,6 +350,139 @@ function FeaturedDestination({ destination }: { destination: UnifiedDestination 
   );
 }
 
+// Featured Destinations Carousel with auto-scroll
+function FeaturedCarousel({ featured }: { featured: UnifiedDestination[] }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(true);
+
+  // Auto-scroll effect
+  useEffect(() => {
+    if (isPaused || featured.length <= 4) return;
+    
+    const interval = setInterval(() => {
+      if (scrollRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+        const maxScroll = scrollWidth - clientWidth;
+        
+        if (scrollLeft >= maxScroll - 10) {
+          // Reset to start
+          scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          // Scroll one card width
+          scrollRef.current.scrollBy({ left: 320, behavior: 'smooth' });
+        }
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [isPaused, featured.length]);
+
+  // Update arrow visibility on scroll
+  const handleScroll = useCallback(() => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setShowLeftArrow(scrollLeft > 10);
+      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  }, []);
+
+  const scrollLeft = () => {
+    scrollRef.current?.scrollBy({ left: -320, behavior: 'smooth' });
+  };
+
+  const scrollRight = () => {
+    scrollRef.current?.scrollBy({ left: 320, behavior: 'smooth' });
+  };
+
+  return (
+    <section className="mb-16">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
+              <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold">Featured Destinations</h2>
+          </div>
+          <p className="text-muted-foreground text-lg">Handpicked places for unforgettable experiences</p>
+        </div>
+        {/* Navigation arrows for desktop */}
+        {featured.length > 4 && (
+          <div className="hidden md:flex items-center gap-2">
+            <button
+              onClick={scrollLeft}
+              disabled={!showLeftArrow}
+              className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${
+                showLeftArrow 
+                  ? 'border-primary/30 hover:border-primary hover:bg-primary/10 text-foreground' 
+                  : 'border-border text-muted-foreground opacity-50 cursor-not-allowed'
+              }`}
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              onClick={scrollRight}
+              disabled={!showRightArrow}
+              className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${
+                showRightArrow 
+                  ? 'border-primary/30 hover:border-primary hover:bg-primary/10 text-foreground' 
+                  : 'border-border text-muted-foreground opacity-50 cursor-not-allowed'
+              }`}
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
+      
+      {/* Scrollable container */}
+      <div 
+        className="relative"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+      >
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide scroll-smooth"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {featured.map((d) => (
+            <div key={d.id} className="flex-shrink-0 w-[300px] snap-start">
+              <FeaturedDestination destination={d} />
+            </div>
+          ))}
+        </div>
+        
+        {/* Gradient fade edges */}
+        {showLeftArrow && (
+          <div className="absolute left-0 top-0 bottom-4 w-16 bg-gradient-to-r from-slate-50 dark:from-background to-transparent pointer-events-none" />
+        )}
+        {showRightArrow && featured.length > 4 && (
+          <div className="absolute right-0 top-0 bottom-4 w-16 bg-gradient-to-l from-slate-50 dark:from-background to-transparent pointer-events-none" />
+        )}
+      </div>
+      
+      {/* Scroll indicators */}
+      {featured.length > 4 && (
+        <div className="flex justify-center gap-1.5 mt-4">
+          <span className="text-xs text-muted-foreground">
+            Scroll to see {featured.length} destinations • Auto-scrolls when not hovering
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ThemeCard({ theme, count, active, onClick }: { theme: DestinationTheme; count: number; active: boolean; onClick: () => void }) {
   const gradient = THEME_GRADIENTS[theme];
   return (
@@ -448,14 +581,14 @@ export default function ExplorePage() {
   }, [destinations, query, region, theme, stateOrUt]);
 
   const featured = useMemo(() => {
-    // First try to get featured from database
+    // First try to get featured from database - return ALL featured items
     const dbFeatured = destinations.filter(d => d.isFeatured);
-    if (dbFeatured.length >= 4) {
-      return dbFeatured.slice(0, 4);
+    if (dbFeatured.length > 0) {
+      return dbFeatured;
     }
-    // Fallback to hardcoded picks
+    // Fallback to hardcoded picks if no featured in database
     const picks = ['in-jaipur', 'in-kerala-munnar', 'in-leh', 'in-goa'];
-    return destinations.filter((d) => picks.includes(d.id)).slice(0, 4);
+    return destinations.filter((d) => picks.includes(d.id));
   }, [destinations]);
 
   const resetFilters = useCallback(() => {
@@ -511,7 +644,7 @@ export default function ExplorePage() {
                   Start Planning
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm h-12">
+              <Button asChild size="lg" className="bg-white/20 text-white border-2 border-white/40 hover:bg-white/30 backdrop-blur-sm h-12 font-semibold">
                 <Link href="/dashboard">View Dashboard</Link>
               </Button>
             </div>
@@ -559,28 +692,9 @@ export default function ExplorePage() {
 
         {!isLoading && (
           <>
-        {/* Featured Destinations */}
-        {!hasActiveFilters && (
-          <section className="mb-16">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
-                    <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  </div>
-                  <h2 className="text-2xl md:text-3xl font-bold">Featured Destinations</h2>
-                </div>
-                <p className="text-muted-foreground text-lg">Handpicked places for unforgettable experiences</p>
-              </div>
-            </div>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {featured.map((d) => (
-                <FeaturedDestination key={d.id} destination={d} />
-              ))}
-            </div>
-          </section>
+        {/* Featured Destinations - Horizontal Scroll Carousel */}
+        {!hasActiveFilters && featured.length > 0 && (
+          <FeaturedCarousel featured={featured} />
         )}
 
         {/* Theme Quick Filters */}
