@@ -91,11 +91,16 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
   if (gatewayUserId && gatewayUserRole) {
     // Trust gateway-forwarded headers
+    const now = Math.floor(Date.now() / 1000);
     const identity: IdentityContext = {
       sub: gatewayUserId,
-      email: gatewayUserEmail || '',
       role: gatewayUserRole.toLowerCase() as 'user' | 'agent' | 'admin',
       status: 'ACTIVE' as AccountStatus,
+      agentVerificationStatus: null,
+      iat: now,
+      exp: now + 3600,
+      iss: 'gateway',
+      aud: 'identity-service',
     };
 
     (req as AuthenticatedRequest).identity = identity;
@@ -172,11 +177,16 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction): v
 
   if (gatewayUserId && gatewayUserRole) {
     // Trust gateway-forwarded headers
+    const now = Math.floor(Date.now() / 1000);
     const identity: IdentityContext = {
       sub: gatewayUserId,
-      email: gatewayUserEmail || '',
       role: gatewayUserRole.toLowerCase() as 'user' | 'agent' | 'admin',
       status: 'ACTIVE' as AccountStatus,
+      agentVerificationStatus: null,
+      iat: now,
+      exp: now + 3600,
+      iss: 'gateway',
+      aud: 'identity-service',
     };
 
     (req as AuthenticatedRequest).identity = identity;
