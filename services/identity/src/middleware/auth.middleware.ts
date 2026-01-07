@@ -87,7 +87,6 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   // The API Gateway validates the JWT and forwards user info in these headers
   const gatewayUserId = req.headers['x-user-id'] as string | undefined;
   const gatewayUserRole = req.headers['x-user-role'] as string | undefined;
-  const gatewayUserEmail = req.headers['x-user-email'] as string | undefined;
 
   if (gatewayUserId && gatewayUserRole) {
     // Trust gateway-forwarded headers
@@ -173,7 +172,6 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction): v
   // First, check for gateway-forwarded headers (trusted internal traffic)
   const gatewayUserId = req.headers['x-user-id'] as string | undefined;
   const gatewayUserRole = req.headers['x-user-role'] as string | undefined;
-  const gatewayUserEmail = req.headers['x-user-email'] as string | undefined;
 
   if (gatewayUserId && gatewayUserRole) {
     // Trust gateway-forwarded headers
