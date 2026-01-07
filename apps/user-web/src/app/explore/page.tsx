@@ -131,6 +131,32 @@ const REGION_COLORS: Record<IndiaRegion, string> = {
   Northeast: 'bg-teal-500/10 text-teal-700 border-teal-500/30 dark:text-teal-400',
 };
 
+// Inline styles for region badges (CSS-in-JS to avoid Tailwind JIT issues)
+const REGION_BADGE_STYLES: Record<IndiaRegion, React.CSSProperties> = {
+  North: { backgroundColor: 'rgba(59, 130, 246, 0.9)', color: 'white' },
+  South: { backgroundColor: 'rgba(34, 197, 94, 0.9)', color: 'white' },
+  East: { backgroundColor: 'rgba(245, 158, 11, 0.9)', color: 'white' },
+  West: { backgroundColor: 'rgba(168, 85, 247, 0.9)', color: 'white' },
+  Central: { backgroundColor: 'rgba(244, 63, 94, 0.9)', color: 'white' },
+  Northeast: { backgroundColor: 'rgba(20, 184, 166, 0.9)', color: 'white' },
+};
+
+// Inline gradient styles for theme cards
+const THEME_CARD_STYLES: Record<DestinationTheme, React.CSSProperties> = {
+  Mountains: { background: 'linear-gradient(135deg, #475569 0%, #1e3a5f 50%, #1e293b 100%)' },
+  Beaches: { background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #0d9488 100%)' },
+  Heritage: { background: 'linear-gradient(135deg, #b45309 0%, #9a3412 50%, #7f1d1d 100%)' },
+  Wildlife: { background: 'linear-gradient(135deg, #15803d 0%, #065f46 50%, #14532d 100%)' },
+  Spiritual: { background: 'linear-gradient(135deg, #9333ea 0%, #6d28d9 50%, #4338ca 100%)' },
+  Food: { background: 'linear-gradient(135deg, #f97316 0%, #ef4444 50%, #ec4899 100%)' },
+  City: { background: 'linear-gradient(135deg, #52525b 0%, #334155 50%, #27272a 100%)' },
+  Culture: { background: 'linear-gradient(135deg, #e11d48 0%, #be185d 50%, #a21caf 100%)' },
+  Nightlife: { background: 'linear-gradient(135deg, #7c3aed 0%, #6b21a8 50%, #312e81 100%)' },
+  Nature: { background: 'linear-gradient(135deg, #16a34a 0%, #0f766e 50%, #047857 100%)' },
+  Adventure: { background: 'linear-gradient(135deg, #ea580c 0%, #b45309 50%, #a16207 100%)' },
+  Desert: { background: 'linear-gradient(135deg, #ca8a04 0%, #b45309 50%, #c2410c 100%)' },
+};
+
 function matchesQuery(destination: UnifiedDestination, query: string): boolean {
   if (!query.trim()) return true;
   const q = query.trim().toLowerCase();
@@ -203,7 +229,10 @@ function DestinationCard({ destination, index }: { destination: UnifiedDestinati
         {/* Content overlay */}
         <div className="absolute inset-x-0 bottom-0 p-5">
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            <span className={`px-2.5 py-1 text-xs font-medium rounded-full border backdrop-blur-sm ${REGION_COLORS[destination.region]}`}>
+            <span 
+              className="px-2.5 py-1 text-xs font-semibold rounded-full backdrop-blur-sm shadow-sm"
+              style={REGION_BADGE_STYLES[destination.region]}
+            >
               {destination.region}
             </span>
             <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-white/20 text-white backdrop-blur-sm">
@@ -475,31 +504,34 @@ function FeaturedCarousel({ featured }: { featured: UnifiedDestination[] }) {
 }
 
 function ThemeCard({ theme, count, active, onClick }: { theme: DestinationTheme; count: number; active: boolean; onClick: () => void }) {
-  const gradient = THEME_GRADIENTS[theme] || 'from-gray-600 via-gray-700 to-gray-800';
+  const cardStyle = THEME_CARD_STYLES[theme] || { background: 'linear-gradient(135deg, #4b5563 0%, #374151 50%, #1f2937 100%)' };
+  
   return (
     <button
       onClick={onClick}
-      className={`relative rounded-2xl p-4 text-left transition-all duration-300 overflow-hidden group min-h-[100px] ${
+      className={`relative rounded-2xl p-4 text-left transition-all duration-300 overflow-hidden group min-h-[110px] ${
         active 
-          ? 'ring-2 ring-primary ring-offset-2 ring-offset-background scale-105 shadow-lg' 
-          : 'hover:scale-105 hover:shadow-lg shadow-md'
+          ? 'ring-2 ring-primary ring-offset-2 ring-offset-background scale-105 shadow-xl' 
+          : 'hover:scale-105 hover:shadow-xl shadow-lg'
       }`}
-      style={{ background: 'linear-gradient(to bottom right, #4b5563, #374151, #1f2937)' }}
+      style={cardStyle}
     >
-      <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} style={{ opacity: 1 }} />
       {/* Shine effect on hover */}
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+      
+      {/* Content */}
       <div className="relative z-10 flex flex-col h-full">
-        <span className="text-3xl drop-shadow-md">{THEME_ICONS[theme]}</span>
+        <span className="text-3xl drop-shadow-lg">{THEME_ICONS[theme]}</span>
         <div className="mt-auto">
-          <div className="text-white font-bold text-sm drop-shadow-sm">{theme}</div>
-          <div className="text-white/70 text-xs font-medium">{count} {count === 1 ? 'place' : 'places'}</div>
+          <div className="text-white font-bold text-sm drop-shadow-md">{theme}</div>
+          <div className="text-white/80 text-xs font-medium">{count} {count === 1 ? 'place' : 'places'}</div>
         </div>
       </div>
+      
       {/* Active checkmark */}
       {active && (
-        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-white flex items-center justify-center">
-          <svg className="h-3 w-3 text-primary" fill="currentColor" viewBox="0 0 20 20">
+        <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white flex items-center justify-center shadow-md">
+          <svg className="h-4 w-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
           </svg>
         </div>
