@@ -470,21 +470,12 @@ function FeaturedCarousel({ featured }: { featured: UnifiedDestination[] }) {
           <div className="absolute right-0 top-0 bottom-4 w-16 bg-gradient-to-l from-slate-50 dark:from-background to-transparent pointer-events-none" />
         )}
       </div>
-      
-      {/* Scroll indicators */}
-      {featured.length > 4 && (
-        <div className="flex justify-center gap-1.5 mt-4">
-          <span className="text-xs text-muted-foreground">
-            Scroll to see {featured.length} destinations • Auto-scrolls when not hovering
-          </span>
-        </div>
-      )}
     </section>
   );
 }
 
 function ThemeCard({ theme, count, active, onClick }: { theme: DestinationTheme; count: number; active: boolean; onClick: () => void }) {
-  const gradient = THEME_GRADIENTS[theme];
+  const gradient = THEME_GRADIENTS[theme] || 'from-gray-600 via-gray-700 to-gray-800';
   return (
     <button
       onClick={onClick}
@@ -493,8 +484,9 @@ function ThemeCard({ theme, count, active, onClick }: { theme: DestinationTheme;
           ? 'ring-2 ring-primary ring-offset-2 ring-offset-background scale-105 shadow-lg' 
           : 'hover:scale-105 hover:shadow-lg shadow-md'
       }`}
+      style={{ background: 'linear-gradient(to bottom right, #4b5563, #374151, #1f2937)' }}
     >
-      <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
+      <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} style={{ opacity: 1 }} />
       {/* Shine effect on hover */}
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
       <div className="relative z-10 flex flex-col h-full">
