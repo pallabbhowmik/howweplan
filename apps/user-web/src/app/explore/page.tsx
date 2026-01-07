@@ -193,10 +193,10 @@ function DestinationCard({ destination, index }: { destination: UnifiedDestinati
 
   return (
     <Card
-      className="group overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-card rounded-2xl"
+      className="group overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-card rounded-2xl h-full flex flex-col"
       style={{ animationDelay: `${Math.min(index, 12) * 50}ms` }}
     >
-      <div className="relative aspect-[4/3] overflow-hidden">
+      <div className="relative aspect-[4/3] overflow-hidden flex-shrink-0">
         {/* Gradient fallback */}
         <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
 
@@ -243,26 +243,29 @@ function DestinationCard({ destination, index }: { destination: UnifiedDestinati
         </div>
       </div>
 
-      <CardContent className="p-5 bg-gradient-to-b from-card to-muted/20">
+      <CardContent className="p-5 bg-gradient-to-b from-card to-muted/20 flex flex-col flex-grow">
         <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.5rem] leading-relaxed">{destination.highlight}</p>
 
-        {/* Theme pills */}
-        <div className="mt-4 flex flex-wrap gap-2">
+        {/* Theme pills - fixed height container */}
+        <div className="mt-4 flex flex-wrap gap-2 min-h-[68px]">
           {destination.themes.slice(0, 3).map((t) => (
             <span
               key={t}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-muted/80 border border-border/50 text-foreground/80"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-muted/80 border border-border/50 text-foreground/80 h-fit"
             >
               <span className="text-sm">{THEME_ICONS[t as DestinationTheme] || '✨'}</span>
               {t}
             </span>
           ))}
           {destination.themes.length > 3 && (
-            <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-muted/80 border border-border/50 text-muted-foreground">
+            <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-muted/80 border border-border/50 text-muted-foreground h-fit">
               +{destination.themes.length - 3}
             </span>
           )}
         </div>
+
+        {/* Spacer to push content below to bottom */}
+        <div className="flex-grow" />
 
         {/* Info grid */}
         <div className="mt-4 grid grid-cols-2 gap-3">
