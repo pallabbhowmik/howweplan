@@ -94,7 +94,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     const identity: IdentityContext = {
       sub: gatewayUserId,
       email: gatewayUserEmail || '',
-      role: gatewayUserRole.toUpperCase() as 'USER' | 'AGENT' | 'ADMIN',
+      role: gatewayUserRole.toLowerCase() as 'user' | 'agent' | 'admin',
       status: 'ACTIVE' as AccountStatus,
     };
 
@@ -175,7 +175,7 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction): v
     const identity: IdentityContext = {
       sub: gatewayUserId,
       email: gatewayUserEmail || '',
-      role: gatewayUserRole.toUpperCase() as 'USER' | 'AGENT' | 'ADMIN',
+      role: gatewayUserRole.toLowerCase() as 'user' | 'agent' | 'admin',
       status: 'ACTIVE' as AccountStatus,
     };
 
