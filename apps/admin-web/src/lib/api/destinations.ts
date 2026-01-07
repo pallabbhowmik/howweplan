@@ -18,9 +18,9 @@ import type { PaginationParams } from '@/types';
 export type DestinationRegion = 'North' | 'South' | 'East' | 'West' | 'Central' | 'Northeast';
 
 export type DestinationTheme = 
-  | 'Beach' | 'Mountains' | 'Heritage' | 'Wildlife' | 'Adventure'
-  | 'Spiritual' | 'Honeymoon' | 'Offbeat' | 'Hill Station' | 'Desert'
-  | 'Backwaters' | 'Culture' | 'Nightlife';
+  | 'Mountains' | 'Beaches' | 'Heritage' | 'Wildlife' | 'Adventure'
+  | 'Spiritual' | 'Food' | 'City' | 'Culture' | 'Nightlife' 
+  | 'Nature' | 'Desert';
 
 export interface Destination {
   readonly id: string;
@@ -205,9 +205,9 @@ export const DESTINATION_REGIONS: DestinationRegion[] = [
 ];
 
 export const DESTINATION_THEMES: DestinationTheme[] = [
-  'Beach', 'Mountains', 'Heritage', 'Wildlife', 'Adventure',
-  'Spiritual', 'Honeymoon', 'Offbeat', 'Hill Station', 'Desert',
-  'Backwaters', 'Culture', 'Nightlife'
+  'Mountains', 'Beaches', 'Heritage', 'Wildlife', 'Adventure',
+  'Spiritual', 'Food', 'City', 'Culture', 'Nightlife',
+  'Nature', 'Desert'
 ];
 
 export const MONTH_NAMES = [
@@ -216,19 +216,18 @@ export const MONTH_NAMES = [
 ];
 
 export const THEME_COLORS: Record<DestinationTheme, string> = {
-  'Beach': 'bg-cyan-100 text-cyan-800',
-  'Mountains': 'bg-emerald-100 text-emerald-800',
+  'Mountains': 'bg-slate-100 text-slate-800',
+  'Beaches': 'bg-cyan-100 text-cyan-800',
   'Heritage': 'bg-amber-100 text-amber-800',
   'Wildlife': 'bg-lime-100 text-lime-800',
   'Adventure': 'bg-orange-100 text-orange-800',
   'Spiritual': 'bg-purple-100 text-purple-800',
-  'Honeymoon': 'bg-pink-100 text-pink-800',
-  'Offbeat': 'bg-indigo-100 text-indigo-800',
-  'Hill Station': 'bg-teal-100 text-teal-800',
-  'Desert': 'bg-yellow-100 text-yellow-800',
-  'Backwaters': 'bg-blue-100 text-blue-800',
+  'Food': 'bg-red-100 text-red-800',
+  'City': 'bg-zinc-100 text-zinc-800',
   'Culture': 'bg-rose-100 text-rose-800',
   'Nightlife': 'bg-violet-100 text-violet-800',
+  'Nature': 'bg-emerald-100 text-emerald-800',
+  'Desert': 'bg-yellow-100 text-yellow-800',
 };
 
 export const REGION_COLORS: Record<DestinationRegion, string> = {
