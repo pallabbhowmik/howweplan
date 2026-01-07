@@ -608,48 +608,114 @@ function PrimaryActionCard({
 
 function DestinationInspirationGrid() {
   const destinations = [
-    { name: 'Rajasthan', emoji: '🏰', color: 'from-amber-400 to-orange-500', tag: 'Heritage' },
-    { name: 'Kerala', emoji: '🌴', color: 'from-green-400 to-emerald-500', tag: 'Nature' },
-    { name: 'Goa', emoji: '🏖️', color: 'from-blue-400 to-cyan-500', tag: 'Beaches' },
-    { name: 'Ladakh', emoji: '🏔️', color: 'from-slate-400 to-slate-600', tag: 'Mountains' },
-    { name: 'Varanasi', emoji: '🕉️', color: 'from-orange-400 to-red-500', tag: 'Spiritual' },
-    { name: 'Andaman', emoji: '🏝️', color: 'from-teal-400 to-emerald-500', tag: 'Islands' },
-  ];
+    { name: 'Rajasthan', emoji: '🏰', color: 'from-amber-400 to-orange-500', bgColor: 'from-amber-50 to-orange-50', borderColor: 'border-amber-200', tag: 'Heritage', highlight: 'Palaces & Forts' },
+    { name: 'Kerala', emoji: '🌴', color: 'from-green-400 to-emerald-500', bgColor: 'from-green-50 to-emerald-50', borderColor: 'border-green-200', tag: 'Nature', highlight: 'Backwaters' },
+    { name: 'Goa', emoji: '🏖️', color: 'from-blue-400 to-cyan-500', bgColor: 'from-blue-50 to-cyan-50', borderColor: 'border-blue-200', tag: 'Beaches', highlight: 'Sun & Sand' },
+    { name: 'Ladakh', emoji: '🏔️', color: 'from-slate-400 to-slate-600', bgColor: 'from-slate-50 to-gray-50', borderColor: 'border-slate-200', tag: 'Mountains', highlight: 'Adventure' },
+    { name: 'Varanasi', emoji: '🕉️', color: 'from-orange-400 to-red-500', bgColor: 'from-orange-50 to-red-50', borderColor: 'border-orange-200', tag: 'Spiritual', highlight: 'Sacred City' },
+    { name: 'Andaman', emoji: '🏝️', color: 'from-teal-400 to-emerald-500', bgColor: 'from-teal-50 to-emerald-50', borderColor: 'border-teal-200', tag: 'Islands', highlight: 'Tropical Paradise' },
+  ] as const;
+
+  const featured = destinations[0];
+  const otherDestinations = destinations.slice(1);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-            <Compass className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-900">Popular Destinations</h3>
-            <p className="text-sm text-slate-500">Get inspired for your next trip</p>
-          </div>
+    <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 rounded-3xl p-[2px] shadow-2xl shadow-purple-500/20">
+      <div className="relative bg-white rounded-[22px] overflow-hidden">
+        {/* Decorative background */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-100/50 via-indigo-50/30 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-blue-100/50 via-cyan-50/30 to-transparent rounded-full blur-3xl translate-y-1/2 -translate-x-1/3" />
         </div>
-        <Link href="/explore" className="text-sm font-medium text-green-600 hover:text-green-700 flex items-center gap-1">
-          Explore all
-          <ChevronRight className="h-4 w-4" />
-        </Link>
-      </div>
+        
+        <div className="relative p-6 sm:p-8">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 via-indigo-500 to-blue-500 flex items-center justify-center shadow-xl shadow-purple-500/30">
+                  <Compass className="h-7 w-7 text-white" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
+                  <Sparkles className="h-3 w-3 text-white" />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Explore Destinations</h3>
+                <p className="text-sm text-slate-500">Discover your perfect getaway</p>
+              </div>
+            </div>
+            <Link href="/explore" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 rounded-xl border border-purple-100 text-purple-700 font-semibold text-sm transition-all duration-300 group">
+              View All
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {destinations.map((dest) => (
-          <Link key={dest.name} href={`/explore?destination=${dest.name.toLowerCase()}`}>
-            <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-white border border-slate-100 p-4 hover:shadow-lg hover:border-slate-200 transition-all duration-300 cursor-pointer">
-              <div className="flex items-center gap-3">
-                <span className="text-3xl group-hover:scale-110 transition-transform">{dest.emoji}</span>
-                <div>
-                  <h4 className="font-semibold text-slate-800 group-hover:text-green-600 transition-colors">{dest.name}</h4>
-                  <Badge className={`bg-gradient-to-r ${dest.color} text-white text-[10px] px-2 py-0 border-0`}>
-                    {dest.tag}
+          {/* Featured Destination */}
+          <Link href={`/explore?destination=${featured.name.toLowerCase()}`}>
+            <div className="relative mb-5 group cursor-pointer">
+              <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${featured.bgColor} border-2 ${featured.borderColor} p-6 hover:shadow-xl transition-all duration-500`}>
+                <div className={`absolute inset-0 bg-gradient-to-br ${featured.color} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
+                <div className="absolute top-3 right-3">
+                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 font-bold px-3 py-1 shadow-lg shadow-amber-500/30">
+                    <Star className="h-3 w-3 mr-1 fill-white" />
+                    Featured
                   </Badge>
+                </div>
+                <div className="flex items-center gap-5">
+                  <div className="relative">
+                    <span className="text-6xl group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 inline-block">{featured.emoji}</span>
+                    <div className={`absolute -bottom-1 -right-1 w-6 h-6 bg-gradient-to-br ${featured.color} rounded-full flex items-center justify-center shadow-lg`}>
+                      <ChevronRight className="h-4 w-4 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="text-2xl font-bold text-slate-900 group-hover:text-amber-600 transition-colors">{featured.name}</h4>
+                      <Badge className={`bg-gradient-to-r ${featured.color} text-white text-xs px-2.5 py-0.5 border-0`}>
+                        {featured.tag}
+                      </Badge>
+                    </div>
+                    <p className="text-slate-600 font-medium">{featured.highlight}</p>
+                    <p className="text-sm text-slate-500 mt-1">Royal palaces, desert safaris & vibrant culture await</p>
+                  </div>
+                  <div className="hidden sm:flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
+                    <span className="text-sm font-semibold text-amber-600">Explore</span>
+                    <ArrowRight className="h-5 w-5 text-amber-600" />
+                  </div>
                 </div>
               </div>
             </div>
           </Link>
-        ))}
+
+          {/* Destination Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            {otherDestinations.map((dest) => (
+              <Link key={dest.name} href={`/explore?destination=${dest.name.toLowerCase()}`}>
+                <div className={`group relative overflow-hidden rounded-xl bg-gradient-to-br ${dest.bgColor} border ${dest.borderColor} p-4 hover:shadow-lg hover:scale-[1.02] transition-all duration-300 cursor-pointer`}>
+                  <div className={`absolute inset-0 bg-gradient-to-br ${dest.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+                  <div className="relative flex flex-col items-center text-center">
+                    <span className="text-4xl mb-2 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 inline-block">{dest.emoji}</span>
+                    <h4 className="font-bold text-slate-800 group-hover:text-slate-900 transition-colors text-sm">{dest.name}</h4>
+                    <Badge className={`bg-gradient-to-r ${dest.color} text-white text-[10px] px-2 py-0 border-0 mt-1.5`}>
+                      {dest.tag}
+                    </Badge>
+                  </div>
+                  {/* Hover indicator */}
+                  <div className={`absolute bottom-2 right-2 w-6 h-6 rounded-full bg-gradient-to-br ${dest.color} flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300`}>
+                    <ArrowRight className="h-3 w-3 text-white" />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          {/* Mobile View All Button */}
+          <Link href="/explore" className="sm:hidden mt-5 flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 rounded-xl text-white font-semibold text-sm transition-all duration-300 shadow-lg shadow-purple-500/25">
+            View All Destinations
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
     </div>
   );
