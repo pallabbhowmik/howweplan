@@ -7,6 +7,23 @@ import { checkHealth as checkDbHealth } from '../../database/index';
  */
 export async function healthRoutes(fastify: FastifyInstance): Promise<void> {
   /**
+   * GET /
+   * Root endpoint - redirect to health for Render health checks
+   */
+  fastify.get(
+    '/',
+    {
+      schema: {
+        description: 'Root endpoint - redirects to health check',
+        tags: ['health'],
+      },
+    },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      return reply.redirect('/health');
+    }
+  );
+
+  /**
    * GET /health
    * Basic liveness check - is the service running?
    */

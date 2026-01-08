@@ -143,6 +143,11 @@ logger.info('Event Bus Service initialized', {
 // HEALTH CHECK (Unauthenticated)
 // ============================================================================
 
+// Root endpoint - redirect to health for Render health checks
+app.get('/', (req: Request, res: Response) => {
+  res.redirect('/health');
+});
+
 app.get('/health', async (req: Request, res: Response) => {
   const summary = metrics.getSummary();
   

@@ -98,6 +98,9 @@ app.notFound((c) => {
 // MOUNT ROUTES
 // =============================================================================
 
+// Root endpoint - redirect to health for Render health checks
+app.get('/', (c) => c.redirect('/health'));
+
 // Health checks (no auth required)
 app.route('/health', healthApi);
 

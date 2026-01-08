@@ -61,6 +61,11 @@ function createApp(): express.Application {
   // Idempotency middleware for safe retries
   app.use(idempotencyMiddleware());
 
+  // Root endpoint - redirect to health for Render health checks
+  app.get('/', (_req, res) => {
+    res.redirect('/health');
+  });
+
   // Health check (no auth required)
   app.get('/health', (_req, res) => {
     res.json({

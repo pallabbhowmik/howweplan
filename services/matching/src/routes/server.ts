@@ -376,6 +376,13 @@ async function requestHandler(
   }
 
   // Route requests
+  // Root endpoint - redirect to health for Render health checks
+  if (url === '/' && method === 'GET') {
+    res.writeHead(302, { Location: '/health' });
+    res.end();
+    return;
+  }
+
   if (url === '/health' && method === 'GET') {
     handleHealthCheck(res);
     return;

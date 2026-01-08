@@ -11,10 +11,10 @@ const envSchema = z.object({
   SERVICE_VERSION: z.string().default('1.0.0'),
   PORT: z.coerce.number().int().positive().default(3010),
 
-  // Database (Append-Only Audit Store)
+  // Database (Append-Only Audit Store) - optional with default for dev
   DATABASE_URL: z
     .string()
-    .min(1, 'DATABASE_URL is required')
+    .default('postgresql://localhost:5432/tripcomposer')
     .refine(
       (url) => url.startsWith('postgresql://') || url.startsWith('postgres://'),
       'DATABASE_URL must be a valid PostgreSQL connection string'
