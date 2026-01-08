@@ -260,6 +260,66 @@ export interface AgentVerificationRevokedEvent extends IdentityEventBase {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// VERIFICATION EVENTS (OTP, KYC, TIER UPGRADES)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface VerificationOtpSentEvent extends IdentityEventBase {
+  readonly eventType: 'identity.verification.otp_sent';
+  readonly payload: {
+    readonly userId: string;
+    readonly verificationType: 'PHONE' | 'EMAIL';
+    readonly provider: string;
+  };
+}
+
+export interface VerificationSubmittedEvent extends IdentityEventBase {
+  readonly eventType: 'identity.verification.submitted';
+  readonly payload: {
+    readonly userId: string;
+    readonly verificationType: string;
+  };
+}
+
+export interface VerificationCompletedEvent extends IdentityEventBase {
+  readonly eventType: 'identity.verification.completed';
+  readonly payload: {
+    readonly userId: string;
+    readonly verificationType: string;
+    readonly status: string;
+    readonly approvedBy?: string;
+    readonly metadata?: Record<string, unknown>;
+  };
+}
+
+export interface VerificationVideoKYCInitiatedEvent extends IdentityEventBase {
+  readonly eventType: 'identity.verification.video_kyc_initiated';
+  readonly payload: {
+    readonly userId: string;
+    readonly trigger: string;
+    readonly sessionId: string;
+  };
+}
+
+export interface VerificationVideoKYCCompletedEvent extends IdentityEventBase {
+  readonly eventType: 'identity.verification.video_kyc_completed';
+  readonly payload: {
+    readonly userId: string;
+    readonly status: string;
+    readonly aadhaarVerified: boolean;
+    readonly panVerified: boolean;
+  };
+}
+
+export interface VerificationTierUpgradedEvent extends IdentityEventBase {
+  readonly eventType: 'identity.verification.tier_upgraded';
+  readonly payload: {
+    readonly userId: string;
+    readonly previousTier: string;
+    readonly newTier: string;
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ADMIN ACTION EVENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -303,7 +363,13 @@ export type IdentityEvent =
   | AgentVerificationApprovedEvent
   | AgentVerificationRejectedEvent
   | AgentVerificationRevokedEvent
-  | AdminActionPerformedEvent;
+  | AdminActionPerformedEvent
+  | VerificationOtpSentEvent
+  | VerificationSubmittedEvent
+  | VerificationCompletedEvent
+  | VerificationVideoKYCInitiatedEvent
+  | VerificationVideoKYCCompletedEvent
+  | VerificationTierUpgradedEvent;
 
 /**
  * All event type discriminators.
