@@ -54,7 +54,7 @@ const envSchema = z.object({
   // API CONNECTIVITY
   // ============================================================
   API_BASE_URL: z.string().url().default('http://localhost:3003'),
-  INTERNAL_API_KEY: z.string().min(16, 'INTERNAL_API_KEY must be at least 16 characters'),
+  INTERNAL_API_KEY: z.string().default('dev-internal-api-key'),
 
   // ============================================================
   // AUTHENTICATION (RS256 with secret files or HS256 fallback)
@@ -66,11 +66,11 @@ const envSchema = z.object({
   JWT_AUDIENCE: z.string().default('tripcomposer-platform'),
 
   // ============================================================
-  // DATABASE
+  // DATABASE (optional with defaults for dev)
   // ============================================================
-  SUPABASE_URL: z.string().url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  SUPABASE_URL: z.string().url().default('https://placeholder.supabase.co'),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().default('dev-service-role-key'),
+  DATABASE_URL: z.string().default('postgresql://localhost:5432/tripcomposer'),
 
   // ============================================================
   // EVENT BUS

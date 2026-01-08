@@ -63,35 +63,35 @@ const envSchema = z.object({
   PORT: stringToNumber.pipe(z.number().min(1).max(65535)).default('3006'),
 
   // -------------------------------------------------------------------------
-  // API CONNECTIVITY
+  // API CONNECTIVITY (optional with defaults)
   // -------------------------------------------------------------------------
   EVENT_BUS_URL: optionalUrl,
-  BOOKING_SERVICE_URL: z.string().url(),
-  PAYMENTS_SERVICE_URL: z.string().url(),
-  NOTIFICATION_SERVICE_URL: z.string().url(),
+  BOOKING_SERVICE_URL: z.string().url().default('http://localhost:3815'),
+  PAYMENTS_SERVICE_URL: z.string().url().default('http://localhost:3815'),
+  NOTIFICATION_SERVICE_URL: z.string().url().default('http://localhost:3819'),
   API_VERSION: z.string().default('v1'),
 
   // -------------------------------------------------------------------------
-  // AUTHENTICATION
+  // AUTHENTICATION (optional with defaults)
   // -------------------------------------------------------------------------
-  JWT_ISSUER: z.string().url(),
-  JWT_AUDIENCE: z.string().min(1),
-  JWKS_URI: z.string().url(),
-  INTERNAL_SERVICE_TOKEN: z.string().min(16),
+  JWT_ISSUER: z.string().url().default('https://placeholder.supabase.co/auth/v1'),
+  JWT_AUDIENCE: z.string().default('authenticated'),
+  JWKS_URI: z.string().url().default('https://placeholder.supabase.co/auth/v1/.well-known/jwks.json'),
+  INTERNAL_SERVICE_TOKEN: z.string().default('dev-internal-token-16'),
 
   // -------------------------------------------------------------------------
   // DATABASE
   // -------------------------------------------------------------------------
-  DATABASE_URL: z.string().min(1),
+  DATABASE_URL: z.string().default('postgresql://localhost:5432/tripcomposer'),
   DATABASE_POOL_MIN: stringToNumber.pipe(z.number().min(1).max(100)).default('2'),
   DATABASE_POOL_MAX: stringToNumber.pipe(z.number().min(1).max(100)).default('10'),
   DATABASE_SSL_ENABLED: stringToBoolean.default('false'),
 
   // -------------------------------------------------------------------------
-  // SUPABASE
+  // SUPABASE (optional with defaults)
   // -------------------------------------------------------------------------
-  SUPABASE_URL: z.string().url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_URL: z.string().url().default('https://placeholder.supabase.co'),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().default('dev-service-role-key'),
 
   // -------------------------------------------------------------------------
   // FEATURE TOGGLES

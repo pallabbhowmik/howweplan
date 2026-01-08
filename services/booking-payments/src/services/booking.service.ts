@@ -30,9 +30,16 @@ import type { EventMetadata } from '../types/events.types.js';
 
 const { Pool } = pg;
 
-// Database connection pool for bookings queries
+// Database connection pool with optimized settings for faster response times
 const pool = new Pool({
   connectionString: config.database.databaseUrl,
+  // Connection pool settings for low latency
+  min: 2,                          // Keep minimum connections warm
+  max: 10,                         // Max concurrent connections
+  connectionTimeoutMillis: 5000,   // Fast fail on connection issues
+  idleTimeoutMillis: 30000,        // Release idle connections after 30s
+  // Query timeout
+  statement_timeout: 15000,        // 15s max query time
 });
 
 /** Booking service for managing booking lifecycle */

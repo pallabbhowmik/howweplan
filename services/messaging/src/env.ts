@@ -64,7 +64,7 @@ const envSchema = z.object({
   // ---------------------------------------------------------------------------
   DATABASE_URL: z
     .string()
-    .min(1, 'DATABASE_URL is required')
+    .default('postgresql://localhost:5432/tripcomposer')
     .refine(
       (url: string) => url.startsWith('postgresql://') || url.startsWith('postgres://'),
       { message: 'DATABASE_URL must be a valid PostgreSQL connection string' }
@@ -78,25 +78,21 @@ const envSchema = z.object({
   EVENT_BUS_PREFIX: z.string().default('tripcomposer:messaging'),
 
   // ---------------------------------------------------------------------------
-  // AUTHENTICATION (RS256 with secret files or HS256 fallback)
+  // AUTHENTICATION (RS256 with secret files or HS256 fallback) - optional with defaults
   // ---------------------------------------------------------------------------
-  SUPABASE_URL: z.string().url(),
-  SUPABASE_SERVICE_ROLE_KEY: z
-    .string()
-    .min(20, 'SUPABASE_SERVICE_ROLE_KEY appears invalid'),
+  SUPABASE_URL: z.string().url().default('https://placeholder.supabase.co'),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().default('dev-service-role-key-20-chars'),
   JWT_PUBLIC_KEY: z.string().optional().transform((val) => val?.replace(/\\n/g, '\n') || ''),
   JWT_SECRET: z.string().optional(),
   JWT_ALGORITHM: z.enum(['RS256', 'HS256']).default('RS256'),
   JWT_ISSUER: z.string().default('tripcomposer-identity'),
 
   // ---------------------------------------------------------------------------
-  // INTERNAL SERVICE COMMUNICATION
+  // INTERNAL SERVICE COMMUNICATION - optional with defaults
   // ---------------------------------------------------------------------------
-  BOOKING_SERVICE_URL: z.string().url(),
-  IDENTITY_SERVICE_URL: z.string().url(),
-  INTERNAL_API_KEY: z
-    .string()
-    .min(16, 'INTERNAL_API_KEY must be at least 16 characters'),
+  BOOKING_SERVICE_URL: z.string().url().default('http://localhost:3815'),
+  IDENTITY_SERVICE_URL: z.string().url().default('http://localhost:3811'),
+  INTERNAL_API_KEY: z.string().default('dev-internal-api-key'),
 
   // ---------------------------------------------------------------------------
   // MESSAGE RETENTION & COMPLIANCE

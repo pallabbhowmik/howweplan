@@ -10,7 +10,7 @@ export function initializePool(): Pool {
     connectionString: env.DATABASE_URL,
     min: env.DATABASE_POOL_MIN,
     max: env.DATABASE_POOL_MAX,
-    connectionTimeoutMillis: 10000,
+    connectionTimeoutMillis: 5000,   // Fast fail on connection issues (reduced from 10s)
     idleTimeoutMillis: 30000,
     application_name: env.SERVICE_NAME,
   });
@@ -21,7 +21,7 @@ export function initializePool(): Pool {
   });
 
   pool.on('connect', (client) => {
-    client.query('SET statement_timeout = 30000').catch(() => {
+    client.query('SET statement_timeout = 15000').catch(() => {  // Reduced from 30s
       // ignore
     });
   });

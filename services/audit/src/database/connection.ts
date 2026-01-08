@@ -20,10 +20,9 @@ export function initializePool(): Pool {
     min: env.DATABASE_POOL_MIN,
     max: env.DATABASE_POOL_MAX,
     ssl: env.DATABASE_SSL_ENABLED ? { rejectUnauthorized: true } : false,
-    // Connection timeout
-    connectionTimeoutMillis: 10000,
-    // Idle timeout
-    idleTimeoutMillis: 30000,
+    // Optimized connection settings for faster response times
+    connectionTimeoutMillis: 5000,  // Fast fail on connection issues
+    idleTimeoutMillis: 30000,       // Release idle connections after 30s
     // Application name for monitoring
     application_name: env.SERVICE_NAME,
   });
@@ -33,8 +32,8 @@ export function initializePool(): Pool {
   });
 
   pool.on('connect', (client) => {
-    // Set session configurations for audit workload
-    client.query('SET statement_timeout = 30000'); // 30 second timeout
+    // Set session configurations for audit workload - reduced timeout
+    client.query('SET statement_timeout = 15000'); // 15 second timeout
   });
 
   return pool;

@@ -53,20 +53,20 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3003),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 
-  // Event Bus (HTTP-based)
+  // Event Bus (HTTP-based) - optional with defaults
   EVENT_BUS_URL: z.string().url().default('http://localhost:3010'),
-  EVENT_BUS_API_KEY: z.string().min(16),
+  EVENT_BUS_API_KEY: z.string().default('dev-event-bus-key-16'),
 
-  // Database (accepts both postgres:// and postgresql://)
-  DATABASE_URL: z.string().refine(
+  // Database (accepts both postgres:// and postgresql://) - optional with default
+  DATABASE_URL: z.string().default('postgresql://localhost:5432/tripcomposer').refine(
     (url) => url.startsWith('postgres://') || url.startsWith('postgresql://'),
     { message: 'Must be a valid PostgreSQL connection string starting with postgres:// or postgresql://' }
   ),
   DATABASE_POOL_MIN: z.coerce.number().int().min(1).default(2),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).default(10),
 
-  // Authentication (RS256 with secret files or HS256 fallback)
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
+  // Authentication (RS256 with secret files or HS256 fallback) - optional with defaults
+  SUPABASE_SERVICE_ROLE_KEY: z.string().default('dev-service-role-key-20-chars'),
   JWT_PUBLIC_KEY: z.string().optional().transform((val) => val?.replace(/\\n/g, '\n') || ''),
   INTERNAL_JWT_SECRET: z.string().optional(),
   JWT_ALGORITHM: z.enum(['RS256', 'HS256']).default('RS256'),

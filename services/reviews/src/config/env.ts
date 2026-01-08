@@ -21,11 +21,11 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3006),
 
   // ---------------------------------------------------------------------------
-  // DATABASE
+  // DATABASE (optional with defaults)
   // ---------------------------------------------------------------------------
-  SUPABASE_URL: z.string().url('SUPABASE_URL must be a valid URL'),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  SUPABASE_URL: z.string().url().default('https://placeholder.supabase.co'),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().default('dev-service-role-key'),
+  DATABASE_URL: z.string().default('postgresql://localhost:5432/tripcomposer'),
 
   // ---------------------------------------------------------------------------
   // EVENT BUS
@@ -43,9 +43,9 @@ const envSchema = z.object({
   INTERNAL_API_BASE_URL: z.string().url().default('http://localhost:3000/internal'),
 
   // ---------------------------------------------------------------------------
-  // AUTHENTICATION
+  // AUTHENTICATION (optional with defaults)
   // ---------------------------------------------------------------------------
-  JWT_PUBLIC_KEY: z.string().min(1, 'JWT_PUBLIC_KEY is required'),
+  JWT_PUBLIC_KEY: z.string().default(''),
   JWT_ISSUER: z.string().default('tripcomposer'),
   JWT_AUDIENCE: z.string().default('reviews-service'),
 

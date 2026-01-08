@@ -38,14 +38,10 @@ const envSchema = z.object({
   EVENT_BUS_QUEUE: z.string().min(1).default('audit.events'),
   EVENT_BUS_PREFETCH_COUNT: z.coerce.number().int().min(1).max(100).default(10),
 
-  // Authentication / Authorization
-  SUPABASE_URL: z.string().min(1, 'SUPABASE_URL is required'),
-  SUPABASE_SERVICE_ROLE_KEY: z
-    .string()
-    .min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
-  INTERNAL_SERVICE_SECRET: z
-    .string()
-    .min(16, 'INTERNAL_SERVICE_SECRET must be at least 16 characters'),
+  // Authentication / Authorization (optional with defaults for development)
+  SUPABASE_URL: z.string().default('https://placeholder.supabase.co'),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().default('dev-service-role-key-placeholder'),
+  INTERNAL_SERVICE_SECRET: z.string().default('dev-internal-secret-16'),
 
   // API Connectivity
   ALLOWED_ORIGINS: z

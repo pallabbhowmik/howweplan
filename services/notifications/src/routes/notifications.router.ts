@@ -9,8 +9,13 @@ import { Pool } from 'pg';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
+// Optimized connection pool for faster response times
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
+  min: 2,                          // Keep minimum connections warm
+  max: 10,                         // Max concurrent connections
+  connectionTimeoutMillis: 5000,   // Fast fail on connection issues
+  idleTimeoutMillis: 30000,        // Release idle connections after 30s
 });
 
 export function createNotificationsRouter(): Router {
