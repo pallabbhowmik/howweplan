@@ -816,7 +816,7 @@ function DestinationInspirationGrid() {
                   Where Will You Wander Next?
                   <span className="text-2xl">✨</span>
                 </h3>
-                <p className="text-purple-200 text-sm">Handpicked destinations just for you</p>
+                <p className="text-purple-200 text-sm">Discover amazing places to explore</p>
               </div>
             </div>
             <Link href="/explore" className="hidden sm:flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl border border-white/20 text-white font-semibold text-sm transition-all duration-300 group">
