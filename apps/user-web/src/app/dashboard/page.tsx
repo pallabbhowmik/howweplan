@@ -46,6 +46,16 @@ import {
   type DashboardStats,
   type ActivityItem,
 } from '@/lib/data/api';
+import {
+  fetchDestinations,
+  type Destination,
+} from '@/lib/api/destinations';
+import {
+  destinationImageUrl,
+  INDIA_DESTINATIONS,
+  THEME_GRADIENTS,
+  type IndiaDestination,
+} from '@/lib/data/india-destinations';
 
 // ============================================================================
 // USER JOURNEY STATES
@@ -669,117 +679,115 @@ function PrimaryActionCard({
 // DESTINATION INSPIRATION GRID - "Where Will You Wander Next?"
 // ============================================================================
 
-function DestinationInspirationGrid() {
-  // Full destination list with Unsplash photos
-  const allDestinations = [
-    { 
-      name: 'Rajasthan', 
-      country: 'India',
-      image: 'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=800&q=80',
-      color: 'from-amber-500 to-orange-600', 
-      tag: 'Heritage',
-      tagline: 'Royal palaces & desert magic'
-    },
-    { 
-      name: 'Kerala', 
-      country: 'India',
-      image: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=800&q=80',
-      color: 'from-green-500 to-emerald-600', 
-      tag: 'Nature',
-      tagline: 'Serene backwaters await'
-    },
-    { 
-      name: 'Goa', 
-      country: 'India',
-      image: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=800&q=80',
-      color: 'from-blue-500 to-cyan-600', 
-      tag: 'Beaches',
-      tagline: 'Sun, sand & serenity'
-    },
-    { 
-      name: 'Ladakh', 
-      country: 'India',
-      image: 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=800&q=80',
-      color: 'from-slate-500 to-slate-700', 
-      tag: 'Adventure',
-      tagline: 'High altitude dreams'
-    },
-    { 
-      name: 'Varanasi', 
-      country: 'India',
-      image: 'https://images.unsplash.com/photo-1561361513-2d000a50f0dc?w=800&q=80',
-      color: 'from-orange-500 to-red-600', 
-      tag: 'Spiritual',
-      tagline: 'Ancient soul of India'
-    },
-    { 
-      name: 'Andaman', 
-      country: 'India',
-      image: 'https://images.unsplash.com/photo-1589179233155-8e6d9886d20b?w=800&q=80',
-      color: 'from-teal-500 to-emerald-600', 
-      tag: 'Islands',
-      tagline: 'Tropical paradise calling'
-    },
-    { 
-      name: 'Bali', 
-      country: 'Indonesia',
-      image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=800&q=80',
-      color: 'from-emerald-500 to-teal-600', 
-      tag: 'Culture',
-      tagline: 'Island of the Gods'
-    },
-    { 
-      name: 'Santorini', 
-      country: 'Greece',
-      image: 'https://images.unsplash.com/photo-1613395877344-13d4a8e0d49e?w=800&q=80',
-      color: 'from-blue-600 to-indigo-700', 
-      tag: 'Romance',
-      tagline: 'Sunset dreams come true'
-    },
-    { 
-      name: 'Maldives', 
-      country: 'Maldives',
-      image: 'https://images.unsplash.com/photo-1514282401047-d79a71a590e8?w=800&q=80',
-      color: 'from-cyan-500 to-blue-600', 
-      tag: 'Luxury',
-      tagline: 'Paradise on Earth'
-    },
-    { 
-      name: 'Dubai', 
-      country: 'UAE',
-      image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80',
-      color: 'from-amber-600 to-yellow-500', 
-      tag: 'Modern',
-      tagline: 'Future meets tradition'
-    },
-    { 
-      name: 'Thailand', 
-      country: 'Thailand',
-      image: 'https://images.unsplash.com/photo-1528181304800-259b08848526?w=800&q=80',
-      color: 'from-yellow-500 to-amber-600', 
-      tag: 'Exotic',
-      tagline: 'Land of smiles'
-    },
-    { 
-      name: 'Switzerland', 
-      country: 'Switzerland',
-      image: 'https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?w=800&q=80',
-      color: 'from-sky-500 to-blue-600', 
-      tag: 'Alps',
-      tagline: 'Mountain wonderland'
-    },
-  ];
+// Theme color mapping for gradient backgrounds
+const THEME_COLOR_MAP: Record<string, string> = {
+  Mountains: 'from-slate-500 to-slate-700',
+  Beaches: 'from-blue-500 to-cyan-600',
+  Heritage: 'from-amber-500 to-orange-600',
+  Wildlife: 'from-green-600 to-emerald-700',
+  Spiritual: 'from-purple-500 to-violet-600',
+  Food: 'from-rose-500 to-pink-600',
+  City: 'from-indigo-500 to-blue-600',
+  Culture: 'from-fuchsia-500 to-pink-600',
+  Nightlife: 'from-violet-600 to-purple-700',
+  Nature: 'from-green-500 to-teal-600',
+  Adventure: 'from-orange-500 to-red-600',
+  Desert: 'from-amber-600 to-yellow-500',
+  Beach: 'from-blue-500 to-cyan-600',
+  'Hill Station': 'from-emerald-500 to-teal-600',
+  Backwaters: 'from-teal-500 to-cyan-600',
+  Honeymoon: 'from-rose-500 to-pink-600',
+  Offbeat: 'from-indigo-500 to-violet-600',
+};
 
-  // Shuffle and pick random destinations
-  const [shuffledDestinations, setShuffledDestinations] = useState(allDestinations);
-  
+// Get image URL for a destination
+function getDestinationImageUrl(dest: Destination): string {
+  if (dest.imageUrl) {
+    return dest.imageUrl;
+  }
+  // Fallback: look up in static data
+  const staticDest = INDIA_DESTINATIONS.find(d => d.id === dest.id);
+  if (staticDest) {
+    return destinationImageUrl(staticDest);
+  }
+  // Final fallback: generate from picsum with consistent seed
+  const seed = dest.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return `https://picsum.photos/seed/${seed}/800/500`;
+}
+
+function DestinationInspirationGrid() {
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    const shuffled = [...allDestinations].sort(() => Math.random() - 0.5);
-    setShuffledDestinations(shuffled);
+    async function loadDestinations() {
+      try {
+        const data = await fetchDestinations();
+        // Shuffle and take random destinations
+        const shuffled = [...data].sort(() => Math.random() - 0.5);
+        setDestinations(shuffled);
+      } catch (error) {
+        console.error('Failed to fetch destinations:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDestinations();
   }, []);
 
-  const featured = shuffledDestinations[0];
-  const otherDestinations = shuffledDestinations.slice(1, 7);
+  // Get featured (first) and other destinations
+  const featured = destinations[0];
+  const otherDestinations = destinations.slice(1, 7);
+
+  // Loading skeleton
+  if (loading) {
+    return (
+      <div className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 rounded-3xl p-[2px] shadow-2xl shadow-purple-500/25">
+        <div className="relative bg-slate-900 rounded-[22px] p-6 sm:p-8">
+          <div className="animate-pulse space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-slate-700" />
+              <div className="space-y-2">
+                <div className="h-6 w-64 bg-slate-700 rounded" />
+                <div className="h-4 w-48 bg-slate-800 rounded" />
+              </div>
+            </div>
+            <div className="h-64 bg-slate-800 rounded-2xl" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-40 bg-slate-800 rounded-xl" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // No destinations found
+  if (destinations.length === 0) {
+    return (
+      <div className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 rounded-3xl p-[2px] shadow-2xl shadow-purple-500/25">
+        <div className="relative bg-slate-900 rounded-[22px] p-8 text-center">
+          <Globe className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-white mb-2">Explore Destinations</h3>
+          <p className="text-purple-200 mb-4">Discover amazing places to visit</p>
+          <Link href="/explore">
+            <Button className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white">
+              Browse All Destinations
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Get theme color for a destination
+  const getThemeColor = (themes: string[]): string => {
+    const primaryTheme = themes[0] || 'Nature';
+    return THEME_COLOR_MAP[primaryTheme] || 'from-purple-500 to-indigo-600';
+  };
 
   return (
     <div className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 rounded-3xl p-[2px] shadow-2xl shadow-purple-500/25">
@@ -825,11 +833,11 @@ function DestinationInspirationGrid() {
                   {/* Background Image */}
                   <div 
                     className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
-                    style={{ backgroundImage: `url(${featured.image})` }}
+                    style={{ backgroundImage: `url(${getDestinationImageUrl(featured)})` }}
                   />
                   {/* Gradient Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                  <div className={`absolute inset-0 bg-gradient-to-br ${featured.color} opacity-20 mix-blend-overlay`} />
+                  <div className={`absolute inset-0 bg-gradient-to-br ${getThemeColor(featured.themes)} opacity-20 mix-blend-overlay`} />
                   
                   {/* Featured Badge */}
                   <div className="absolute top-4 left-4">
@@ -841,8 +849,8 @@ function DestinationInspirationGrid() {
 
                   {/* Tag Badge */}
                   <div className="absolute top-4 right-4">
-                    <Badge className={`bg-gradient-to-r ${featured.color} text-white border-0 font-semibold px-3 py-1 shadow-lg`}>
-                      {featured.tag}
+                    <Badge className={`bg-gradient-to-r ${getThemeColor(featured.themes)} text-white border-0 font-semibold px-3 py-1 shadow-lg`}>
+                      {featured.themes[0] || 'Travel'}
                     </Badge>
                   </div>
                   
@@ -850,11 +858,11 @@ function DestinationInspirationGrid() {
                   <div className="absolute bottom-0 left-0 right-0 p-6">
                     <div className="flex items-end justify-between">
                       <div>
-                        <p className="text-purple-200 text-sm font-medium mb-1">{featured.country}</p>
+                        <p className="text-purple-200 text-sm font-medium mb-1">{featured.state}</p>
                         <h4 className="text-3xl sm:text-4xl font-bold text-white mb-2 group-hover:text-purple-200 transition-colors">
                           {featured.name}
                         </h4>
-                        <p className="text-white/80 text-base font-medium">{featured.tagline}</p>
+                        <p className="text-white/80 text-base font-medium">{featured.highlight}</p>
                       </div>
                       <div className="flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0">
                         <span className="text-white font-semibold">Plan Trip</span>
@@ -870,24 +878,24 @@ function DestinationInspirationGrid() {
           {/* Destination Grid - Cards with Photos */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {otherDestinations.map((dest) => (
-              <Link key={dest.name} href={`/requests/new?destination=${dest.name.toLowerCase()}`}>
+              <Link key={dest.id} href={`/requests/new?destination=${dest.name.toLowerCase()}`}>
                 <div className="group relative overflow-hidden rounded-xl cursor-pointer h-40 sm:h-44">
                   {/* Background Image */}
                   <div 
                     className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                    style={{ backgroundImage: `url(${dest.image})` }}
+                    style={{ backgroundImage: `url(${getDestinationImageUrl(dest)})` }}
                   />
                   {/* Gradient Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                  <div className={`absolute inset-0 bg-gradient-to-br ${dest.color} opacity-0 group-hover:opacity-30 transition-opacity duration-300 mix-blend-overlay`} />
+                  <div className={`absolute inset-0 bg-gradient-to-br ${getThemeColor(dest.themes)} opacity-0 group-hover:opacity-30 transition-opacity duration-300 mix-blend-overlay`} />
                   
                   {/* Content */}
                   <div className="absolute inset-0 flex flex-col justify-end p-3">
-                    <Badge className={`bg-gradient-to-r ${dest.color} text-white text-[10px] px-2 py-0.5 border-0 w-fit mb-1.5 shadow-sm`}>
-                      {dest.tag}
+                    <Badge className={`bg-gradient-to-r ${getThemeColor(dest.themes)} text-white text-[10px] px-2 py-0.5 border-0 w-fit mb-1.5 shadow-sm`}>
+                      {dest.themes[0] || 'Travel'}
                     </Badge>
                     <h4 className="font-bold text-white text-sm group-hover:text-purple-200 transition-colors">{dest.name}</h4>
-                    <p className="text-white/60 text-xs">{dest.country}</p>
+                    <p className="text-white/60 text-xs">{dest.state}</p>
                   </div>
                   
                   {/* Hover overlay */}
