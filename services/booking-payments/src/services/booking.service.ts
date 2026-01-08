@@ -432,6 +432,9 @@ class BookingService {
   toResponseDTO(booking: Booking): BookingResponseDTO {
     const dto: BookingResponseDTO = {
       id: booking.id,
+      userId: booking.userId,
+      agentId: booking.agentId,
+      itineraryId: booking.itineraryId,
       state: booking.state,
       paymentState: booking.paymentState,
       tripStartDate: booking.tripStartDate.toISOString(),
@@ -441,7 +444,9 @@ class BookingService {
       travelerCount: booking.travelerCount,
       basePriceCents: booking.basePriceCents,
       bookingFeeCents: booking.bookingFeeCents,
+      platformCommissionCents: booking.platformCommissionCents,
       totalAmountCents: booking.totalAmountCents,
+      agentPayoutCents: booking.agentPayoutCents,
       createdAt: booking.createdAt.toISOString(),
       updatedAt: booking.updatedAt.toISOString(),
     };
