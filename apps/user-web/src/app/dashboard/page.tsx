@@ -180,10 +180,18 @@ export default function DashboardPage() {
   // INACTIVE REQUEST STATES - requests that are done
   const INACTIVE_REQUEST_STATES = ['BOOKED', 'COMPLETED', 'CANCELLED', 'EXPIRED'];
   
-  // Filter to get only ACTIVE requests
-  const activeRequests = requests.filter((r: TravelRequest) => 
-    ACTIVE_REQUEST_STATES.includes(r.state) || !INACTIVE_REQUEST_STATES.includes(r.state)
-  );
+  // Filter to get only ACTIVE requests (not in inactive states AND not past expiration date)
+  const activeRequests = requests.filter((r: TravelRequest) => {
+    // Check if request is in an inactive state
+    if (INACTIVE_REQUEST_STATES.includes(r.state)) {
+      return false;
+    }
+    // Check if request has expired by date (even if state wasn't updated)
+    if (r.expiresAt && new Date(r.expiresAt) < new Date()) {
+      return false;
+    }
+    return true;
+  });
   
   // Get the primary active request for the hero section
   const activeRequest = activeRequests[0];
