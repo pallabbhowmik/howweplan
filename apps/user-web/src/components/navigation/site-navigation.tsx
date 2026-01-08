@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { Plane } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/ui/logo';
 import { useUserSession } from '@/lib/user/session';
 
 export function SiteNavigation() {
@@ -12,24 +12,12 @@ export function SiteNavigation() {
   const { user, loading } = useUserSession();
   const isAuthenticated = !!user && !loading;
 
-  const handleLogoClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (isAuthenticated) {
-      router.push('/dashboard');
-    } else {
-      router.push('/');
-    }
-  };
+  const logoHref = isAuthenticated ? '/dashboard' : '/';
 
   return (
     <nav className="border-b bg-white">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        <a href="/" onClick={handleLogoClick} className="flex items-center gap-2 cursor-pointer">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Plane className="h-5 w-5 text-white" />
-          </div>
-          <span className="text-xl font-bold">HowWePlan</span>
-        </a>
+        <Logo href={logoHref} showWordmark size="md" />
         <div className="flex items-center gap-4">
           {isAuthenticated ? (
             <>

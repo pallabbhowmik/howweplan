@@ -386,4 +386,64 @@ export const EventFactory = {
     },
     context: EventContext
   ) => emitEventImmediate('identity.admin.action_performed', payload, context),
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // VERIFICATION TIER EVENTS
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  verificationOTPSent: (
+    payload: {
+      userId: string;
+      verificationType: 'PHONE' | 'EMAIL';
+      provider: string;
+    },
+    context: EventContext
+  ) => emitEvent('identity.verification.otp_sent', payload, context),
+
+  verificationSubmitted: (
+    payload: {
+      userId: string;
+      verificationType: string;
+    },
+    context: EventContext
+  ) => emitEvent('identity.verification.submitted', payload, context),
+
+  verificationCompleted: (
+    payload: {
+      userId: string;
+      verificationType: string;
+      status: string;
+      approvedBy?: string;
+      metadata?: Record<string, unknown>;
+    },
+    context: EventContext
+  ) => emitEventImmediate('identity.verification.completed', payload, context),
+
+  videoKYCInitiated: (
+    payload: {
+      userId: string;
+      trigger: string;
+      sessionId: string;
+    },
+    context: EventContext
+  ) => emitEvent('identity.verification.video_kyc_initiated', payload, context),
+
+  videoKYCCompleted: (
+    payload: {
+      userId: string;
+      status: string;
+      aadhaarVerified: boolean;
+      panVerified: boolean;
+    },
+    context: EventContext
+  ) => emitEventImmediate('identity.verification.video_kyc_completed', payload, context),
+
+  verificationTierUpgraded: (
+    payload: {
+      userId: string;
+      previousTier: string;
+      newTier: string;
+    },
+    context: EventContext
+  ) => emitEventImmediate('identity.verification.tier_upgraded', payload, context),
 };

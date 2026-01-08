@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Logo } from '@/components/ui/logo';
 import { useUserSession } from '@/lib/user/session';
 import { fetchUser, fetchUserRequests, fetchUserNotifications, markNotificationRead, type User as UserType, type Notification } from '@/lib/data/api';
 
@@ -179,20 +180,7 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-18">
             {/* Logo with animation */}
-            <Link href="/dashboard" className="flex items-center gap-3 group">
-              <div className="relative">
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 group-hover:scale-105 transition-all duration-300">
-                  <Plane className="h-5 w-5 text-white transform group-hover:-rotate-12 transition-transform" />
-                </div>
-                <div className="absolute -top-1 -right-1 h-3 w-3 bg-green-400 rounded-full border-2 border-white animate-pulse" />
-              </div>
-              <div className="hidden sm:block">
-                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-transparent bg-clip-text">
-                  HowWePlan
-                </span>
-                <p className="text-xs text-gray-400 -mt-0.5">Travel, simplified</p>
-              </div>
-            </Link>
+            <Logo href="/dashboard" showWordmark showTagline size="md" />
 
             {/* Desktop Navigation - Enhanced */}
             <nav className="hidden lg:flex items-center gap-1 bg-gray-100/50 rounded-2xl p-1.5">

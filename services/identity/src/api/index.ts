@@ -8,6 +8,7 @@ import { userRouter } from './user.routes.js';
 import { agentRouter } from './agent.routes.js';
 import { adminRouter } from './admin.routes.js';
 import { healthRouter } from './health.routes.js';
+import { verificationRouter } from './verification.routes.js';
 
 /**
  * Creates the composed API router.
@@ -23,8 +24,9 @@ export function createApiRouter(): Router {
   router.use('/users', userRouter);
   router.use('/agents', agentRouter);
   router.use('/admin', adminRouter);
+  router.use('/verification', verificationRouter);
 
   return router;
 }
 
-export { authRouter, userRouter, agentRouter, adminRouter, healthRouter };
+export { authRouter, userRouter, agentRouter, adminRouter, healthRouter, verificationRouter };
