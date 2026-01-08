@@ -116,13 +116,15 @@ export interface CreateBookingDTO {
 /** Output DTO for booking response */
 export interface BookingResponseDTO {
   readonly id: string;
+  readonly bookingNumber?: string | null;
   readonly userId: string;
   readonly agentId: string;
   readonly itineraryId: string | null;
-  readonly state: BookingState;
-  readonly paymentState: PaymentState;
-  readonly tripStartDate: string;
-  readonly tripEndDate: string;
+  readonly requestId?: string | null;
+  readonly state: BookingState | string; // Accept string for database status values
+  readonly paymentState: PaymentState | string; // Accept string for computed payment state
+  readonly tripStartDate: string | null;
+  readonly tripEndDate: string | null;
   readonly destinationCity?: string | null;
   readonly destinationCountry?: string | null;
   readonly travelerCount?: number | null;
@@ -138,7 +140,7 @@ export interface BookingResponseDTO {
   readonly agentConfirmedAt?: string | null;
   readonly tripCompletedAt?: string | null;
   readonly cancelledAt?: string | null;
-  readonly cancellationReason?: CancellationReason | null;
+  readonly cancellationReason?: CancellationReason | string | null;
 }
 
 /** Input DTO for cancellation request */

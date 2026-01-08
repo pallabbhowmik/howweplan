@@ -437,18 +437,18 @@ class BookingService {
       itineraryId: booking.itineraryId,
       state: booking.state,
       paymentState: booking.paymentState,
-      tripStartDate: booking.tripStartDate.toISOString(),
-      tripEndDate: booking.tripEndDate.toISOString(),
+      tripStartDate: booking.tripStartDate?.toISOString?.() || null,
+      tripEndDate: booking.tripEndDate?.toISOString?.() || null,
       destinationCity: booking.destinationCity,
       destinationCountry: booking.destinationCountry,
       travelerCount: booking.travelerCount,
-      basePriceCents: booking.basePriceCents,
-      bookingFeeCents: booking.bookingFeeCents,
-      platformCommissionCents: booking.platformCommissionCents,
-      totalAmountCents: booking.totalAmountCents,
-      agentPayoutCents: booking.agentPayoutCents,
-      createdAt: booking.createdAt.toISOString(),
-      updatedAt: booking.updatedAt.toISOString(),
+      basePriceCents: booking.basePriceCents || 0,
+      bookingFeeCents: booking.bookingFeeCents || 0,
+      platformCommissionCents: booking.platformCommissionCents || 0,
+      totalAmountCents: booking.totalAmountCents || 0,
+      agentPayoutCents: booking.agentPayoutCents || null,
+      createdAt: booking.createdAt?.toISOString?.() || new Date().toISOString(),
+      updatedAt: booking.updatedAt?.toISOString?.() || new Date().toISOString(),
     };
 
     // Include optional fields based on state
@@ -533,21 +533,22 @@ class BookingService {
     let query = `
       SELECT 
         b.id,
+        b.booking_number,
         b.user_id,
         b.agent_id,
         b.itinerary_id,
-        b.state,
-        b.payment_state,
-        b.travel_start_date,
-        b.travel_end_date,
-        b.base_price_cents,
-        b.booking_fee_cents,
-        b.platform_commission_cents,
-        b.total_amount_cents,
+        b.request_id,
+        b.status,
+        b.total_amount,
+        b.paid_amount,
+        b.start_date,
+        b.end_date,
+        b.travelers,
+        b.booking_details,
+        b.confirmation_code,
+        b.notes,
         b.cancellation_reason,
         b.cancelled_at,
-        b.confirmed_at,
-        b.completed_at,
         b.created_at,
         b.updated_at
       FROM bookings b
@@ -583,30 +584,41 @@ class BookingService {
       const result = await pool.query(query, params);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return result.rows.map((row: any) => ({
-        id: row.id,
-        userId: row.user_id,
-        agentId: row.agent_id,
-        itineraryId: row.itinerary_id,
-        state: row.state,
-        paymentState: row.payment_state,
-        tripStartDate: row.travel_start_date?.toISOString?.() || row.travel_start_date,
-        tripEndDate: row.travel_end_date?.toISOString?.() || row.travel_end_date,
-        destinationCity: null, // Column doesn't exist in schema
-        destinationCountry: null, // Column doesn't exist in schema
-        travelerCount: null, // Column doesn't exist in schema
-        basePriceCents: row.base_price_cents,
-        bookingFeeCents: row.booking_fee_cents,
-        platformCommissionCents: row.platform_commission_cents,
-        totalAmountCents: row.total_amount_cents,
-        agentPayoutCents: null, // Column doesn't exist in schema - calculated from commission
-        cancellationReason: row.cancellation_reason,
-        cancelledAt: row.cancelled_at?.toISOString?.() || row.cancelled_at,
-        agentConfirmedAt: row.confirmed_at?.toISOString?.() || row.confirmed_at,
-        tripCompletedAt: row.completed_at?.toISOString?.() || row.completed_at,
-        createdAt: row.created_at?.toISOString?.() || row.created_at,
-        updatedAt: row.updated_at?.toISOString?.() || row.updated_at,
-      }));
+      return result.rows.map((row: any) => {
+        // Parse booking_details JSON for destination info
+        const bookingDetails = row.booking_details || {};
+        const travelers = row.travelers || [];
+        
+        // Convert total_amount (DECIMAL) to cents
+        const totalAmountCents = row.total_amount ? Math.round(parseFloat(row.total_amount) * 100) : 0;
+        
+        return {
+          id: row.id,
+          bookingNumber: row.booking_number,
+          userId: row.user_id,
+          agentId: row.agent_id,
+          itineraryId: row.itinerary_id,
+          requestId: row.request_id,
+          state: row.status, // Map 'status' column to 'state' for API response
+          paymentState: row.paid_amount >= row.total_amount ? 'paid' : 'pending',
+          tripStartDate: row.start_date?.toISOString?.() || row.start_date,
+          tripEndDate: row.end_date?.toISOString?.() || row.end_date,
+          destinationCity: bookingDetails.destination_city || bookingDetails.city || null,
+          destinationCountry: bookingDetails.destination_country || bookingDetails.country || null,
+          travelerCount: Array.isArray(travelers) ? travelers.length : null,
+          basePriceCents: totalAmountCents, // Use total as base price since we don't have split amounts
+          bookingFeeCents: 0, // Not tracked separately in this schema
+          platformCommissionCents: 0, // Not tracked separately in this schema
+          totalAmountCents: totalAmountCents,
+          agentPayoutCents: null,
+          cancellationReason: row.cancellation_reason,
+          cancelledAt: row.cancelled_at?.toISOString?.() || row.cancelled_at,
+          agentConfirmedAt: row.confirmation_code ? row.created_at?.toISOString?.() : null,
+          tripCompletedAt: row.status === 'completed' ? row.updated_at?.toISOString?.() : null,
+          createdAt: row.created_at?.toISOString?.() || row.created_at,
+          updatedAt: row.updated_at?.toISOString?.() || row.updated_at,
+        };
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;

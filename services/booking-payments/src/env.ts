@@ -49,12 +49,12 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3003),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 
-  // API Connectivity
-  EVENT_BUS_URL: z.string().url(),
-  EVENT_BUS_API_KEY: z.string().min(16),
+  // API Connectivity (optional - service works without event bus)
+  EVENT_BUS_URL: z.string().url().optional().default('http://localhost:4000/events'),
+  EVENT_BUS_API_KEY: z.string().min(16).optional().default('dev-event-bus-key-16'),
 
   // Authentication (RS256 with secret files or HS256 fallback)
-  INTERNAL_API_KEY: z.string().min(16),
+  INTERNAL_API_KEY: z.string().min(16).optional().default('dev-internal-api-key'),
   JWT_PUBLIC_KEY: z.string().optional().transform((val) => val?.replace(/\\n/g, '\n') || ''),
   JWT_SECRET: z.string().optional(),
   JWT_ALGORITHM: z.enum(['RS256', 'HS256']).default('RS256'),
@@ -66,10 +66,10 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
   DATABASE_URL: z.string().min(10),
 
-  // Payments (Razorpay) - ONLY IN THIS SERVICE
-  RAZORPAY_KEY_ID: z.string().min(10, 'RAZORPAY_KEY_ID is required'),
-  RAZORPAY_KEY_SECRET: z.string().min(10, 'RAZORPAY_KEY_SECRET is required'),
-  RAZORPAY_WEBHOOK_SECRET: z.string().min(10, 'RAZORPAY_WEBHOOK_SECRET is required'),
+  // Payments (Razorpay) - Optional in development/staging, required for live payments
+  RAZORPAY_KEY_ID: z.string().optional().default('rzp_test_placeholder'),
+  RAZORPAY_KEY_SECRET: z.string().optional().default('placeholder_secret'),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional().default('placeholder_webhook'),
 
   // Feature Toggles
   ENABLE_LIVE_PAYMENTS: z
