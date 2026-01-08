@@ -533,20 +533,16 @@ class BookingService {
         b.itinerary_id,
         b.state,
         b.payment_state,
-        b.trip_start_date,
-        b.trip_end_date,
-        b.destination_city,
-        b.destination_country,
-        b.traveler_count,
+        b.travel_start_date,
+        b.travel_end_date,
         b.base_price_cents,
         b.booking_fee_cents,
         b.platform_commission_cents,
         b.total_amount_cents,
-        b.agent_payout_cents,
         b.cancellation_reason,
         b.cancelled_at,
-        b.agent_confirmed_at,
-        b.trip_completed_at,
+        b.confirmed_at,
+        b.completed_at,
         b.created_at,
         b.updated_at
       FROM bookings b
@@ -589,25 +585,27 @@ class BookingService {
         itineraryId: row.itinerary_id,
         state: row.state,
         paymentState: row.payment_state,
-        tripStartDate: row.trip_start_date?.toISOString?.() || row.trip_start_date,
-        tripEndDate: row.trip_end_date?.toISOString?.() || row.trip_end_date,
-        destinationCity: row.destination_city,
-        destinationCountry: row.destination_country,
-        travelerCount: row.traveler_count,
+        tripStartDate: row.travel_start_date?.toISOString?.() || row.travel_start_date,
+        tripEndDate: row.travel_end_date?.toISOString?.() || row.travel_end_date,
+        destinationCity: null, // Column doesn't exist in schema
+        destinationCountry: null, // Column doesn't exist in schema
+        travelerCount: null, // Column doesn't exist in schema
         basePriceCents: row.base_price_cents,
         bookingFeeCents: row.booking_fee_cents,
         platformCommissionCents: row.platform_commission_cents,
         totalAmountCents: row.total_amount_cents,
-        agentPayoutCents: row.agent_payout_cents,
+        agentPayoutCents: null, // Column doesn't exist in schema - calculated from commission
         cancellationReason: row.cancellation_reason,
         cancelledAt: row.cancelled_at?.toISOString?.() || row.cancelled_at,
-        agentConfirmedAt: row.agent_confirmed_at?.toISOString?.() || row.agent_confirmed_at,
-        tripCompletedAt: row.trip_completed_at?.toISOString?.() || row.trip_completed_at,
+        agentConfirmedAt: row.confirmed_at?.toISOString?.() || row.confirmed_at,
+        tripCompletedAt: row.completed_at?.toISOString?.() || row.completed_at,
         createdAt: row.created_at?.toISOString?.() || row.created_at,
         updatedAt: row.updated_at?.toISOString?.() || row.updated_at,
       }));
     } catch (error) {
-      logger.error({ error }, 'Failed to list user bookings');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      logger.error({ error: errorMessage, stack: errorStack }, 'Failed to list user bookings');
       // Return empty array instead of throwing to avoid breaking the UI
       return [];
     }
