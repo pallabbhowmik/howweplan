@@ -155,13 +155,21 @@ export default function DashboardPage() {
 
   const journeyStage = determineJourneyStage(requests, bookings, stats);
   
-  const activeRequest = requests.find((r: TravelRequest) => 
+  // Filter to get only ACTIVE requests (not completed, cancelled, expired, or booked)
+  const activeRequests = requests.filter((r: TravelRequest) => 
     !['BOOKED', 'COMPLETED', 'CANCELLED', 'EXPIRED'].includes(r.state)
   );
   
-  const upcomingBooking = bookings.find((b: Booking) => 
+  // Get the primary active request for the hero section
+  const activeRequest = activeRequests[0];
+  
+  // Filter to get only UPCOMING bookings (confirmed and in the future)
+  const upcomingBookings = bookings.filter((b: Booking) => 
     b.state === 'CONFIRMED' && new Date(b.travelStartDate) > new Date()
   );
+  
+  // Get the primary upcoming booking
+  const upcomingBooking = upcomingBookings[0];
 
   if (userLoading || loading) {
     return <LoadingSkeleton />;
@@ -210,18 +218,48 @@ export default function DashboardPage() {
               stats={stats}
             />
 
-            {activeRequest ? (
-              <ActiveTripCard 
-                request={activeRequest} 
-                stage={journeyStage} 
-                lastUpdated={lastUpdated}
-                onRefresh={loadData}
-              />
-            ) : upcomingBooking ? (
-              <UpcomingTripCard booking={upcomingBooking} />
-            ) : (
-              <DestinationInspirationGrid />
+            {/* Show ALL active requests */}
+            {activeRequests.length > 0 && (
+              <div className="space-y-4">
+                {activeRequests.length > 1 && (
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                      <Send className="h-5 w-5 text-blue-500" />
+                      Active Requests ({activeRequests.length})
+                    </h2>
+                  </div>
+                )}
+                {activeRequests.map((request) => (
+                  <ActiveTripCard 
+                    key={request.id}
+                    request={request} 
+                    stage={journeyStage} 
+                    lastUpdated={lastUpdated}
+                    onRefresh={loadData}
+                  />
+                ))}
+              </div>
             )}
+
+            {/* Show ALL upcoming bookings */}
+            {upcomingBookings.length > 0 && (
+              <div className="space-y-4">
+                {upcomingBookings.length > 1 && (
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                      <Plane className="h-5 w-5 text-green-500" />
+                      Upcoming Trips ({upcomingBookings.length})
+                    </h2>
+                  </div>
+                )}
+                {upcomingBookings.map((booking) => (
+                  <UpcomingTripCard key={booking.id} booking={booking} />
+                ))}
+              </div>
+            )}
+
+            {/* ALWAYS show Explore Destinations - highlighted prominently */}
+            <DestinationInspirationGrid />
 
             {(stats?.unreadMessages || 0) > 0 && (
               <MessagingPreview unreadCount={stats?.unreadMessages || 0} />
