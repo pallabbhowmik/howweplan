@@ -561,6 +561,7 @@ async function start(): Promise<void> {
 ║    ✅ Response Caching                                         ║
 ║    ✅ Request Correlation IDs                                  ║
 ║    ✅ Structured Logging                                       ║
+║    ✅ Service Keep-Alive (prevents cold starts)                ║
 ╚════════════════════════════════════════════════════════════════╝
   `);
 
@@ -568,6 +569,80 @@ async function start(): Promise<void> {
   Object.entries(config.services).forEach(([name, url]) => {
     console.log(`   /api/${name} → ${url}`);
   });
+
+  // Start keep-alive pings to prevent Render cold starts
+  startServiceKeepAlive();
+  });
+}
+
+// =============================================================================
+// SERVICE KEEP-ALIVE (Prevents Render Cold Starts)
+// =============================================================================
+
+/**
+ * Ping all backend services periodically to keep them warm.
+ * This prevents Render's 15-minute idle spindown.
+ */
+function startServiceKeepAlive(): void {
+  const PING_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes (before Render's 15-min timeout)
+  
+  const pingServices = async () => {
+    const services = Object.entries(config.services);
+    
+    for (const [name, serviceConfig] of services) {
+      try {
+        const url = `${serviceConfig.url}/health`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeout);
+        
+        if (response.ok) {
+          logger.debug({
+            timestamp: new Date().toISOString(),
+            event: 'service_keepalive_success',
+            service: name,
+            status: response.status,
+          });
+        } else {
+          logger.warn({
+            timestamp: new Date().toISOString(),
+            event: 'service_keepalive_unhealthy',
+            service: name,
+            status: response.status,
+          });
+        }
+      } catch (error) {
+        logger.debug({
+          timestamp: new Date().toISOString(),
+          event: 'service_keepalive_failed',
+          service: name,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+  };
+
+  // Initial ping after 30 seconds (let services start up first)
+  setTimeout(() => {
+    pingServices().catch(console.error);
+    
+    // Then ping every 10 minutes
+    setInterval(() => {
+      pingServices().catch(console.error);
+    }, PING_INTERVAL_MS);
+  }, 30000);
+
+  logger.info({
+    timestamp: new Date().toISOString(),
+    event: 'service_keepalive_started',
+    intervalMs: PING_INTERVAL_MS,
+    services: Object.keys(config.services),
   });
 }
 
