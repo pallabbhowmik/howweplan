@@ -116,24 +116,29 @@ export interface CreateBookingDTO {
 /** Output DTO for booking response */
 export interface BookingResponseDTO {
   readonly id: string;
+  readonly userId: string;
+  readonly agentId: string;
+  readonly itineraryId: string | null;
   readonly state: BookingState;
   readonly paymentState: PaymentState;
   readonly tripStartDate: string;
   readonly tripEndDate: string;
-  readonly destinationCity: string;
-  readonly destinationCountry: string;
-  readonly travelerCount: number;
+  readonly destinationCity?: string | null;
+  readonly destinationCountry?: string | null;
+  readonly travelerCount?: number | null;
   readonly basePriceCents: number;
   readonly bookingFeeCents: number;
+  readonly platformCommissionCents?: number;
   readonly totalAmountCents: number;
+  readonly agentPayoutCents?: number | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 
   /** Conditionally included based on state */
-  readonly agentConfirmedAt?: string;
-  readonly tripCompletedAt?: string;
-  readonly cancelledAt?: string;
-  readonly cancellationReason?: CancellationReason;
+  readonly agentConfirmedAt?: string | null;
+  readonly tripCompletedAt?: string | null;
+  readonly cancelledAt?: string | null;
+  readonly cancellationReason?: CancellationReason | null;
 }
 
 /** Input DTO for cancellation request */
