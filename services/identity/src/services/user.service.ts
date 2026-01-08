@@ -666,3 +666,144 @@ export async function changePassword(
   // Revoke all refresh tokens on password change
   await revokeAllUserRefreshTokens(userId);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USER SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Default user settings.
+ */
+const DEFAULT_SETTINGS = {
+  emailNotifications: true,
+  pushNotifications: true,
+  proposalAlerts: true,
+  messageAlerts: true,
+  marketingEmails: false,
+  weeklyDigest: true,
+  profileVisible: true,
+  showTravelHistory: false,
+  allowAgentContact: true,
+  currency: 'INR',
+  language: 'en',
+  theme: 'light',
+  soundEnabled: true,
+  twoFactorEnabled: false,
+};
+
+/**
+ * Maps database row to settings object.
+ */
+function mapDbRowToSettings(row: Record<string, unknown> | null): Record<string, unknown> {
+  if (!row) return DEFAULT_SETTINGS;
+
+  return {
+    emailNotifications: row.email_notifications ?? DEFAULT_SETTINGS.emailNotifications,
+    pushNotifications: row.push_notifications ?? DEFAULT_SETTINGS.pushNotifications,
+    proposalAlerts: row.proposal_alerts ?? DEFAULT_SETTINGS.proposalAlerts,
+    messageAlerts: row.message_alerts ?? DEFAULT_SETTINGS.messageAlerts,
+    marketingEmails: row.marketing_emails ?? DEFAULT_SETTINGS.marketingEmails,
+    weeklyDigest: row.weekly_digest ?? DEFAULT_SETTINGS.weeklyDigest,
+    profileVisible: row.profile_visible ?? DEFAULT_SETTINGS.profileVisible,
+    showTravelHistory: row.show_travel_history ?? DEFAULT_SETTINGS.showTravelHistory,
+    allowAgentContact: row.allow_agent_contact ?? DEFAULT_SETTINGS.allowAgentContact,
+    currency: row.currency ?? DEFAULT_SETTINGS.currency,
+    language: row.language ?? DEFAULT_SETTINGS.language,
+    theme: row.theme ?? DEFAULT_SETTINGS.theme,
+    soundEnabled: row.sound_enabled ?? DEFAULT_SETTINGS.soundEnabled,
+    twoFactorEnabled: row.two_factor_enabled ?? DEFAULT_SETTINGS.twoFactorEnabled,
+  };
+}
+
+/**
+ * Gets user settings.
+ */
+export async function getUserSettings(userId: string): Promise<Record<string, unknown>> {
+  const db = getDbClient();
+
+  // Check if user exists
+  const { data: user, error: userError } = await db
+    .from('users')
+    .select('id')
+    .eq('id', userId)
+    .single();
+
+  if (userError || !user) {
+    throw new UserNotFoundError(userId);
+  }
+
+  // Get settings
+  const { data, error } = await db
+    .from('user_settings')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  // If no settings exist, return defaults
+  if (error && error.code === 'PGRST116') {
+    return DEFAULT_SETTINGS;
+  }
+
+  if (error) {
+    console.error('Error fetching user settings:', error);
+    return DEFAULT_SETTINGS;
+  }
+
+  return mapDbRowToSettings(data);
+}
+
+/**
+ * Updates user settings.
+ */
+export async function updateUserSettings(
+  userId: string,
+  settings: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const db = getDbClient();
+
+  // Check if user exists
+  const { data: user, error: userError } = await db
+    .from('users')
+    .select('id')
+    .eq('id', userId)
+    .single();
+
+  if (userError || !user) {
+    throw new UserNotFoundError(userId);
+  }
+
+  // Map camelCase to snake_case for database
+  const dbSettings: Record<string, unknown> = {
+    user_id: userId,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (settings.emailNotifications !== undefined) dbSettings.email_notifications = settings.emailNotifications;
+  if (settings.pushNotifications !== undefined) dbSettings.push_notifications = settings.pushNotifications;
+  if (settings.proposalAlerts !== undefined) dbSettings.proposal_alerts = settings.proposalAlerts;
+  if (settings.messageAlerts !== undefined) dbSettings.message_alerts = settings.messageAlerts;
+  if (settings.marketingEmails !== undefined) dbSettings.marketing_emails = settings.marketingEmails;
+  if (settings.weeklyDigest !== undefined) dbSettings.weekly_digest = settings.weeklyDigest;
+  if (settings.profileVisible !== undefined) dbSettings.profile_visible = settings.profileVisible;
+  if (settings.showTravelHistory !== undefined) dbSettings.show_travel_history = settings.showTravelHistory;
+  if (settings.allowAgentContact !== undefined) dbSettings.allow_agent_contact = settings.allowAgentContact;
+  if (settings.currency !== undefined) dbSettings.currency = settings.currency;
+  if (settings.language !== undefined) dbSettings.language = settings.language;
+  if (settings.theme !== undefined) dbSettings.theme = settings.theme;
+  if (settings.soundEnabled !== undefined) dbSettings.sound_enabled = settings.soundEnabled;
+  if (settings.twoFactorEnabled !== undefined) dbSettings.two_factor_enabled = settings.twoFactorEnabled;
+
+  // Upsert settings (insert or update)
+  const { data, error } = await db
+    .from('user_settings')
+    .upsert(dbSettings, { onConflict: 'user_id' })
+    .select('*')
+    .single();
+
+  if (error) {
+    console.error('Error updating user settings:', error);
+    throw new Error('Failed to update settings');
+  }
+
+  return mapDbRowToSettings(data);
+}

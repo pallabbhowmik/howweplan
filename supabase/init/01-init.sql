@@ -43,6 +43,37 @@ CREATE TABLE IF NOT EXISTS admins (
 );
 
 -- =============================================
+-- USER SETTINGS TABLE
+-- =============================================
+CREATE TABLE IF NOT EXISTS user_settings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    -- Notification preferences
+    email_notifications BOOLEAN DEFAULT true,
+    push_notifications BOOLEAN DEFAULT true,
+    proposal_alerts BOOLEAN DEFAULT true,
+    message_alerts BOOLEAN DEFAULT true,
+    marketing_emails BOOLEAN DEFAULT false,
+    weekly_digest BOOLEAN DEFAULT true,
+    -- Privacy settings
+    profile_visible BOOLEAN DEFAULT true,
+    show_travel_history BOOLEAN DEFAULT false,
+    allow_agent_contact BOOLEAN DEFAULT true,
+    -- User preferences
+    currency VARCHAR(3) DEFAULT 'INR',
+    language VARCHAR(5) DEFAULT 'en',
+    theme VARCHAR(10) DEFAULT 'light',
+    sound_enabled BOOLEAN DEFAULT true,
+    -- Security settings
+    two_factor_enabled BOOLEAN DEFAULT false,
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_settings_user_id ON user_settings(user_id);
+
+-- =============================================
 -- AGENTS TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS agents (

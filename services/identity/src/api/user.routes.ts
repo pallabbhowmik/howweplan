@@ -1,6 +1,6 @@
 /**
  * User API routes.
- * Handles user profile management.
+ * Handles user profile management and settings.
  */
 
 import { Router, Request, Response } from 'express';
@@ -17,10 +17,12 @@ import {
   getUserById,
   getUserWithProfile,
   updateUserProfile,
+  getUserSettings,
+  updateUserSettings,
 } from '../services/user.service.js';
 import { EventContext } from '../events/index.js';
 import { IdentityError, UserNotFoundError } from '../services/errors.js';
-import { updateUserProfileRequestSchema, uuidSchema } from '../types/api.schemas.js';
+import { updateUserProfileRequestSchema, uuidSchema, userSettingsSchema } from '../types/api.schemas.js';
 
 const router = Router();
 
@@ -201,6 +203,63 @@ router.get(
         },
         authReq.correlationId
       );
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      throw error;
+    }
+  }
+);
+
+/**
+ * GET /users/:userId/settings
+ * Get user settings. Only accessible to the user themselves or admins.
+ */
+router.get(
+  '/:userId/settings',
+  requireAuth,
+  validateParams(userIdParamSchema),
+  requireOwnership('userId'),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { userId } = req.params as z.infer<typeof userIdParamSchema>;
+
+    try {
+      const settings = await getUserSettings(userId);
+
+      sendSuccess(res, settings, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      throw error;
+    }
+  }
+);
+
+/**
+ * PUT /users/:userId/settings
+ * Update user settings. Only accessible to the user themselves.
+ */
+router.put(
+  '/:userId/settings',
+  requireAuth,
+  blockSuspended,
+  validateParams(userIdParamSchema),
+  requireOwnership('userId'),
+  validateBody(userSettingsSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { userId } = req.params as z.infer<typeof userIdParamSchema>;
+    const body = req.body as z.infer<typeof userSettingsSchema>;
+
+    try {
+      const settings = await updateUserSettings(userId, body);
+
+      sendSuccess(res, settings, authReq.correlationId);
     } catch (error) {
       if (error instanceof IdentityError) {
         sendError(res, error, authReq.correlationId);

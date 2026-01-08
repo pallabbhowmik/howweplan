@@ -154,6 +154,32 @@ export const changePasswordRequestSchema = z.object({
 export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>;
 
 /**
+ * User settings schema.
+ */
+export const userSettingsSchema = z.object({
+  // Notification preferences
+  emailNotifications: z.boolean().optional(),
+  pushNotifications: z.boolean().optional(),
+  proposalAlerts: z.boolean().optional(),
+  messageAlerts: z.boolean().optional(),
+  marketingEmails: z.boolean().optional(),
+  weeklyDigest: z.boolean().optional(),
+  // Privacy settings
+  profileVisible: z.boolean().optional(),
+  showTravelHistory: z.boolean().optional(),
+  allowAgentContact: z.boolean().optional(),
+  // User preferences
+  currency: z.enum(['INR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD']).optional(),
+  language: z.enum(['en', 'hi', 'es', 'fr', 'de']).optional(),
+  theme: z.enum(['light', 'dark', 'system']).optional(),
+  soundEnabled: z.boolean().optional(),
+  // Security settings
+  twoFactorEnabled: z.boolean().optional(),
+}).partial();
+
+export type UserSettings = z.infer<typeof userSettingsSchema>;
+
+/**
  * Forgot password request schema.
  */
 export const forgotPasswordRequestSchema = z.object({
