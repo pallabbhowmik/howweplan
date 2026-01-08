@@ -330,4 +330,11 @@ export const IdentityEventType = {
   AGENT_VERIFICATION_REJECTED: 'identity.agent.verification_rejected',
   AGENT_VERIFICATION_REVOKED: 'identity.agent.verification_revoked',
   ADMIN_ACTION_PERFORMED: 'identity.admin.action_performed',
+  // Verification events for OTP, KYC, and tier upgrades
+  VERIFICATION_OTP_SENT: 'identity.verification.otp_sent',
+  VERIFICATION_SUBMITTED: 'identity.verification.submitted',
+  VERIFICATION_COMPLETED: 'identity.verification.completed',
+  VERIFICATION_VIDEO_KYC_INITIATED: 'identity.verification.video_kyc_initiated',
+  VERIFICATION_VIDEO_KYC_COMPLETED: 'identity.verification.video_kyc_completed',
+  VERIFICATION_TIER_UPGRADED: 'identity.verification.tier_upgraded',
 } as const;
