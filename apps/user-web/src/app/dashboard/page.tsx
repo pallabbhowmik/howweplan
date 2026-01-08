@@ -155,18 +155,43 @@ export default function DashboardPage() {
 
   const journeyStage = determineJourneyStage(requests, bookings, stats);
   
-  // Filter to get only ACTIVE requests (not completed, cancelled, expired, or booked)
+  // ACTIVE REQUEST STATES - requests that are still in progress
+  const ACTIVE_REQUEST_STATES = [
+    'DRAFT',
+    'SUBMITTED', 
+    'AGENTS_MATCHED',
+    'AGENT_CONFIRMED',
+    'ITINERARIES_RECEIVED',
+    'ITINERARY_SELECTED',
+    'READY_FOR_PAYMENT',
+    'PAYMENT_PENDING'
+  ];
+  
+  // INACTIVE REQUEST STATES - requests that are done
+  const INACTIVE_REQUEST_STATES = ['BOOKED', 'COMPLETED', 'CANCELLED', 'EXPIRED'];
+  
+  // Filter to get only ACTIVE requests
   const activeRequests = requests.filter((r: TravelRequest) => 
-    !['BOOKED', 'COMPLETED', 'CANCELLED', 'EXPIRED'].includes(r.state)
+    ACTIVE_REQUEST_STATES.includes(r.state) || !INACTIVE_REQUEST_STATES.includes(r.state)
   );
   
   // Get the primary active request for the hero section
   const activeRequest = activeRequests[0];
   
-  // Filter to get only UPCOMING bookings (confirmed and in the future)
-  const upcomingBookings = bookings.filter((b: Booking) => 
-    b.state === 'CONFIRMED' && new Date(b.travelStartDate) > new Date()
-  );
+  // ACTIVE BOOKING STATES - bookings that are in progress or upcoming
+  const ACTIVE_BOOKING_STATES = [
+    'PENDING_PAYMENT',
+    'PAYMENT_AUTHORIZED', 
+    'CONFIRMED',
+    'IN_PROGRESS'
+  ];
+  
+  // Filter to get only ACTIVE bookings (upcoming and in progress)
+  const upcomingBookings = bookings.filter((b: Booking) => {
+    const isActiveState = ACTIVE_BOOKING_STATES.includes(b.state);
+    const isFutureOrCurrent = new Date(b.travelEndDate || b.travelStartDate) >= new Date();
+    return isActiveState && isFutureOrCurrent;
+  });
   
   // Get the primary upcoming booking
   const upcomingBooking = upcomingBookings[0];
@@ -641,107 +666,236 @@ function PrimaryActionCard({
 }
 
 // ============================================================================
-// DESTINATION INSPIRATION GRID
+// DESTINATION INSPIRATION GRID - "Where Will You Wander Next?"
 // ============================================================================
 
 function DestinationInspirationGrid() {
-  const destinations = [
-    { name: 'Rajasthan', emoji: '🏰', color: 'from-amber-400 to-orange-500', bgColor: 'from-amber-50 to-orange-50', borderColor: 'border-amber-200', tag: 'Heritage', highlight: 'Palaces & Forts' },
-    { name: 'Kerala', emoji: '🌴', color: 'from-green-400 to-emerald-500', bgColor: 'from-green-50 to-emerald-50', borderColor: 'border-green-200', tag: 'Nature', highlight: 'Backwaters' },
-    { name: 'Goa', emoji: '🏖️', color: 'from-blue-400 to-cyan-500', bgColor: 'from-blue-50 to-cyan-50', borderColor: 'border-blue-200', tag: 'Beaches', highlight: 'Sun & Sand' },
-    { name: 'Ladakh', emoji: '🏔️', color: 'from-slate-400 to-slate-600', bgColor: 'from-slate-50 to-gray-50', borderColor: 'border-slate-200', tag: 'Mountains', highlight: 'Adventure' },
-    { name: 'Varanasi', emoji: '🕉️', color: 'from-orange-400 to-red-500', bgColor: 'from-orange-50 to-red-50', borderColor: 'border-orange-200', tag: 'Spiritual', highlight: 'Sacred City' },
-    { name: 'Andaman', emoji: '🏝️', color: 'from-teal-400 to-emerald-500', bgColor: 'from-teal-50 to-emerald-50', borderColor: 'border-teal-200', tag: 'Islands', highlight: 'Tropical Paradise' },
-  ] as const;
+  // Full destination list with Unsplash photos
+  const allDestinations = [
+    { 
+      name: 'Rajasthan', 
+      country: 'India',
+      image: 'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=800&q=80',
+      color: 'from-amber-500 to-orange-600', 
+      tag: 'Heritage',
+      tagline: 'Royal palaces & desert magic'
+    },
+    { 
+      name: 'Kerala', 
+      country: 'India',
+      image: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=800&q=80',
+      color: 'from-green-500 to-emerald-600', 
+      tag: 'Nature',
+      tagline: 'Serene backwaters await'
+    },
+    { 
+      name: 'Goa', 
+      country: 'India',
+      image: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=800&q=80',
+      color: 'from-blue-500 to-cyan-600', 
+      tag: 'Beaches',
+      tagline: 'Sun, sand & serenity'
+    },
+    { 
+      name: 'Ladakh', 
+      country: 'India',
+      image: 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=800&q=80',
+      color: 'from-slate-500 to-slate-700', 
+      tag: 'Adventure',
+      tagline: 'High altitude dreams'
+    },
+    { 
+      name: 'Varanasi', 
+      country: 'India',
+      image: 'https://images.unsplash.com/photo-1561361513-2d000a50f0dc?w=800&q=80',
+      color: 'from-orange-500 to-red-600', 
+      tag: 'Spiritual',
+      tagline: 'Ancient soul of India'
+    },
+    { 
+      name: 'Andaman', 
+      country: 'India',
+      image: 'https://images.unsplash.com/photo-1589179233155-8e6d9886d20b?w=800&q=80',
+      color: 'from-teal-500 to-emerald-600', 
+      tag: 'Islands',
+      tagline: 'Tropical paradise calling'
+    },
+    { 
+      name: 'Bali', 
+      country: 'Indonesia',
+      image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=800&q=80',
+      color: 'from-emerald-500 to-teal-600', 
+      tag: 'Culture',
+      tagline: 'Island of the Gods'
+    },
+    { 
+      name: 'Santorini', 
+      country: 'Greece',
+      image: 'https://images.unsplash.com/photo-1613395877344-13d4a8e0d49e?w=800&q=80',
+      color: 'from-blue-600 to-indigo-700', 
+      tag: 'Romance',
+      tagline: 'Sunset dreams come true'
+    },
+    { 
+      name: 'Maldives', 
+      country: 'Maldives',
+      image: 'https://images.unsplash.com/photo-1514282401047-d79a71a590e8?w=800&q=80',
+      color: 'from-cyan-500 to-blue-600', 
+      tag: 'Luxury',
+      tagline: 'Paradise on Earth'
+    },
+    { 
+      name: 'Dubai', 
+      country: 'UAE',
+      image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80',
+      color: 'from-amber-600 to-yellow-500', 
+      tag: 'Modern',
+      tagline: 'Future meets tradition'
+    },
+    { 
+      name: 'Thailand', 
+      country: 'Thailand',
+      image: 'https://images.unsplash.com/photo-1528181304800-259b08848526?w=800&q=80',
+      color: 'from-yellow-500 to-amber-600', 
+      tag: 'Exotic',
+      tagline: 'Land of smiles'
+    },
+    { 
+      name: 'Switzerland', 
+      country: 'Switzerland',
+      image: 'https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?w=800&q=80',
+      color: 'from-sky-500 to-blue-600', 
+      tag: 'Alps',
+      tagline: 'Mountain wonderland'
+    },
+  ];
 
-  const featured = destinations[0];
-  const otherDestinations = destinations.slice(1);
+  // Shuffle and pick random destinations
+  const [shuffledDestinations, setShuffledDestinations] = useState(allDestinations);
+  
+  useEffect(() => {
+    const shuffled = [...allDestinations].sort(() => Math.random() - 0.5);
+    setShuffledDestinations(shuffled);
+  }, []);
+
+  const featured = shuffledDestinations[0];
+  const otherDestinations = shuffledDestinations.slice(1, 7);
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 rounded-3xl p-[2px] shadow-2xl shadow-purple-500/20">
-      <div className="relative bg-white rounded-[22px] overflow-hidden">
-        {/* Decorative background */}
+    <div className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 rounded-3xl p-[2px] shadow-2xl shadow-purple-500/25">
+      <div className="relative bg-slate-900 rounded-[22px] overflow-hidden">
+        {/* Animated background */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-100/50 via-indigo-50/30 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-blue-100/50 via-cyan-50/30 to-transparent rounded-full blur-3xl translate-y-1/2 -translate-x-1/3" />
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-purple-500/20 via-fuchsia-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-violet-500/20 via-indigo-500/10 to-transparent rounded-full blur-3xl translate-y-1/2 -translate-x-1/3" />
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
         </div>
         
         <div className="relative p-6 sm:p-8">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
               <div className="relative">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 via-indigo-500 to-blue-500 flex items-center justify-center shadow-xl shadow-purple-500/30">
-                  <Compass className="h-7 w-7 text-white" />
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center shadow-xl shadow-purple-500/40">
+                  <Globe className="h-7 w-7 text-white" />
                 </div>
-                <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
-                  <Sparkles className="h-3 w-3 text-white" />
+                <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center animate-bounce">
+                  <Sparkles className="h-3.5 w-3.5 text-white" />
                 </div>
               </div>
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Explore Destinations</h3>
-                <p className="text-sm text-slate-500">Discover your perfect getaway</p>
+                <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                  Where Will You Wander Next?
+                  <span className="text-2xl">✨</span>
+                </h3>
+                <p className="text-purple-200 text-sm">Handpicked destinations just for you</p>
               </div>
             </div>
-            <Link href="/explore" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 rounded-xl border border-purple-100 text-purple-700 font-semibold text-sm transition-all duration-300 group">
-              View All
-              <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+            <Link href="/explore" className="hidden sm:flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl border border-white/20 text-white font-semibold text-sm transition-all duration-300 group">
+              Explore All
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
 
-          {/* Featured Destination */}
-          <Link href={`/explore?destination=${featured.name.toLowerCase()}`}>
-            <div className="relative mb-5 group cursor-pointer">
-              <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${featured.bgColor} border-2 ${featured.borderColor} p-6 hover:shadow-xl transition-all duration-500`}>
-                <div className={`absolute inset-0 bg-gradient-to-br ${featured.color} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
-                <div className="absolute top-3 right-3">
-                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 font-bold px-3 py-1 shadow-lg shadow-amber-500/30">
-                    <Star className="h-3 w-3 mr-1 fill-white" />
-                    Featured
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-5">
-                  <div className="relative">
-                    <span className="text-6xl group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 inline-block">{featured.emoji}</span>
-                    <div className={`absolute -bottom-1 -right-1 w-6 h-6 bg-gradient-to-br ${featured.color} rounded-full flex items-center justify-center shadow-lg`}>
-                      <ChevronRight className="h-4 w-4 text-white" />
-                    </div>
+          {/* Featured Destination - Large Card with Photo */}
+          {featured && (
+            <Link href={`/requests/new?destination=${featured.name.toLowerCase()}`}>
+              <div className="relative mb-6 group cursor-pointer">
+                <div className="relative h-64 sm:h-72 overflow-hidden rounded-2xl">
+                  {/* Background Image */}
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
+                    style={{ backgroundImage: `url(${featured.image})` }}
+                  />
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                  <div className={`absolute inset-0 bg-gradient-to-br ${featured.color} opacity-20 mix-blend-overlay`} />
+                  
+                  {/* Featured Badge */}
+                  <div className="absolute top-4 left-4">
+                    <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 font-bold px-4 py-1.5 shadow-lg shadow-amber-500/30 text-sm">
+                      <Star className="h-3.5 w-3.5 mr-1.5 fill-white" />
+                      Featured
+                    </Badge>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="text-2xl font-bold text-slate-900 group-hover:text-amber-600 transition-colors">{featured.name}</h4>
-                      <Badge className={`bg-gradient-to-r ${featured.color} text-white text-xs px-2.5 py-0.5 border-0`}>
-                        {featured.tag}
-                      </Badge>
-                    </div>
-                    <p className="text-slate-600 font-medium">{featured.highlight}</p>
-                    <p className="text-sm text-slate-500 mt-1">Royal palaces, desert safaris & vibrant culture await</p>
+
+                  {/* Tag Badge */}
+                  <div className="absolute top-4 right-4">
+                    <Badge className={`bg-gradient-to-r ${featured.color} text-white border-0 font-semibold px-3 py-1 shadow-lg`}>
+                      {featured.tag}
+                    </Badge>
                   </div>
-                  <div className="hidden sm:flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
-                    <span className="text-sm font-semibold text-amber-600">Explore</span>
-                    <ArrowRight className="h-5 w-5 text-amber-600" />
+                  
+                  {/* Content */}
+                  <div className="absolute bottom-0 left-0 right-0 p-6">
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <p className="text-purple-200 text-sm font-medium mb-1">{featured.country}</p>
+                        <h4 className="text-3xl sm:text-4xl font-bold text-white mb-2 group-hover:text-purple-200 transition-colors">
+                          {featured.name}
+                        </h4>
+                        <p className="text-white/80 text-base font-medium">{featured.tagline}</p>
+                      </div>
+                      <div className="flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0">
+                        <span className="text-white font-semibold">Plan Trip</span>
+                        <ArrowRight className="h-5 w-5 text-white" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </Link>
+            </Link>
+          )}
 
-          {/* Destination Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {/* Destination Grid - Cards with Photos */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {otherDestinations.map((dest) => (
-              <Link key={dest.name} href={`/explore?destination=${dest.name.toLowerCase()}`}>
-                <div className={`group relative overflow-hidden rounded-xl bg-gradient-to-br ${dest.bgColor} border ${dest.borderColor} p-4 hover:shadow-lg hover:scale-[1.02] transition-all duration-300 cursor-pointer`}>
-                  <div className={`absolute inset-0 bg-gradient-to-br ${dest.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
-                  <div className="relative flex flex-col items-center text-center">
-                    <span className="text-4xl mb-2 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 inline-block">{dest.emoji}</span>
-                    <h4 className="font-bold text-slate-800 group-hover:text-slate-900 transition-colors text-sm">{dest.name}</h4>
-                    <Badge className={`bg-gradient-to-r ${dest.color} text-white text-[10px] px-2 py-0 border-0 mt-1.5`}>
+              <Link key={dest.name} href={`/requests/new?destination=${dest.name.toLowerCase()}`}>
+                <div className="group relative overflow-hidden rounded-xl cursor-pointer h-40 sm:h-44">
+                  {/* Background Image */}
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                    style={{ backgroundImage: `url(${dest.image})` }}
+                  />
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                  <div className={`absolute inset-0 bg-gradient-to-br ${dest.color} opacity-0 group-hover:opacity-30 transition-opacity duration-300 mix-blend-overlay`} />
+                  
+                  {/* Content */}
+                  <div className="absolute inset-0 flex flex-col justify-end p-3">
+                    <Badge className={`bg-gradient-to-r ${dest.color} text-white text-[10px] px-2 py-0.5 border-0 w-fit mb-1.5 shadow-sm`}>
                       {dest.tag}
                     </Badge>
+                    <h4 className="font-bold text-white text-sm group-hover:text-purple-200 transition-colors">{dest.name}</h4>
+                    <p className="text-white/60 text-xs">{dest.country}</p>
                   </div>
-                  {/* Hover indicator */}
-                  <div className={`absolute bottom-2 right-2 w-6 h-6 rounded-full bg-gradient-to-br ${dest.color} flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300`}>
-                    <ArrowRight className="h-3 w-3 text-white" />
+                  
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-lg">
+                      <span className="text-white text-xs font-semibold">Plan Trip</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-white" />
+                    </div>
                   </div>
                 </div>
               </Link>
@@ -749,8 +903,8 @@ function DestinationInspirationGrid() {
           </div>
 
           {/* Mobile View All Button */}
-          <Link href="/explore" className="sm:hidden mt-5 flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 rounded-xl text-white font-semibold text-sm transition-all duration-300 shadow-lg shadow-purple-500/25">
-            View All Destinations
+          <Link href="/explore" className="sm:hidden mt-5 flex items-center justify-center gap-2 w-full py-3.5 bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 rounded-xl text-white font-semibold text-sm transition-all duration-300 shadow-lg shadow-purple-500/30">
+            Explore All Destinations
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
