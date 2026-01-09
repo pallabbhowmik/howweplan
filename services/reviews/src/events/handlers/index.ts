@@ -6,3 +6,4 @@
 
 export * from './booking-completed.handler';
 export * from './dispute-resolved.handler';
+export * from './response-time.handler';

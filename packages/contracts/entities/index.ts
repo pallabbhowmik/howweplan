@@ -122,3 +122,24 @@ export {
   validateReviewRatings,
   calculateReviewWindow,
 } from './trust-review';
+
+// =============================================================================
+// RESPONSE TIME TRACKING
+// =============================================================================
+
+export {
+  type ResponseTimeLabel,
+  type ResponseTimeTrend,
+  type ResponseType,
+  type ResponseEvent,
+  type RecordRequestInput,
+  type RecordResponseInput,
+  type AgentResponseMetrics,
+  type ResponseTimeDisplay,
+  type ResponseTimeLabelConfig,
+  RESPONSE_TIME_LABELS,
+  getResponseTimeLabelFromMinutes,
+  getResponseTimeConfig,
+  formatResponseTimeDisplay,
+  getTrendDisplay,
+} from './response-time';

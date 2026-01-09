@@ -13,6 +13,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import { reviewsApi } from './reviews.api';
 import { ratingsApi } from './ratings.api';
 import { healthApi } from './health.api';
+import { responseTimeRoutes } from './response-time.api';
 import { appConfig } from '../config/env';
 
 // =============================================================================
@@ -107,6 +108,7 @@ app.route('/health', healthApi);
 // API v1 routes
 app.route('/api/v1/reviews', reviewsApi);
 app.route('/api/v1/ratings', ratingsApi);
+app.route('/api/v1/response-time', responseTimeRoutes);
 
 // =============================================================================
 // EXPORT
@@ -116,3 +118,4 @@ export { app };
 export { reviewsApi } from './reviews.api';
 export { ratingsApi } from './ratings.api';
 export { healthApi } from './health.api';
+export { responseTimeRoutes } from './response-time.api';

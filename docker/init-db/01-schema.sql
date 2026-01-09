@@ -1007,6 +1007,82 @@ CREATE TRIGGER trigger_review_stats_update
     EXECUTE FUNCTION trigger_recalculate_agent_stats();
 
 -- ============================================================================
+-- AGENT RESPONSE TIME TRACKING
+-- ============================================================================
+
+-- Table: agent_response_events
+-- Stores individual request-to-response timing events
+CREATE TABLE IF NOT EXISTS agent_response_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    agent_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    request_id UUID NOT NULL REFERENCES travel_requests(id) ON DELETE CASCADE,
+    request_received_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    first_response_at TIMESTAMP WITH TIME ZONE,
+    response_time_minutes INTEGER GENERATED ALWAYS AS (
+        CASE 
+            WHEN first_response_at IS NOT NULL 
+            THEN EXTRACT(EPOCH FROM (first_response_at - request_received_at)) / 60
+            ELSE NULL 
+        END
+    ) STORED,
+    response_type VARCHAR(50) CHECK (response_type IN (
+        'PROPOSAL_SUBMITTED', 'MESSAGE_SENT', 'DECLINED', 'EXPIRED'
+    )),
+    was_within_business_hours BOOLEAN DEFAULT FALSE,
+    day_of_week INTEGER CHECK (day_of_week >= 0 AND day_of_week <= 6),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    UNIQUE (agent_id, request_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_response_events_agent ON agent_response_events(agent_id);
+CREATE INDEX IF NOT EXISTS idx_response_events_received_at ON agent_response_events(request_received_at);
+
+-- Table: agent_response_metrics
+-- Cached/materialized response time metrics per agent
+CREATE TABLE IF NOT EXISTS agent_response_metrics (
+    agent_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    total_requests_received INTEGER DEFAULT 0,
+    total_responses INTEGER DEFAULT 0,
+    total_proposals INTEGER DEFAULT 0,
+    total_declined INTEGER DEFAULT 0,
+    total_expired INTEGER DEFAULT 0,
+    response_rate DECIMAL(5,2) DEFAULT 0,
+    response_time_p50 INTEGER,
+    response_time_p75 INTEGER,
+    response_time_p90 INTEGER,
+    response_time_avg DECIMAL(10,2),
+    response_time_min INTEGER,
+    response_time_max INTEGER,
+    response_time_label VARCHAR(30) DEFAULT 'NEW' CHECK (response_time_label IN (
+        'NEW', 'WITHIN_30_MIN', 'WITHIN_1_HOUR', 'WITHIN_2_HOURS',
+        'WITHIN_4_HOURS', 'WITHIN_8_HOURS', 'WITHIN_24_HOURS', 'MORE_THAN_24_HOURS'
+    )),
+    business_hours_p50 INTEGER,
+    after_hours_p50 INTEGER,
+    trend VARCHAR(20) DEFAULT 'STABLE' CHECK (trend IN ('IMPROVING', 'STABLE', 'DECLINING')),
+    trend_change_minutes INTEGER DEFAULT 0,
+    sample_size INTEGER DEFAULT 0,
+    last_response_at TIMESTAMP WITH TIME ZONE,
+    last_recalculated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Helper function to get display label from P50 minutes
+CREATE OR REPLACE FUNCTION get_response_time_label(p50_minutes INTEGER)
+RETURNS VARCHAR(30) AS $$
+BEGIN
+    IF p50_minutes IS NULL THEN RETURN 'NEW'; END IF;
+    IF p50_minutes <= 30 THEN RETURN 'WITHIN_30_MIN'; END IF;
+    IF p50_minutes <= 60 THEN RETURN 'WITHIN_1_HOUR'; END IF;
+    IF p50_minutes <= 120 THEN RETURN 'WITHIN_2_HOURS'; END IF;
+    IF p50_minutes <= 240 THEN RETURN 'WITHIN_4_HOURS'; END IF;
+    IF p50_minutes <= 480 THEN RETURN 'WITHIN_8_HOURS'; END IF;
+    IF p50_minutes <= 1440 THEN RETURN 'WITHIN_24_HOURS'; END IF;
+    RETURN 'MORE_THAN_24_HOURS';
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- ============================================================================
 -- GRANT PERMISSIONS
 -- ============================================================================
 

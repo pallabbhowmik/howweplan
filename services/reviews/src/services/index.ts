@@ -11,3 +11,4 @@ export * from './trust-review.service';
 export * from './booking-verification.service';
 export * from './badge-engine.service';
 export * from './agent-stats.service';
+export * from './response-time.service';

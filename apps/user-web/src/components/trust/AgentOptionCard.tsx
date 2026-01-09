@@ -27,6 +27,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ResponseTimeIndicator, type ResponseTimeDisplay } from './ResponseTimeIndicator';
 
 // =============================================================================
 // TYPES (mirrors shared types)
@@ -57,6 +58,8 @@ export interface AgentPublicProfile {
   platformProtectionEligible: boolean;
   specializations: string[];
   isVerified: boolean;
+  /** New: Enhanced response time metrics */
+  responseTimeMetrics?: ResponseTimeDisplay | null;
 }
 
 export interface AgentOptionCardProps {
@@ -66,6 +69,8 @@ export interface AgentOptionCardProps {
   onSelect?: (agentId: string) => void;
   isSelected?: boolean;
   className?: string;
+  /** Show enhanced response time indicator */
+  showEnhancedResponseTime?: boolean;
 }
 
 // =============================================================================
@@ -136,6 +141,7 @@ export function AgentOptionCard({
   onSelect,
   isSelected = false,
   className,
+  showEnhancedResponseTime = true,
 }: AgentOptionCardProps) {
   return (
     <Card
@@ -187,7 +193,14 @@ export function AgentOptionCard({
               {agent.completedBookings} booking{agent.completedBookings !== 1 ? 's' : ''} completed
             </span>
           </div>
-          {agent.responseTimeLabel && (
+          {/* Enhanced Response Time Display */}
+          {showEnhancedResponseTime && agent.responseTimeMetrics ? (
+            <ResponseTimeIndicator
+              metrics={agent.responseTimeMetrics}
+              variant="compact"
+              showTrend={true}
+            />
+          ) : agent.responseTimeLabel && (
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <span className={cn('text-sm', RESPONSE_TIME_CONFIG[agent.responseTimeLabel].color)}>
