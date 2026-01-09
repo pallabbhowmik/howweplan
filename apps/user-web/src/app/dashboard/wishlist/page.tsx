@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Heart,
@@ -9,108 +9,34 @@ import {
   MessageSquare,
   User,
   Filter,
-  Grid3X3,
-  List,
   Search,
   SortAsc,
   SortDesc,
-  Bell,
   Trash2,
   Download,
   Share2,
-  Settings,
-  Plus,
   LayoutGrid,
   LayoutList,
+  Loader2,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
 import { WishlistCard, WishlistEmpty } from '@/components/trust/WishlistCard';
 import type { WishlistItem, WishlistItemType } from '@/components/trust/WishlistButton';
-
-// ============================================================================
-// MOCK DATA (Replace with API calls)
-// ============================================================================
-
-const MOCK_WISHLIST_ITEMS: WishlistItem[] = [
-  {
-    id: '1',
-    itemType: 'destination',
-    itemId: 'goa-1',
-    itemName: 'Goa - The Beach Paradise',
-    itemImageUrl: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=800',
-    itemMetadata: { region: 'West India', activities: ['Beach', 'Nightlife', 'Water Sports'] },
-    notes: 'Perfect for our anniversary trip! Check prices in October.',
-    tags: ['Beach', 'Romantic', 'Anniversary'],
-    priority: 5,
-    plannedDateStart: '2025-10-15',
-    plannedDateEnd: '2025-10-22',
-    estimatedBudget: 75000,
-    notifyOnDeals: true,
-    createdAt: '2025-01-10T10:00:00Z',
-  },
-  {
-    id: '2',
-    itemType: 'destination',
-    itemId: 'kerala-1',
-    itemName: 'Kerala Backwaters',
-    itemImageUrl: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=800',
-    itemMetadata: { region: 'South India', activities: ['Houseboat', 'Ayurveda', 'Nature'] },
-    notes: 'Need to check houseboat options',
-    tags: ['Nature', 'Relaxation'],
-    priority: 4,
-    estimatedBudget: 60000,
-    notifyOnDeals: false,
-    createdAt: '2025-01-08T14:30:00Z',
-  },
-  {
-    id: '3',
-    itemType: 'proposal',
-    itemId: 'prop-123',
-    itemName: 'Luxury Rajasthan Tour',
-    itemImageUrl: 'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=800',
-    itemMetadata: { agent: 'Rajasthan Tours', duration: '7 nights' },
-    notes: 'Great itinerary, waiting for better pricing',
-    tags: ['Luxury', 'Culture'],
-    priority: 3,
-    estimatedBudget: 150000,
-    notifyOnDeals: true,
-    createdAt: '2025-01-05T09:15:00Z',
-  },
-  {
-    id: '4',
-    itemType: 'agent',
-    itemId: 'agent-456',
-    itemName: 'Adventure Trails India',
-    itemImageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800',
-    itemMetadata: { rating: 4.8, reviews: 156, speciality: 'Adventure Tours' },
-    notes: 'Highly recommended for trekking trips',
-    tags: ['Adventure', 'Trekking'],
-    priority: 4,
-    notifyOnDeals: false,
-    createdAt: '2025-01-03T16:45:00Z',
-  },
-  {
-    id: '5',
-    itemType: 'destination',
-    itemId: 'ladakh-1',
-    itemName: 'Ladakh - The Land of High Passes',
-    itemImageUrl: 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=800',
-    itemMetadata: { region: 'North India', activities: ['Biking', 'Monastery', 'Adventure'] },
-    tags: ['Adventure', 'Mountains'],
-    priority: 5,
-    plannedDateStart: '2025-06-01',
-    plannedDateEnd: '2025-06-10',
-    estimatedBudget: 100000,
-    notifyOnDeals: true,
-    createdAt: '2024-12-28T11:20:00Z',
-  },
-];
+import {
+  fetchWishlistItems,
+  removeWishlistItem,
+  updateWishlistItem,
+  getWishlistTags,
+  type WishlistFilters,
+} from '@/lib/api/wishlist';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
 type SortOption = 'recent' | 'oldest' | 'priority' | 'name' | 'budget';
-type ViewMode = 'grid' | 'list' | 'compact';
+type ViewMode = 'grid' | 'list';
 
 interface TabConfig {
   type: WishlistItemType | 'all';
@@ -126,8 +52,14 @@ interface TabConfig {
 export default function WishlistPage() {
   const router = useRouter();
   
-  // State
-  const [items, setItems] = useState<WishlistItem[]>(MOCK_WISHLIST_ITEMS);
+  // Data state
+  const [items, setItems] = useState<WishlistItem[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Filter state
   const [activeTab, setActiveTab] = useState<WishlistItemType | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('recent');
@@ -135,7 +67,57 @@ export default function WishlistPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  
+  // UI state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // ============================================================================
+  // DATA FETCHING
+  // ============================================================================
+
+  const loadWishlist = useCallback(async (showRefreshIndicator = false) => {
+    if (showRefreshIndicator) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+    setError(null);
+
+    try {
+      const filters: WishlistFilters = {
+        itemType: activeTab,
+        tags: selectedTags.length > 0 ? selectedTags : undefined,
+        search: searchQuery || undefined,
+        sortBy,
+        sortAsc,
+      };
+
+      const [wishlistItems, tags] = await Promise.all([
+        fetchWishlistItems(filters),
+        getWishlistTags(),
+      ]);
+
+      setItems(wishlistItems);
+      setAllTags(tags);
+    } catch (err) {
+      console.error('Error loading wishlist:', err);
+      setError('Failed to load wishlist. Please try again.');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [activeTab, selectedTags, searchQuery, sortBy, sortAsc]);
+
+  // Initial load
+  useEffect(() => {
+    loadWishlist();
+  }, [loadWishlist]);
+
+  // ============================================================================
+  // COMPUTED VALUES
+  // ============================================================================
 
   // Calculate tab counts
   const tabConfigs: TabConfig[] = useMemo(() => [
@@ -146,23 +128,16 @@ export default function WishlistPage() {
     { type: 'agent', label: 'Agents', icon: User, count: items.filter(i => i.itemType === 'agent').length },
   ], [items]);
 
-  // Get all unique tags
-  const allTags = useMemo(() => {
-    const tags = new Set<string>();
-    items.forEach(item => item.tags?.forEach(tag => tags.add(tag)));
-    return Array.from(tags).sort();
-  }, [items]);
-
-  // Filter and sort items
+  // Filter items client-side for immediate responsiveness
   const filteredItems = useMemo(() => {
     let result = [...items];
     
-    // Filter by tab
+    // Filter by tab (already done server-side, but keep for client-side filtering)
     if (activeTab !== 'all') {
       result = result.filter(item => item.itemType === activeTab);
     }
     
-    // Filter by search
+    // Filter by search (already done server-side, but keep for immediate feedback)
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(item =>
@@ -205,25 +180,53 @@ export default function WishlistPage() {
     return result;
   }, [items, activeTab, searchQuery, selectedTags, sortBy, sortAsc]);
 
-  // Handlers
+  // ============================================================================
+  // HANDLERS
+  // ============================================================================
+
   const handleRemoveItem = useCallback((item: WishlistItem) => {
     setShowDeleteConfirm(item.id);
   }, []);
 
-  const confirmRemove = useCallback((itemId: string) => {
-    setItems(prev => prev.filter(item => item.id !== itemId));
-    setShowDeleteConfirm(null);
+  const confirmRemove = useCallback(async (itemId: string) => {
+    setDeletingId(itemId);
+    try {
+      const success = await removeWishlistItem(itemId);
+      if (success) {
+        setItems(prev => prev.filter(item => item.id !== itemId));
+      } else {
+        setError('Failed to remove item. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error removing item:', err);
+      setError('Failed to remove item. Please try again.');
+    } finally {
+      setDeletingId(null);
+      setShowDeleteConfirm(null);
+    }
   }, []);
 
   const handleEditItem = useCallback((item: WishlistItem) => {
-    // Open edit modal (to be implemented)
+    // TODO: Open edit modal
     console.log('Edit item:', item);
   }, []);
 
-  const handleToggleNotify = useCallback((item: WishlistItem) => {
-    setItems(prev => prev.map(i => 
-      i.id === item.id ? { ...i, notifyOnDeals: !i.notifyOnDeals } : i
-    ));
+  const handleToggleNotify = useCallback(async (item: WishlistItem) => {
+    setUpdatingId(item.id);
+    try {
+      const updated = await updateWishlistItem(item.id, {
+        notifyOnDeals: !item.notifyOnDeals,
+      });
+      if (updated) {
+        setItems(prev => prev.map(i => 
+          i.id === item.id ? { ...i, notifyOnDeals: !i.notifyOnDeals } : i
+        ));
+      }
+    } catch (err) {
+      console.error('Error updating item:', err);
+    } finally {
+      setUpdatingId(null);
+    }
   }, []);
 
   const handleViewDetails = useCallback((item: WishlistItem) => {
@@ -236,15 +239,24 @@ export default function WishlistPage() {
     router.push(`${typeConfig[item.itemType]}/${item.itemId}`);
   }, [router]);
 
-  const handleClearAll = useCallback(() => {
-    if (confirm('Are you sure you want to clear all wishlist items?')) {
-      if (activeTab === 'all') {
-        setItems([]);
-      } else {
-        setItems(prev => prev.filter(item => item.itemType !== activeTab));
-      }
+  const handleClearAll = useCallback(async () => {
+    if (!confirm('Are you sure you want to clear all wishlist items?')) return;
+    
+    const itemsToDelete = activeTab === 'all' 
+      ? items 
+      : items.filter(item => item.itemType === activeTab);
+    
+    setIsLoading(true);
+    try {
+      await Promise.all(itemsToDelete.map(item => removeWishlistItem(item.id)));
+      await loadWishlist();
+    } catch (err) {
+      console.error('Error clearing wishlist:', err);
+      setError('Failed to clear wishlist. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, items, loadWishlist]);
 
   const handleExport = useCallback(() => {
     const dataStr = JSON.stringify(filteredItems, null, 2);
@@ -252,7 +264,7 @@ export default function WishlistPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'wishlist.json';
+    a.download = `wishlist-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }, [filteredItems]);
@@ -262,6 +274,14 @@ export default function WishlistPage() {
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
   }, []);
+
+  const handleRefresh = useCallback(() => {
+    loadWishlist(true);
+  }, [loadWishlist]);
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -278,7 +298,7 @@ export default function WishlistPage() {
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">My Wishlist</h1>
                   <p className="text-sm text-gray-500">
-                    {items.length} {items.length === 1 ? 'item' : 'items'} saved for later
+                    {isLoading ? 'Loading...' : `${items.length} ${items.length === 1 ? 'item' : 'items'} saved for later`}
                   </p>
                 </div>
               </div>
@@ -286,8 +306,17 @@ export default function WishlistPage() {
               {/* Header Actions */}
               <div className="flex items-center gap-2">
                 <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                  title="Refresh"
+                >
+                  <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+                </button>
+                <button
                   onClick={handleExport}
-                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  disabled={items.length === 0}
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
                   title="Export wishlist"
                 >
                   <Download size={20} />
@@ -310,6 +339,20 @@ export default function WishlistPage() {
                 )}
               </div>
             </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
+                <AlertCircle size={18} />
+                <span className="text-sm">{error}</span>
+                <button
+                  onClick={() => setError(null)}
+                  className="ml-auto text-red-500 hover:text-red-700"
+                >
+                  ×
+                </button>
+              </div>
+            )}
 
             {/* Tabs */}
             <div className="flex items-center gap-1 overflow-x-auto pb-1">
@@ -462,7 +505,12 @@ export default function WishlistPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {filteredItems.length === 0 ? (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <Loader2 className="w-10 h-10 text-gray-400 animate-spin mb-4" />
+            <p className="text-gray-500">Loading your wishlist...</p>
+          </div>
+        ) : filteredItems.length === 0 ? (
           <WishlistEmpty
             type={activeTab}
             onExplore={() => router.push('/explore')}
@@ -478,7 +526,7 @@ export default function WishlistPage() {
               <div key={item.id} className="relative">
                 <WishlistCard
                   item={item}
-                  variant={viewMode === 'grid' ? 'detailed' : viewMode === 'list' ? 'default' : 'compact'}
+                  variant={viewMode === 'grid' ? 'detailed' : 'default'}
                   onRemove={handleRemoveItem}
                   onEdit={handleEditItem}
                   onToggleNotify={handleToggleNotify}
@@ -489,24 +537,37 @@ export default function WishlistPage() {
                 {showDeleteConfirm === item.id && (
                   <div className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-xl flex items-center justify-center z-20">
                     <div className="text-center p-6">
-                      <p className="text-gray-900 font-medium mb-4">
-                        Remove "{item.itemName}" from wishlist?
-                      </p>
-                      <div className="flex items-center justify-center gap-3">
-                        <button
-                          onClick={() => setShowDeleteConfirm(null)}
-                          className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={() => confirmRemove(item.id)}
-                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                        >
-                          Remove
-                        </button>
-                      </div>
+                      {deletingId === item.id ? (
+                        <Loader2 className="w-8 h-8 text-gray-400 animate-spin mx-auto" />
+                      ) : (
+                        <>
+                          <p className="text-gray-900 font-medium mb-4">
+                            Remove &quot;{item.itemName}&quot; from wishlist?
+                          </p>
+                          <div className="flex items-center justify-center gap-3">
+                            <button
+                              onClick={() => setShowDeleteConfirm(null)}
+                              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => confirmRemove(item.id)}
+                              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
+                  </div>
+                )}
+                
+                {/* Loading overlay for updates */}
+                {updatingId === item.id && (
+                  <div className="absolute inset-0 bg-white/50 rounded-xl flex items-center justify-center z-10">
+                    <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
                   </div>
                 )}
               </div>
@@ -515,7 +576,7 @@ export default function WishlistPage() {
         )}
 
         {/* Results Summary */}
-        {filteredItems.length > 0 && (
+        {!isLoading && filteredItems.length > 0 && (
           <div className="mt-8 text-center text-sm text-gray-500">
             Showing {filteredItems.length} of {items.length} items
             {(searchQuery || selectedTags.length > 0 || activeTab !== 'all') && (

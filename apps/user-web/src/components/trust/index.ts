@@ -44,6 +44,18 @@ export type {
   ItineraryTemplateProps,
 } from './ItineraryTemplate';
 export {
+  ItineraryTemplateEnhanced,
+  ItineraryTemplateEnhancedSkeleton,
+} from './ItineraryTemplateEnhanced';
+export type {
+  ItineraryItem as EnhancedItineraryItem,
+  ItineraryDay as EnhancedItineraryDay,
+  EnhancedItineraryProps,
+  TimeOfDay as EnhancedTimeOfDay,
+  ItemCategory as EnhancedItemCategory,
+  ActivityIntensity,
+} from './ItineraryTemplateEnhanced';
+export {
   TripCountdown,
   TripCountdownSkeleton,
 } from './TripCountdown';
