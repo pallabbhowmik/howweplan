@@ -80,11 +80,19 @@ function getGatewayUser(req: IncomingMessage): GatewayUser | null {
 
 function requireAgent(user: GatewayUser | null, res: ServerResponse): GatewayUser | null {
   if (!user) {
-    sendJson(res, 401, { error: 'Unauthorized' });
+    logger.warn({ event: 'auth_failed', reason: 'no_user_headers', message: 'Missing X-User-Id or X-User-Role headers' });
+    sendJson(res, 401, { error: 'Unauthorized', details: 'Missing authentication headers' });
     return null;
   }
   if (String(user.role).toLowerCase() !== 'agent') {
-    sendJson(res, 403, { error: 'Forbidden' });
+    logger.warn({ 
+      event: 'auth_forbidden', 
+      userId: user.userId, 
+      role: user.role, 
+      email: user.email,
+      message: `User role is '${user.role}' but 'agent' is required` 
+    });
+    sendJson(res, 403, { error: 'Forbidden', details: `Role '${user.role}' cannot access agent endpoints. Required: 'agent'` });
     return null;
   }
   return user;
