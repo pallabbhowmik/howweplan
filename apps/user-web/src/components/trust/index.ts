@@ -43,3 +43,11 @@ export type {
   ItineraryDay,
   ItineraryTemplateProps,
 } from './ItineraryTemplate';
+export {
+  TripCountdown,
+  TripCountdownSkeleton,
+} from './TripCountdown';
+export type {
+  TripStatus,
+  TripCountdownProps,
+} from './TripCountdown';

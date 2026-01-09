@@ -35,6 +35,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { TripCountdown } from '@/components/trust/TripCountdown';
 import { useUserSession } from '@/lib/user/session';
 import {
   fetchUserRequests,
@@ -1067,60 +1068,67 @@ function StatusBadge({ stage, agentsResponded }: { stage: JourneyStage; agentsRe
 // ============================================================================
 
 function UpcomingTripCard({ booking }: { booking: Booking }) {
-  const daysUntil = Math.ceil((new Date(booking.travelStartDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   const destination = booking.request?.destination?.label || booking.request?.destination?.city || 'Your Trip';
+  const travelerCount = booking.request?.travelers 
+    ? getTravelerCount(booking.request.travelers) 
+    : undefined;
+  const highlights = booking.request?.interests || [];
   
   return (
-    <Link href={`/dashboard/bookings/${booking.id}`}>
-      <div className="relative overflow-hidden bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 rounded-2xl p-[2px] shadow-xl shadow-green-500/20 group hover:shadow-2xl transition-all duration-300">
-        <div className="relative bg-white rounded-[14px] p-6 overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-green-50 to-emerald-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+    <div className="space-y-4">
+      {/* Trip Countdown Widget - Post Payment Only */}
+      <TripCountdown
+        tripId={booking.id}
+        destination={destination}
+        startDate={booking.travelStartDate}
+        endDate={booking.travelEndDate}
+        isPaymentConfirmed={booking.paymentStatus === 'paid' || booking.status === 'confirmed'}
+        bookingReference={booking.bookingNumber}
+        travelerCount={travelerCount}
+        highlights={highlights.slice(0, 5)}
+        variant="default"
+      />
+      
+      {/* Quick Link to Booking Details */}
+      <Link href={`/dashboard/bookings/${booking.id}`}>
+        <div className="relative overflow-hidden bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 rounded-2xl p-[2px] shadow-xl shadow-green-500/20 group hover:shadow-2xl transition-all duration-300">
+          <div className="relative bg-white rounded-[14px] p-4 overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-green-50 to-emerald-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           
-          <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-5">
-              <div className="relative">
-                <div className="text-5xl group-hover:scale-110 transition-transform">
+            <div className="relative flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="text-3xl">
                   {getDestinationEmoji(booking.request?.destination?.country)}
                 </div>
-                <div className="absolute -bottom-1 -right-1 bg-gradient-to-br from-green-500 to-emerald-600 text-white text-xs font-bold px-2.5 py-1 rounded-xl shadow-lg">
-                  {daysUntil}d
+                <div>
+                  <h3 className="font-bold text-lg text-slate-900 group-hover:text-green-600 transition-colors">
+                    View Full Itinerary
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    {formatDateRange(booking.travelStartDate, booking.travelEndDate)}
+                  </p>
                 </div>
               </div>
-              <div>
-                <div className="flex items-center gap-2 text-green-600 text-sm font-medium mb-1">
-                  <Plane className="h-4 w-4" />
-                  Upcoming Trip
-                </div>
-                <h3 className="font-bold text-xl text-slate-900 group-hover:text-green-600 transition-colors">
-                  {destination}
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  {formatDateRange(booking.travelStartDate, booking.travelEndDate)}
-                </p>
-              </div>
-            </div>
             
-            <div className="flex items-center gap-4">
-              {booking.agent && (
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm font-semibold text-slate-700">{booking.agent.fullName}</p>
-                  {booking.agent.rating && (
-                    <div className="flex items-center gap-1 justify-end mt-1">
-                      <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                      <span className="text-sm font-medium text-slate-600">{booking.agent.rating.toFixed(1)}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-              <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 font-semibold px-3 py-1.5 rounded-xl shadow-sm">
-                <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-                Confirmed
-              </Badge>
+              <div className="flex items-center gap-4">
+                {booking.agent && (
+                  <div className="text-right hidden sm:block">
+                    <p className="text-sm font-semibold text-slate-700">{booking.agent.fullName}</p>
+                    {booking.agent.rating && (
+                      <div className="flex items-center gap-1 justify-end mt-1">
+                        <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                        <span className="text-sm font-medium text-slate-600">{booking.agent.rating.toFixed(1)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <ChevronRight className="h-5 w-5 text-green-500 group-hover:translate-x-1 transition-transform" />
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
 
