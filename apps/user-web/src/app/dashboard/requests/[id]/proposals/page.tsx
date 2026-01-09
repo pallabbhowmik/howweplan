@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Star, Clock, CheckCircle, Calendar, MessageSquare, Loader2, Lock, Eye } from 'lucide-react';
+import { ArrowLeft, Star, Clock, CheckCircle, Calendar, MessageSquare, Loader2, Lock, Eye, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -205,8 +205,14 @@ export default function ProposalsPage() {
 
                   {/* Actions */}
                   <div className="flex flex-col gap-2 lg:w-40 shrink-0">
-                    <Button onClick={() => handleSelectProposal(proposal.id)}>
-                      Select This Option
+                    <Link href={`/dashboard/requests/${requestId}/proposals/${proposal.id}`}>
+                      <Button className="w-full">
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Itinerary
+                      </Button>
+                    </Link>
+                    <Button onClick={() => handleSelectProposal(proposal.id)} variant="default" className="bg-green-600 hover:bg-green-700">
+                      Select & Book
                     </Button>
                     <Button variant="outline">
                       <MessageSquare className="h-4 w-4 mr-2" />
