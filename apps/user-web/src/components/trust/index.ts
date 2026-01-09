@@ -31,3 +31,15 @@ export type {
   PriceBudgetComparisonProps,
   PriceAnalysis,
 } from './PriceBudgetComparison';
+export {
+  ItineraryTemplate,
+  ItineraryTemplateCompact,
+  ItineraryTemplateSkeleton,
+} from './ItineraryTemplate';
+export type {
+  TimeOfDay,
+  ItemCategory,
+  ObfuscatedItineraryItem,
+  ItineraryDay,
+  ItineraryTemplateProps,
+} from './ItineraryTemplate';

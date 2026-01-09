@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Star, Clock, CheckCircle, Calendar, MessageSquare, Loader2 } from 'lucide-react';
+import { ArrowLeft, Star, Clock, CheckCircle, Calendar, MessageSquare, Loader2, Lock, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUserSession } from '@/lib/user/session';
 import { fetchRequest, fetchRequestProposals, type TravelRequest, type Proposal } from '@/lib/data/api';
 import { PriceBudgetComparison, SavingsHighlight } from '@/components/trust/PriceBudgetComparison';
+import { ItineraryTemplateCompact } from '@/components/trust/ItineraryTemplate';
 
 export default function ProposalsPage() {
   const params = useParams();
@@ -187,22 +188,18 @@ export default function ProposalsPage() {
                       </div>
                     )}
 
-                    {/* Itinerary Preview */}
+                    {/* Itinerary Preview - Enhanced with Template */}
                     {proposal.itinerary && proposal.itinerary.length > 0 && (
-                      <div className="bg-slate-50 rounded-lg p-3">
-                        <p className="text-sm font-medium mb-2 flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          {proposal.itinerary.length}-Day Itinerary
-                        </p>
-                        <div className="text-sm text-muted-foreground">
-                          {proposal.itinerary.slice(0, 3).map((day) => (
-                            <span key={day.day} className="block">Day {day.day}: {day.title}</span>
-                          ))}
-                          {proposal.itinerary.length > 3 && (
-                            <span className="text-blue-600">...and {proposal.itinerary.length - 3} more days</span>
-                          )}
-                        </div>
-                      </div>
+                      <ItineraryTemplateCompact
+                        totalDays={proposal.itinerary.length}
+                        highlights={proposal.itinerary.slice(0, 3).map((day) => day.title)}
+                        itemCounts={{
+                          accommodations: Math.ceil(proposal.itinerary.length / 2),
+                          activities: proposal.itinerary.length * 2,
+                          meals: proposal.itinerary.length,
+                          transfers: Math.ceil(proposal.itinerary.length / 3) + 1,
+                        }}
+                      />
                     )}
                   </div>
 
