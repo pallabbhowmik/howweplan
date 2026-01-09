@@ -22,11 +22,12 @@
 -- ============================================================================
 
 -- Admin User
-INSERT INTO users (id, email, email_verified, first_name, last_name, role, is_active, password_hash, status)
+INSERT INTO users (id, email, email_verified, phone, first_name, last_name, role, is_active, password_hash, status)
 VALUES (
     'a0000000-0000-0000-0000-000000000001',
     'admin@howweplan.com',
     TRUE,
+    '+91-99999-00000',
     'Admin',
     'User',
     'admin',
@@ -198,7 +199,7 @@ VALUES (
     'luxury',
     '{"accommodation_type": "heritage_palace", "meal_preference": "local_cuisine", "activity_level": "moderate", "special_occasions": ["honeymoon"], "dietary_restrictions": ["vegetarian"]}',
     'This is our first big trip together. We would love suggestions for romantic restaurants and unique royal experiences.',
-    'SUBMITTED'
+    'submitted'
 );
 
 -- ============================================================================
@@ -559,7 +560,7 @@ VALUES
         'family',
         '{"interests": ["backwaters", "beaches", "tea plantations"], "dietary_restrictions": ["vegetarian"]}',
         'Prefer a child-friendly houseboat and a relaxed pace.',
-        'SUBMITTED',
+        'submitted',
         (CURRENT_TIMESTAMP + INTERVAL '7 days'),
         (CURRENT_TIMESTAMP - INTERVAL '2 hours')
     ),
@@ -579,7 +580,7 @@ VALUES
         'luxury',
         '{"interests": ["heritage", "romantic dining", "boat rides"], "dietary_restrictions": ["vegetarian"]}',
         'Would love one special surprise dinner experience.',
-        'AGENTS_MATCHED',
+        'matched',
         (CURRENT_TIMESTAMP + INTERVAL '5 days'),
         (CURRENT_TIMESTAMP - INTERVAL '1 day')
     ),
@@ -599,7 +600,7 @@ VALUES
         'adventure',
         '{"interests": ["trekking", "photography", "camping"], "activity_level": "high"}',
         'Need acclimatization days and comfortable stays.',
-        'ITINERARIES_RECEIVED',
+        'matched',
         (CURRENT_TIMESTAMP + INTERVAL '10 days'),
         (CURRENT_TIMESTAMP - INTERVAL '3 days')
     ),
@@ -619,7 +620,7 @@ VALUES
         'budget',
         '{"interests": ["temples", "heritage", "food"], "activity_level": "moderate"}',
         'Prefer early morning boat ride and local vegetarian food suggestions.',
-        'READY_FOR_PAYMENT',
+        'matched',
         (CURRENT_TIMESTAMP + INTERVAL '3 days'),
         (CURRENT_TIMESTAMP - INTERVAL '6 hours')
     ),
@@ -639,7 +640,7 @@ VALUES
         'relaxation',
         '{"interests": ["beach", "snorkeling", "scuba"], "activity_level": "moderate"}',
         'One day should be fully free for beach time.',
-        'BOOKED',
+        'completed',
         (CURRENT_TIMESTAMP + INTERVAL '14 days'),
         (CURRENT_TIMESTAMP - INTERVAL '10 days')
     ),
@@ -659,7 +660,7 @@ VALUES
         'leisure',
         '{"interests": ["nature", "coffee plantations"], "activity_level": "low"}',
         NULL,
-        'DRAFT',
+        'draft',
         NULL,
         (CURRENT_TIMESTAMP - INTERVAL '30 minutes')
     );
