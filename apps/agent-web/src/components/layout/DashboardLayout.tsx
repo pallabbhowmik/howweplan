@@ -445,19 +445,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (cancelled) return;
         setIdentity(id);
         setStats(s);
-      } catch {
+      } catch (err) {
         if (cancelled) return;
+        // Silently fail for layout - main page will show the error
+        // Just reset to default values
         setIdentity(null);
         setStats({ pendingMatches: 0, acceptedMatches: 0, activeBookings: 0, unreadMessages: 0 });
       }
     };
 
-    load();
-    const interval = setInterval(load, 30000);
-
+    // Only load if user is authenticated
+    if (getAccessToken()) {
+      load();
+      const interval = setInterval(load, 30000);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
+    }
+    
     return () => {
       cancelled = true;
-      clearInterval(interval);
     };
   }, [agent.agentId]);
 

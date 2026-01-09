@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import {
   Inbox,
@@ -21,6 +22,8 @@ import {
   MessageSquare,
   Loader2,
   AlertCircle,
+  ShieldAlert,
+  LogOut,
 } from 'lucide-react';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Progress, Avatar, AvatarFallback } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -30,11 +33,12 @@ import {
   listMatchedRequests,
   acceptMatch,
   declineMatch,
+  ApiError,
   type AgentIdentity,
   type AgentStatsSummary,
   type AgentRequestMatch,
 } from '@/lib/data/agent';
-import { getAccessToken } from '@/lib/api/auth';
+import { getAccessToken, logout, clearAuthData } from '@/lib/api/auth';
 
 // ============================================================================
 // TYPES
@@ -576,7 +580,21 @@ export default function DashboardPage() {
 
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
-      setError('Failed to load dashboard data. Please try again.');
+      
+      // Handle specific error types
+      if (err instanceof ApiError) {
+        if (err.status === 403) {
+          // User has wrong role - not an agent
+          setError('ACCESS_DENIED');
+        } else if (err.status === 401) {
+          // Not authenticated
+          setError('NOT_AUTHENTICATED');
+        } else {
+          setError(err.message || 'Failed to load dashboard data. Please try again.');
+        }
+      } else {
+        setError('Failed to load dashboard data. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -626,7 +644,64 @@ export default function DashboardPage() {
     ? Math.round(((stats.thisMonthCommission - stats.lastMonthCommission) / stats.lastMonthCommission) * 100)
     : 0;
 
-  // Error state
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      const token = getAccessToken();
+      if (token) {
+        await logout(token);
+      }
+    } catch {
+      // Continue even if logout API fails
+    }
+    clearAuthData();
+    router.push('/login');
+  };
+
+  // Access denied error state (wrong role)
+  if (error === 'ACCESS_DENIED' && !isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center px-4">
+        <ShieldAlert className="h-16 w-16 text-amber-500 mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Agent Access Required</h2>
+        <p className="text-gray-600 mb-2 max-w-md">
+          Your account is registered as a regular user, not a travel agent.
+        </p>
+        <p className="text-gray-500 mb-6 max-w-md text-sm">
+          To access the Agent Portal, you need an account with the &quot;agent&quot; role. 
+          Please contact support if you believe this is an error, or log in with a different account.
+        </p>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Switch Account
+          </Button>
+          <Link href="mailto:support@howweplan.com">
+            <Button>Contact Support</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Not authenticated error state
+  if (error === 'NOT_AUTHENTICATED' && !isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center px-4">
+        <AlertCircle className="h-16 w-16 text-blue-500 mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Session Expired</h2>
+        <p className="text-gray-600 mb-6 max-w-md">
+          Please log in again to access your agent dashboard.
+        </p>
+        <Link href="/login">
+          <Button>Log In</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  // Generic error state
   if (error && !isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
