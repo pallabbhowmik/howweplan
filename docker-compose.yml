@@ -230,6 +230,8 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-dev-service-role-key}
       JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-minimum-32-characters-long}
       EVENT_BUS_URL: redis://default:${REDIS_PASSWORD:-redis_dev_password}@redis:6379
+      MATCHING_SERVICE_URL: http://matching:3013
+      INTERNAL_SERVICE_SECRET: ${JWT_SECRET:-dev-jwt-secret-minimum-32-characters-long}
       DAILY_REQUEST_CAP: ${DAILY_REQUEST_CAP:-5}
       MAX_OPEN_REQUESTS: ${MAX_OPEN_REQUESTS:-3}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -281,8 +283,6 @@ services:
         condition: service_healthy
       audit:
         condition: service_healthy
-      requests:
-        condition: service_started
 
   itineraries:
     build:

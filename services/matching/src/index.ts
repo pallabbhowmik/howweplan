@@ -35,10 +35,16 @@ async function start(): Promise<void> {
     // Initialize DB pool
     initializePool();
 
-    // Connect to event bus
-    const eventBus = getEventBus();
-    await eventBus.connect();
-    logger.info('Event bus connected');
+    // Connect to event bus (optional - service can work without it)
+    try {
+      const eventBus = getEventBus();
+      await eventBus.connect();
+      logger.info('Event bus connected');
+    } catch (eventBusError) {
+      logger.warn({
+        error: eventBusError instanceof Error ? eventBusError.message : 'Unknown error',
+      }, 'Event bus connection failed - continuing without it (direct HTTP matching still works)');
+    }
 
     // Create matching engine
     const matchingEngine = createMatchingEngine();

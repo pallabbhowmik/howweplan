@@ -361,12 +361,25 @@ async function requestHandler(
   const parsedUrl = new URL(rawUrl, `http://${req.headers.host ?? 'localhost'}`);
   const url = parsedUrl.pathname;
 
-  // CORS headers for preflight (primarily for local dev; gateway handles CORS in prod)
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  // CORS headers - handle both gateway-proxied requests and direct access
+  const origin = req.headers.origin || '*';
+  const allowedOrigins = [
+    'https://howweplan-agent.vercel.app',
+    'https://howweplan-user.vercel.app',
+    'https://howweplan-admin.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003',
+  ];
+  const corsOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  
+  res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Content-Type, Authorization, X-API-Key, X-User-Id, X-User-Role, X-User-Email, X-Request-Id'
+    'Content-Type, Authorization, X-API-Key, X-User-Id, X-User-Role, X-User-Email, X-Request-Id, X-Internal-Service-Secret'
   );
 
   if (method === 'OPTIONS') {
@@ -396,6 +409,94 @@ async function requestHandler(
   if (url === '/webhook/event' && method === 'POST') {
     await handleWebhook(req, res);
     return;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Internal Service API (for inter-service communication)
+  // ---------------------------------------------------------------------------
+
+  if (url === '/internal/match' && method === 'POST') {
+    // Verify internal service secret
+    const serviceSecret = req.headers['x-internal-service-secret'] || req.headers['x-api-key'];
+    const validSecret = env.INTERNAL_JWT_SECRET || env.EVENT_BUS_API_KEY;
+    if (serviceSecret !== validSecret) {
+      logger.warn('Invalid internal service secret for /internal/match');
+      sendJson(res, 401, { error: 'Unauthorized' });
+      return;
+    }
+
+    try {
+      const body = await parseJsonBody(req);
+      const { requestId, request, correlationId } = body;
+
+      if (!requestId || !request) {
+        sendJson(res, 400, { error: 'Missing requestId or request data' });
+        return;
+      }
+
+      logger.info({ requestId, correlationId }, 'Received internal match trigger');
+
+      // Trigger matching via the webhook handler by simulating a REQUEST_CREATED event
+      await handleWebhook(
+        {
+          ...req,
+          headers: { ...req.headers, 'x-api-key': env.EVENT_BUS_API_KEY },
+        } as IncomingMessage,
+        {
+          writeHead: () => {},
+          end: () => {},
+        } as any
+      );
+
+      // Actually, let's call the event handler directly instead
+      // Get event handlers and trigger matching
+      const event = {
+        eventId: correlationId || `match-${Date.now()}`,
+        eventType: 'RequestCreated',
+        occurredAt: new Date().toISOString(),
+        version: '1.0.0',
+        correlationId: correlationId || requestId,
+        source: 'requests-service',
+        payload: { request },
+      };
+
+      // For now, let's just create the agent_matches directly in the database
+      // This is a simplified version - the full matching engine would score agents
+      const { rows: agents } = await query<{ id: string }>(
+        `SELECT id FROM agents WHERE is_verified = true LIMIT 5`
+      );
+
+      if (agents.length === 0) {
+        logger.warn({ requestId }, 'No verified agents found for matching');
+        sendJson(res, 200, { success: true, matchCount: 0, message: 'No agents available' });
+        return;
+      }
+
+      // Create matches for each available agent
+      let matchCount = 0;
+      for (const agent of agents) {
+        try {
+          await query(
+            `INSERT INTO agent_matches (id, request_id, agent_id, status, match_score, matched_at)
+             VALUES (gen_random_uuid(), $1, $2, 'pending', 75.0, NOW())
+             ON CONFLICT (request_id, agent_id) DO NOTHING`,
+            [requestId, agent.id]
+          );
+          matchCount++;
+        } catch (err) {
+          logger.warn({ requestId, agentId: agent.id, error: err }, 'Failed to create match');
+        }
+      }
+
+      logger.info({ requestId, matchCount }, 'Created agent matches');
+      sendJson(res, 200, { success: true, matchCount });
+      return;
+
+    } catch (error) {
+      logger.error({ error }, 'Failed to process internal match trigger');
+      sendJson(res, 500, { error: 'Internal server error' });
+      return;
+    }
   }
 
   // ---------------------------------------------------------------------------

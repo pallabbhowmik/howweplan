@@ -31,6 +31,7 @@ import { createLogger } from './services/logger.service';
 import { createAuditService } from './services/audit.service';
 import { createCapEnforcementService } from './services/cap-enforcement.service';
 import { createRequestService } from './services/request.service';
+import { createMatchingServiceClient } from './services/matching.service';
 
 // Events
 import { createEventEmitter } from './events/event-emitter';
@@ -66,6 +67,7 @@ async function main() {
   const eventEmitter = createEventEmitter(logger);
   const auditService = createAuditService(logger);
   const capEnforcementService = createCapEnforcementService(repository, logger);
+  const matchingService = createMatchingServiceClient(logger);
   
   // Connect to event bus (optional)
   try {
@@ -81,7 +83,8 @@ async function main() {
     capEnforcementService,
     eventEmitter,
     auditService,
-    logger
+    logger,
+    matchingService
   );
 
   // Create middleware

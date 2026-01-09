@@ -62,6 +62,10 @@ const envSchema = z.object({
   EVENT_BUS_URL: z.string().url('EVENT_BUS_URL must be a valid Redis connection string').optional(),
   EVENT_BUS_CHANNEL_PREFIX: z.string().default('tripcomposer'),
 
+  // Matching Service (for triggering agent matching)
+  MATCHING_SERVICE_URL: z.string().url().default('http://localhost:3013'),
+  INTERNAL_SERVICE_SECRET: z.string().default('dev-internal-secret-32'),
+
   // Authentication
   // For RS256 (recommended), services only need the PUBLIC key to verify tokens
   // The public key is safe to distribute to all services
@@ -130,6 +134,10 @@ export const config = {
   eventBus: {
     url: env.EVENT_BUS_URL,
     channelPrefix: env.EVENT_BUS_CHANNEL_PREFIX,
+  },
+  matching: {
+    serviceUrl: env.MATCHING_SERVICE_URL,
+    internalSecret: env.INTERNAL_SERVICE_SECRET,
   },
   auth: {
     // Load from secret file first, then fall back to env var

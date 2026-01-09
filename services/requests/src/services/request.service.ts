@@ -31,6 +31,7 @@ import { toRequestSnapshot } from '../events/request.events';
 import { CapEnforcementService } from './cap-enforcement.service';
 import { AuditService } from './audit.service';
 import { Logger } from './logger.service';
+import { MatchingServiceClient, createMatchingServiceClient } from './matching.service';
 
 export interface RequestService {
   createRequest(userId: string, input: ValidatedCreateRequest, context: EventContext): Promise<TravelRequest>;
@@ -60,7 +61,8 @@ export function createRequestService(
   capEnforcement: CapEnforcementService,
   eventEmitter: EventEmitter,
   auditService: AuditService,
-  logger: Logger
+  logger: Logger,
+  matchingService?: MatchingServiceClient
 ): RequestService {
   const emitStateChangeEvent = async (
     request: TravelRequest,
@@ -220,6 +222,32 @@ export function createRequestService(
           reason: 'User submitted request',
         },
       });
+
+      // Trigger matching service (non-blocking, errors are logged but don't fail submission)
+      if (matchingService) {
+        matchingService.triggerMatching({
+          requestId: saved.id,
+          request: {
+            requestId: saved.id,
+            userId: saved.userId,
+            title: saved.title || '',
+            description: saved.description,
+            destination: saved.destination,
+            departureDate: saved.departureDate.toISOString(),
+            returnDate: saved.returnDate.toISOString(),
+            budgetMin: saved.budgetMin,
+            budgetMax: saved.budgetMax,
+            budgetCurrency: saved.budgetCurrency,
+            travelers: saved.travelers,
+            travelStyle: saved.travelStyle,
+            preferences: saved.preferences,
+          },
+          correlationId: context.correlationId,
+        }).catch((err) => {
+          // Log but don't fail - matching can be triggered later
+          logger.warn('Failed to trigger matching', { requestId: saved.id, error: err });
+        });
+      }
 
       logger.info('Request submitted', { requestId: saved.id, userId });
       return saved;

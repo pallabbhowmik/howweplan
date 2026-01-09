@@ -44,14 +44,15 @@ export class EventBus {
 
   /**
    * Connect to Event Bus (validates connectivity with retries)
+   * Uses exponential backoff to handle rate limiting gracefully
    */
   async connect(): Promise<void> {
     if (this.isConnected) {
       return;
     }
 
-    const maxRetries = 5;
-    const retryDelayMs = 3000;
+    const maxRetries = 3;
+    const baseDelayMs = 2000;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -69,6 +70,25 @@ export class EventBus {
         });
 
         clearTimeout(timeoutId);
+
+        // Handle rate limiting - 429 is not fatal, just delay
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('Retry-After');
+          const delayMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : baseDelayMs * Math.pow(2, attempt);
+          logger.warn({ 
+            url: this.baseUrl, 
+            attempt, 
+            retryAfterMs: delayMs,
+          }, 'Event Bus rate limited (429), backing off...');
+          
+          if (attempt < maxRetries) {
+            await this.sleep(delayMs);
+            continue;
+          }
+          // On last attempt, don't throw - just mark as not connected
+          logger.warn({ url: this.baseUrl }, 'Event Bus rate limited after all retries - service will continue without event bus');
+          return;
+        }
 
         if (!response.ok) {
           throw new Error(`Event Bus health check failed: ${response.status}`);
@@ -98,7 +118,8 @@ export class EventBus {
           throw new Error(`Failed to connect to Event Bus: ${errorMessage}`);
         }
 
-        await this.sleep(retryDelayMs);
+        // Exponential backoff
+        await this.sleep(baseDelayMs * Math.pow(2, attempt - 1));
       }
     }
   }
