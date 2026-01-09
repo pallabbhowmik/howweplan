@@ -51,3 +51,21 @@ export type {
   TripStatus,
   TripCountdownProps,
 } from './TripCountdown';
+export {
+  WishlistButton,
+  WishlistProvider,
+  useWishlist,
+} from './WishlistButton';
+export type {
+  WishlistItemType,
+  WishlistItem,
+  WishlistButtonProps,
+} from './WishlistButton';
+export {
+  WishlistCard,
+  WishlistEmpty,
+} from './WishlistCard';
+export type {
+  WishlistCardProps,
+  WishlistEmptyProps,
+} from './WishlistCard';

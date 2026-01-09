@@ -23,6 +23,7 @@ import {
   Globe,
   Compass,
   Zap,
+  Heart,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -156,6 +157,7 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
     { href: '/dashboard/requests', label: 'Requests', icon: Compass, badge: requestCount > 0 ? String(requestCount) : undefined, description: 'Travel requests' },
     { href: '/dashboard/bookings', label: 'Trips', icon: Calendar, description: 'Booked trips' },
     { href: '/dashboard/messages', label: 'Messages', icon: MessageSquare, description: 'Agent messages' },
+    { href: '/dashboard/wishlist', label: 'Wishlist', icon: Heart, description: 'Saved items' },
   ];
 
   // Get user display info
