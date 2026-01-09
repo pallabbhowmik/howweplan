@@ -372,8 +372,9 @@ async function requestHandler(
     'http://localhost:3001',
     'http://localhost:3002',
     'http://localhost:3003',
-  ];
-  const corsOrigin = (origin && allowedOrigins.includes(origin)) ? origin : allowedOrigins[0];
+  ] as const;
+  const defaultOrigin = 'https://howweplan-agent.vercel.app';
+  const corsOrigin = (origin && allowedOrigins.includes(origin as typeof allowedOrigins[number])) ? origin : defaultOrigin;
   
   res.setHeader('Access-Control-Allow-Origin', corsOrigin);
   res.setHeader('Access-Control-Allow-Credentials', 'true');
