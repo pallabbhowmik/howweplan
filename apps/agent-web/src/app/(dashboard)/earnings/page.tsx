@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   DollarSign,
   TrendingUp,
@@ -13,6 +13,8 @@ import {
   Clock,
   CheckCircle,
   Filter,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import {
   Button,
@@ -31,106 +33,169 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
+  Skeleton,
 } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import { listAgentBookings, type AgentBooking } from '@/lib/data/agent';
 
 // ============================================================================
-// MOCK DATA
+// TYPES
 // ============================================================================
 
-const mockEarningsData = {
-  summary: {
-    totalEarnings: 1847500, // in cents
-    thisMonth: 284500,
-    lastMonth: 241000,
-    pending: 128000,
-    available: 156500,
-  },
-  monthlyEarnings: [
-    { month: 'Jan', amount: 145000 },
-    { month: 'Feb', amount: 178000 },
-    { month: 'Mar', amount: 156000 },
-    { month: 'Apr', amount: 198000 },
-    { month: 'May', amount: 167000 },
-    { month: 'Jun', amount: 189000 },
-    { month: 'Jul', amount: 223000 },
-    { month: 'Aug', amount: 195000 },
-    { month: 'Sep', amount: 241000 },
-    { month: 'Oct', amount: 284500 },
-    { month: 'Nov', amount: 0 },
-    { month: 'Dec', amount: 0 },
-  ],
-  recentTransactions: [
-    {
-      id: 'TXN-001',
-      type: 'commission',
-      description: 'Commission - Goa Trip (Arjun K.)',
-      amount: 45000,
-      status: 'completed',
-      date: '2024-10-28',
-      bookingId: 'BK-2024-089',
-    },
-    {
-      id: 'TXN-002',
-      type: 'commission',
-      description: 'Commission - Rajasthan Trip (Priya S.)',
-      amount: 38500,
-      status: 'pending',
-      date: '2024-10-25',
-      bookingId: 'BK-2024-087',
-    },
-    {
-      id: 'TXN-003',
-      type: 'payout',
-      description: 'Payout to Bank Account ****4523',
-      amount: -125000,
-      status: 'completed',
-      date: '2024-10-20',
-    },
-    {
-      id: 'TXN-004',
-      type: 'commission',
-      description: 'Commission - Kerala Trip (Sneha G.)',
-      amount: 52000,
-      status: 'completed',
-      date: '2024-10-15',
-      bookingId: 'BK-2024-082',
-    },
-    {
-      id: 'TXN-005',
-      type: 'commission',
-      description: 'Commission - Ranthambore Safari (Vikram R.)',
-      amount: 62000,
-      status: 'pending',
-      date: '2024-10-10',
-      bookingId: 'BK-2024-085',
-    },
-    {
-      id: 'TXN-006',
-      type: 'commission',
-      description: 'Commission - Andaman Islands (Amit P.)',
-      amount: 41000,
-      status: 'completed',
-      date: '2024-10-05',
-      bookingId: 'BK-2024-079',
-    },
-    {
-      id: 'TXN-007',
-      type: 'payout',
-      description: 'Payout to Bank Account ****4523',
-      amount: -95000,
-      status: 'completed',
-      date: '2024-09-28',
-    },
-  ],
-  topPerformingTrips: [
-    { destination: 'Rajasthan', bookings: 8, revenue: 425000 },
-    { destination: 'Kerala', bookings: 12, revenue: 380000 },
-    { destination: 'Ladakh', bookings: 6, revenue: 312000 },
-    { destination: 'Goa', bookings: 5, revenue: 285000 },
-    { destination: 'Andaman Islands', bookings: 9, revenue: 245000 },
-  ],
+type EarningsSummary = {
+  totalEarnings: number;
+  thisMonth: number;
+  lastMonth: number;
+  pending: number;
+  available: number;
 };
+
+type Transaction = {
+  id: string;
+  type: 'commission' | 'payout';
+  description: string;
+  amount: number;
+  status: 'completed' | 'pending';
+  date: string;
+  bookingId?: string;
+};
+
+type MonthlyEarning = {
+  month: string;
+  amount: number;
+};
+
+type TopDestination = {
+  destination: string;
+  bookings: number;
+  revenue: number;
+};
+
+// ============================================================================
+// DATA TRANSFORMATION UTILITIES
+// ============================================================================
+
+function calculateEarningsFromBookings(bookings: AgentBooking[]): {
+  summary: EarningsSummary;
+  monthlyEarnings: MonthlyEarning[];
+  transactions: Transaction[];
+  topDestinations: TopDestination[];
+} {
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  // Calculate commission as 10% of total (adjust based on business logic)
+  const bookingsWithCommission = bookings.map((b) => ({
+    ...b,
+    commission: Math.round(b.totalAmountCents * 0.1),
+  }));
+
+  // Summary calculations
+  let totalEarnings = 0;
+  let thisMonth = 0;
+  let lastMonth = 0;
+  let pending = 0;
+  let available = 0;
+
+  // Monthly aggregation
+  const monthlyMap: Record<string, number> = {};
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  months.forEach((m) => { monthlyMap[m] = 0; });
+
+  // Destination aggregation
+  const destMap: Record<string, { bookings: number; revenue: number }> = {};
+
+  // Transaction list
+  const transactions: Transaction[] = [];
+
+  for (const booking of bookingsWithCommission) {
+    const bookingDate = new Date(booking.createdAt);
+    const bookingMonth = bookingDate.getMonth();
+    const bookingYear = bookingDate.getFullYear();
+    const commission = booking.commission;
+
+    // Total earnings (from completed bookings)
+    if (booking.state === 'completed') {
+      totalEarnings += commission;
+      available += commission;
+    } else if (booking.state !== 'cancelled') {
+      pending += commission;
+    }
+
+    // This month
+    if (bookingYear === currentYear && bookingMonth === currentMonth) {
+      thisMonth += commission;
+    }
+
+    // Last month
+    const lastMonthDate = new Date(currentYear, currentMonth - 1, 1);
+    if (bookingYear === lastMonthDate.getFullYear() && bookingMonth === lastMonthDate.getMonth()) {
+      lastMonth += commission;
+    }
+
+    // Monthly aggregation (current year only)
+    if (bookingYear === currentYear) {
+      const monthName = months[bookingMonth];
+      monthlyMap[monthName] = (monthlyMap[monthName] || 0) + commission;
+    }
+
+    // Destination aggregation
+    const dest = [booking.destinationCity, booking.destinationCountry]
+      .filter(Boolean)
+      .join(', ') || 'Other';
+    if (!destMap[dest]) {
+      destMap[dest] = { bookings: 0, revenue: 0 };
+    }
+    destMap[dest].bookings += 1;
+    destMap[dest].revenue += commission;
+
+    // Create transaction entry
+    if (booking.state !== 'cancelled') {
+      transactions.push({
+        id: `TXN-${booking.id}`,
+        type: 'commission',
+        description: `Commission - ${dest}`,
+        amount: commission,
+        status: booking.state === 'completed' ? 'completed' : 'pending',
+        date: booking.createdAt,
+        bookingId: booking.id,
+      });
+    }
+  }
+
+  // Convert monthly map to array
+  const monthlyEarnings = months.map((month) => ({
+    month,
+    amount: monthlyMap[month],
+  }));
+
+  // Convert destination map to sorted array
+  const topDestinations = Object.entries(destMap)
+    .map(([destination, data]) => ({
+      destination,
+      bookings: data.bookings,
+      revenue: data.revenue,
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5);
+
+  // Sort transactions by date (newest first)
+  transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  return {
+    summary: {
+      totalEarnings,
+      thisMonth,
+      lastMonth,
+      pending,
+      available,
+    },
+    monthlyEarnings,
+    transactions: transactions.slice(0, 10), // Limit to 10 most recent
+    topDestinations,
+  };
+}
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -208,7 +273,7 @@ function StatCard({
   );
 }
 
-function TransactionRow({ transaction }: { transaction: typeof mockEarningsData.recentTransactions[0] }) {
+function TransactionRow({ transaction }: { transaction: Transaction }) {
   const isPositive = transaction.amount > 0;
 
   return (
@@ -257,7 +322,7 @@ function TransactionRow({ transaction }: { transaction: typeof mockEarningsData.
   );
 }
 
-function EarningsChart({ data }: { data: typeof mockEarningsData.monthlyEarnings }) {
+function EarningsChart({ data }: { data: MonthlyEarning[] }) {
   const maxAmount = Math.max(...data.map((d) => d.amount));
   const currentMonth = new Date().getMonth();
 
@@ -301,6 +366,23 @@ function EarningsChart({ data }: { data: typeof mockEarningsData.monthlyEarnings
   );
 }
 
+function StatCardSkeleton() {
+  return (
+    <Card className="overflow-hidden">
+      <div className="bg-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-24 bg-gray-300" />
+            <Skeleton className="h-7 w-32 bg-gray-300" />
+            <Skeleton className="h-3 w-20 bg-gray-300" />
+          </div>
+          <Skeleton className="h-12 w-12 rounded-full bg-gray-300" />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 // ============================================================================
 // MAIN PAGE
 // ============================================================================
@@ -308,17 +390,122 @@ function EarningsChart({ data }: { data: typeof mockEarningsData.monthlyEarnings
 export default function EarningsPage() {
   const [timeRange, setTimeRange] = useState('this_year');
   const [transactionFilter, setTransactionFilter] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<EarningsSummary>({
+    totalEarnings: 0,
+    thisMonth: 0,
+    lastMonth: 0,
+    pending: 0,
+    available: 0,
+  });
+  const [monthlyEarnings, setMonthlyEarnings] = useState<MonthlyEarning[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [topDestinations, setTopDestinations] = useState<TopDestination[]>([]);
 
-  const { summary, monthlyEarnings, recentTransactions, topPerformingTrips } = mockEarningsData;
+  // Fetch bookings and calculate earnings
+  useEffect(() => {
+    async function loadEarnings() {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-  const monthlyGrowth = Math.round(
-    ((summary.thisMonth - summary.lastMonth) / summary.lastMonth) * 100
-  );
+        const bookings = await listAgentBookings({ limit: 100 });
+        const earningsData = calculateEarningsFromBookings(bookings);
 
-  const filteredTransactions = recentTransactions.filter((t) => {
+        setSummary(earningsData.summary);
+        setMonthlyEarnings(earningsData.monthlyEarnings);
+        setTransactions(earningsData.transactions);
+        setTopDestinations(earningsData.topDestinations);
+      } catch (err) {
+        console.error('Failed to load earnings:', err);
+        setError('Failed to load earnings data. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadEarnings();
+  }, []);
+
+  const monthlyGrowth = summary.lastMonth > 0
+    ? Math.round(((summary.thisMonth - summary.lastMonth) / summary.lastMonth) * 100)
+    : 0;
+
+  const filteredTransactions = transactions.filter((t) => {
     if (transactionFilter === 'all') return true;
     return t.type === transactionFilter;
   });
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Earnings</h1>
+            <p className="mt-1 text-gray-500">Track your commission and payouts</p>
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <StatCardSkeleton key={i} />
+          ))}
+        </div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Monthly Earnings</CardTitle>
+              <CardDescription>Your commission earnings over the past 12 months</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-48 w-full" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Destinations</CardTitle>
+              <CardDescription>Your best-selling trip types</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-2 w-full" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Earnings</h1>
+          <p className="mt-1 text-gray-500">Track your commission and payouts</p>
+        </div>
+        <Card>
+          <CardContent className="py-16 text-center">
+            <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+              <AlertCircle className="h-8 w-8 text-red-500" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-1">Error loading earnings</h3>
+            <p className="text-gray-500 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -401,24 +588,28 @@ export default function EarningsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {topPerformingTrips.map((trip, index) => (
-                <div key={trip.destination}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-700">{trip.destination}</span>
-                    <span className="text-sm text-gray-500">{trip.bookings} bookings</span>
+              {topDestinations.length > 0 ? (
+                topDestinations.map((trip, index) => (
+                  <div key={trip.destination}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-700">{trip.destination}</span>
+                      <span className="text-sm text-gray-500">{trip.bookings} booking{trip.bookings !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Progress
+                        value={topDestinations[0]?.revenue ? (trip.revenue / topDestinations[0].revenue) * 100 : 0}
+                        color={index === 0 ? 'purple' : 'blue'}
+                        className="flex-1"
+                      />
+                      <span className="text-sm font-semibold text-gray-900 w-20 text-right">
+                        {formatCurrency(trip.revenue)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Progress
-                      value={(trip.revenue / topPerformingTrips[0].revenue) * 100}
-                      color={index === 0 ? 'purple' : 'blue'}
-                      className="flex-1"
-                    />
-                    <span className="text-sm font-semibold text-gray-900 w-20 text-right">
-                      {formatCurrency(trip.revenue)}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">No booking data yet</p>
+              )}
             </div>
           </CardContent>
         </Card>

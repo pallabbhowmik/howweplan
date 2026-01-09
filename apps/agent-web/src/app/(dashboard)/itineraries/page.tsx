@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search,
   Plus,
@@ -50,106 +50,35 @@ import {
   SelectItem,
   Textarea,
   Progress,
+  Skeleton,
 } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import { listAgentItineraries, type AgentItinerary } from '@/lib/data/agent';
 
 // ============================================================================
-// MOCK DATA
+// UTILITY FUNCTIONS
 // ============================================================================
 
-const mockItineraries = [
-  {
-    id: 'ITN-2024-156',
-    name: 'Luxury Kerala Honeymoon',
-    requestId: 'REQ-2024-078',
-    destination: 'Kerala, India',
-    client: { firstName: 'Arjun', lastName: 'Kumar' },
-    status: 'sent',
-    daysCount: 10,
-    totalPrice: 875000,
-    commission: 87500,
-    createdAt: '2024-10-20',
-    updatedAt: '2024-10-22',
-    itemsCount: 15,
-    coverImage: '/images/kerala.jpg',
-    highlights: ['Houseboat Stay', 'Ayurveda Spa', 'Tea Gardens'],
-    viewCount: 12,
-    rating: null,
-  },
-  {
-    id: 'ITN-2024-154',
-    name: 'Rajasthan Heritage Package',
-    requestId: 'REQ-2024-075',
-    destination: 'Rajasthan, India',
-    client: { firstName: 'Priya', lastName: 'Sharma' },
-    status: 'draft',
-    daysCount: 7,
-    totalPrice: 625000,
-    commission: 62500,
-    createdAt: '2024-10-18',
-    updatedAt: '2024-10-25',
-    itemsCount: 12,
-    coverImage: '/images/rajasthan.jpg',
-    highlights: ['Udaipur Lake Palace', 'Desert Safari', 'Amber Fort'],
-    viewCount: 0,
-    rating: null,
-  },
-  {
-    id: 'ITN-2024-152',
-    name: 'Ultimate Ranthambore Safari',
-    requestId: 'REQ-2024-072',
-    destination: 'Ranthambore, India',
-    client: { firstName: 'Sneha', lastName: 'Gupta' },
-    status: 'approved',
-    daysCount: 9,
-    totalPrice: 1250000,
-    commission: 125000,
-    createdAt: '2024-10-15',
-    updatedAt: '2024-10-20',
-    itemsCount: 18,
-    coverImage: '/images/safari.jpg',
-    highlights: ['Tiger Safari', 'Nature Walks', 'Luxury Resort'],
-    viewCount: 24,
-    rating: 5,
-  },
-  {
-    id: 'ITN-2024-148',
-    name: 'Ladakh Family Adventure',
-    requestId: 'REQ-2024-068',
-    destination: 'Ladakh, India',
-    client: { firstName: 'Rahul', lastName: 'Verma' },
-    status: 'revision_requested',
-    daysCount: 11,
-    totalPrice: 920000,
-    commission: 92000,
-    createdAt: '2024-10-10',
-    updatedAt: '2024-10-23',
-    itemsCount: 22,
-    coverImage: '/images/ladakh.jpg',
-    highlights: ['Pangong Lake', 'Monasteries', 'Nubra Valley'],
-    viewCount: 18,
-    rating: null,
-    revisionNote: 'Would prefer more kid-friendly accommodation options',
-  },
-  {
-    id: 'ITN-2024-142',
-    name: 'Andaman Island Hopping',
-    requestId: 'REQ-2024-062',
-    destination: 'Andaman Islands, India',
-    client: { firstName: 'Amit', lastName: 'Patel' },
-    status: 'completed',
-    daysCount: 12,
-    totalPrice: 845000,
-    commission: 84500,
-    createdAt: '2024-08-05',
-    updatedAt: '2024-08-15',
-    itemsCount: 20,
-    coverImage: '/images/andaman.jpg',
-    highlights: ['Havelock Island', 'Scuba Diving', 'Beach Resort'],
-    viewCount: 45,
-    rating: 5,
-  },
-];
+// Type for display itinerary (transformed from AgentItinerary)
+type DisplayItinerary = {
+  id: string;
+  name: string;
+  requestId: string;
+  destination: string;
+  client: { firstName: string; lastName: string };
+  status: string;
+  daysCount: number;
+  totalPrice: number;
+  commission: number;
+  createdAt: string;
+  updatedAt: string;
+  itemsCount: number;
+  coverImage: string;
+  highlights: string[];
+  viewCount: number;
+  rating: number | null;
+  revisionNote?: string;
+};
 
 const templates = [
   { id: 't1', name: 'Luxury Beach Resort', type: 'beach', usageCount: 24 },
@@ -158,9 +87,34 @@ const templates = [
   { id: 't4', name: 'Romantic Getaway', type: 'romance', usageCount: 15 },
 ];
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
+/**
+ * Transform API itinerary to display format.
+ */
+function transformItinerary(itinerary: AgentItinerary): DisplayItinerary {
+  const overview = itinerary.overview ?? {};
+  const pricing = itinerary.pricing ?? { totalPrice: 0 };
+  const destinations = overview.destinations ?? [];
+  
+  return {
+    id: itinerary.id,
+    name: overview.title ?? 'Untitled Itinerary',
+    requestId: itinerary.requestId,
+    destination: destinations.join(', ') || 'Destination TBD',
+    client: itinerary.client ?? { firstName: 'Client', lastName: '' },
+    status: itinerary.status?.toLowerCase?.() ?? 'draft',
+    daysCount: overview.numberOfDays ?? 0,
+    totalPrice: pricing.totalPrice ?? 0,
+    commission: Math.round((pricing.totalPrice ?? 0) * 0.1),
+    createdAt: itinerary.createdAt,
+    updatedAt: itinerary.updatedAt,
+    itemsCount: itinerary.items?.length ?? 0,
+    coverImage: '',
+    highlights: destinations.slice(0, 3),
+    viewCount: itinerary.viewCount ?? 0,
+    rating: itinerary.rating ?? null,
+    revisionNote: undefined,
+  };
+}
 
 function formatCurrency(cents: number): string {
   return new Intl.NumberFormat('en-IN', {
@@ -197,7 +151,48 @@ function getStatusConfig(status: string): {
 // COMPONENTS
 // ============================================================================
 
-function ItineraryCard({ itinerary, viewMode }: { itinerary: typeof mockItineraries[0]; viewMode: 'grid' | 'list' }) {
+function ItineraryCardSkeleton({ viewMode }: { viewMode: 'grid' | 'list' }) {
+  if (viewMode === 'grid') {
+    return (
+      <Card className="overflow-hidden">
+        <Skeleton className="h-40 w-full" />
+        <CardContent className="p-4 space-y-3">
+          <Skeleton className="h-5 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <div className="flex gap-2">
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-5 w-16" />
+          </div>
+          <div className="flex justify-between">
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-8 w-16" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-16 w-16 rounded-lg" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ItineraryCard({ itinerary, viewMode }: { itinerary: DisplayItinerary; viewMode: 'grid' | 'list' }) {
   const statusConfig = getStatusConfig(itinerary.status);
 
   if (viewMode === 'grid') {
@@ -550,12 +545,35 @@ export default function ItinerariesPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-  const filteredItineraries = mockItineraries.filter((itinerary) => {
+  const [itineraries, setItineraries] = useState<DisplayItinerary[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadItineraries() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await listAgentItineraries({ limit: 100 });
+        const transformed = data.map(transformItinerary);
+        setItineraries(transformed);
+      } catch (err) {
+        console.error('Failed to load itineraries:', err);
+        setError('Failed to load itineraries. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadItineraries();
+  }, []);
+
+  const filteredItineraries = itineraries.filter((itinerary) => {
     // Tab filter
     if (activeTab === 'drafts' && itinerary.status !== 'draft') return false;
-    if (activeTab === 'sent' && itinerary.status !== 'sent') return false;
+    if (activeTab === 'sent' && itinerary.status !== 'sent' && itinerary.status !== 'submitted') return false;
     if (activeTab === 'approved' && itinerary.status !== 'approved') return false;
-    if (activeTab === 'needs_revision' && itinerary.status !== 'revision_requested') return false;
+    if (activeTab === 'needs_revision' && itinerary.status !== 'revision_requested' && itinerary.status !== 'rejected') return false;
 
     // Search filter
     if (searchQuery) {
@@ -572,13 +590,13 @@ export default function ItinerariesPage() {
   });
 
   const counts = {
-    drafts: mockItineraries.filter((i) => i.status === 'draft').length,
-    sent: mockItineraries.filter((i) => i.status === 'sent').length,
-    approved: mockItineraries.filter((i) => i.status === 'approved').length,
-    needsRevision: mockItineraries.filter((i) => i.status === 'revision_requested').length,
+    drafts: itineraries.filter((i) => i.status === 'draft').length,
+    sent: itineraries.filter((i) => i.status === 'sent' || i.status === 'submitted').length,
+    approved: itineraries.filter((i) => i.status === 'approved').length,
+    needsRevision: itineraries.filter((i) => i.status === 'revision_requested' || i.status === 'rejected').length,
   };
 
-  const totalValue = mockItineraries.reduce((sum, i) => sum + i.totalPrice, 0);
+  const totalValue = itineraries.reduce((sum, i) => sum + i.totalPrice, 0);
 
   return (
     <div className="space-y-6">
@@ -605,7 +623,11 @@ export default function ItinerariesPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Total Itineraries</p>
-              <p className="text-2xl font-bold text-gray-900">{mockItineraries.length}</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold text-gray-900">{itineraries.length}</p>
+              )}
             </div>
           </div>
         </Card>
@@ -616,7 +638,11 @@ export default function ItinerariesPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Needs Revision</p>
-              <p className="text-2xl font-bold text-gray-900">{counts.needsRevision}</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold text-gray-900">{counts.needsRevision}</p>
+              )}
             </div>
           </div>
         </Card>
@@ -627,7 +653,11 @@ export default function ItinerariesPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Approved</p>
-              <p className="text-2xl font-bold text-gray-900">{counts.approved}</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold text-gray-900">{counts.approved}</p>
+              )}
             </div>
           </div>
         </Card>
@@ -638,7 +668,11 @@ export default function ItinerariesPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Total Value</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalValue)}</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : (
+                <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalValue)}</p>
+              )}
             </div>
           </div>
         </Card>
@@ -704,7 +738,30 @@ export default function ItinerariesPage() {
       </Card>
 
       {/* Itineraries Grid/List */}
-      {filteredItineraries.length > 0 ? (
+      {isLoading ? (
+        <div className={cn(
+          viewMode === 'grid' 
+            ? 'grid gap-6 sm:grid-cols-2 lg:grid-cols-3' 
+            : 'space-y-4'
+        )}>
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <ItineraryCardSkeleton key={i} viewMode={viewMode} />
+          ))}
+        </div>
+      ) : error ? (
+        <Card>
+          <CardContent className="py-16 text-center">
+            <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+              <AlertCircle className="h-8 w-8 text-red-500" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-1">Error loading itineraries</h3>
+            <p className="text-gray-500 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      ) : filteredItineraries.length > 0 ? (
         <div className={cn(
           viewMode === 'grid' 
             ? 'grid gap-6 sm:grid-cols-2 lg:grid-cols-3' 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Search,
@@ -17,6 +17,7 @@ import {
   CheckCircle,
   AlertCircle,
   Filter,
+  Loader2,
 } from 'lucide-react';
 import {
   Button,
@@ -36,9 +37,29 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  Skeleton,
 } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { mockBookings } from '@/lib/mock/bookings';
+import { listAgentBookings, type AgentBooking } from '@/lib/data/agent';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+type BookingCardData = {
+  id: string;
+  destination: string;
+  client: { firstName: string; lastName: string; email: string };
+  dates: { start: string; end: string };
+  travelers: { count: number };
+  status: string;
+  totalValue: number;
+  commission: number;
+  paymentStatus: string;
+  daysUntilTrip: number;
+  hasUnreadMessages: number;
+  createdAt: string;
+};
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -52,7 +73,8 @@ function formatCurrency(cents: number): string {
   }).format(cents / 100);
 }
 
-function formatDateRange(start: string, end: string): string {
+function formatDateRange(start: string | null, end: string | null): string {
+  if (!start || !end) return 'Dates TBD';
   const startDate = new Date(start);
   const endDate = new Date(end);
   const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
@@ -64,13 +86,23 @@ function formatDateRange(start: string, end: string): string {
   return `${startDate.toLocaleDateString('en-US', yearOptions)} - ${endDate.toLocaleDateString('en-US', yearOptions)}`;
 }
 
+function calculateDaysUntilTrip(startDate: string | null): number {
+  if (!startDate) return 999;
+  const start = new Date(startDate);
+  const now = new Date();
+  const diffTime = start.getTime() - now.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
 function getStatusConfig(status: string): { label: string; variant: 'success' | 'warning' | 'info' | 'default' | 'destructive'; icon: React.ReactNode } {
   const configs: Record<string, { label: string; variant: 'success' | 'warning' | 'info' | 'default' | 'destructive'; icon: React.ReactNode }> = {
     confirmed: { label: 'Confirmed', variant: 'success', icon: <CheckCircle className="h-3 w-3" /> },
     itinerary_approved: { label: 'Itinerary Approved', variant: 'info', icon: <FileText className="h-3 w-3" /> },
     pending_payment: { label: 'Awaiting Payment', variant: 'warning', icon: <Clock className="h-3 w-3" /> },
+    pending: { label: 'Pending', variant: 'warning', icon: <Clock className="h-3 w-3" /> },
     in_progress: { label: 'In Progress', variant: 'info', icon: <Plane className="h-3 w-3" /> },
     completed: { label: 'Completed', variant: 'default', icon: <CheckCircle className="h-3 w-3" /> },
+    cancelled: { label: 'Cancelled', variant: 'destructive', icon: <AlertCircle className="h-3 w-3" /> },
   };
   return configs[status] || { label: status, variant: 'default', icon: null };
 }
@@ -83,11 +115,75 @@ function getTripStatus(daysUntil: number): { label: string; color: string } {
   return { label: `${daysUntil}d away`, color: 'text-gray-500' };
 }
 
+/** Transform API booking to UI card data */
+function transformBookingToCard(booking: AgentBooking): BookingCardData {
+  const destination = [booking.destinationCity, booking.destinationCountry]
+    .filter(Boolean)
+    .join(', ') || 'Destination TBD';
+
+  // Estimate commission as 10% of total (adjust based on actual business logic)
+  const commission = Math.round(booking.totalAmountCents * 0.1);
+
+  return {
+    id: booking.id,
+    destination,
+    client: booking.client ?? {
+      firstName: 'Client',
+      lastName: '',
+      email: '',
+    },
+    dates: {
+      start: booking.tripStartDate ?? '',
+      end: booking.tripEndDate ?? '',
+    },
+    travelers: {
+      count: booking.travelerCount ?? 1,
+    },
+    status: booking.state,
+    totalValue: booking.totalAmountCents,
+    commission,
+    paymentStatus: booking.paymentState,
+    daysUntilTrip: calculateDaysUntilTrip(booking.tripStartDate),
+    hasUnreadMessages: 0, // Would need to fetch from messaging service
+    createdAt: booking.createdAt,
+  };
+}
+
 // ============================================================================
 // COMPONENTS
 // ============================================================================
 
-function BookingCard({ booking }: { booking: typeof mockBookings[0] }) {
+function BookingCardSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+          <div className="flex items-start gap-4 flex-1">
+            <Skeleton className="h-12 w-12 rounded-full" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+          </div>
+          <div className="flex items-center gap-6">
+            <Skeleton className="h-8 w-24" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-5 w-20" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-9 w-9" />
+              <Skeleton className="h-9 w-16" />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BookingCard({ booking }: { booking: BookingCardData }) {
   const statusConfig = getStatusConfig(booking.status);
   const tripStatus = getTripStatus(booking.daysUntilTrip);
 
@@ -99,7 +195,7 @@ function BookingCard({ booking }: { booking: typeof mockBookings[0] }) {
           <div className="flex items-start gap-4 flex-1">
             <Avatar size="lg">
               <AvatarFallback>
-                {booking.client.firstName[0]}{booking.client.lastName[0]}
+                {booking.client.firstName[0] ?? 'C'}{booking.client.lastName[0] ?? ''}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
@@ -122,7 +218,7 @@ function BookingCard({ booking }: { booking: typeof mockBookings[0] }) {
                 </span>
                 <span className="flex items-center gap-1">
                   <Users className="h-4 w-4" />
-                  {booking.travelers.adults + booking.travelers.children} travelers
+                  {booking.travelers.count} traveler{booking.travelers.count !== 1 ? 's' : ''}
                 </span>
               </div>
             </div>
@@ -178,8 +274,30 @@ export default function BookingsPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('trip_date');
+  const [bookings, setBookings] = useState<BookingCardData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredBookings = mockBookings.filter((booking) => {
+  // Fetch bookings on mount
+  useEffect(() => {
+    async function loadBookings() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const apiBookings = await listAgentBookings({ limit: 100 });
+        setBookings(apiBookings.map(transformBookingToCard));
+      } catch (err) {
+        console.error('Failed to load bookings:', err);
+        setError('Failed to load bookings. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadBookings();
+  }, []);
+
+  const filteredBookings = bookings.filter((booking) => {
     // Tab filter
     if (activeTab === 'upcoming' && booking.daysUntilTrip < 0) return false;
     if (activeTab === 'in_progress' && booking.status !== 'in_progress') return false;
@@ -202,7 +320,7 @@ export default function BookingsPage() {
   const sortedBookings = [...filteredBookings].sort((a, b) => {
     switch (sortBy) {
       case 'trip_date':
-        return new Date(a.dates.start).getTime() - new Date(b.dates.start).getTime();
+        return new Date(a.dates.start || 0).getTime() - new Date(b.dates.start || 0).getTime();
       case 'created':
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       case 'value_high':
@@ -214,13 +332,87 @@ export default function BookingsPage() {
     }
   });
 
-  const upcomingCount = mockBookings.filter((b) => b.daysUntilTrip >= 0 && b.status !== 'completed').length;
-  const inProgressCount = mockBookings.filter((b) => b.status === 'in_progress').length;
-  const completedCount = mockBookings.filter((b) => b.status === 'completed').length;
+  const upcomingCount = bookings.filter((b) => b.daysUntilTrip >= 0 && b.status !== 'completed').length;
+  const inProgressCount = bookings.filter((b) => b.status === 'in_progress').length;
+  const completedCount = bookings.filter((b) => b.status === 'completed').length;
 
-  const totalCommission = mockBookings
+  const totalCommission = bookings
     .filter((b) => b.status !== 'completed')
     .reduce((sum, b) => sum + b.commission, 0);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        {/* Page Header Skeleton */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Bookings</h1>
+            <p className="mt-1 text-gray-500">
+              Manage your confirmed trips and track progress
+            </p>
+          </div>
+          <Card className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-100">
+            <div className="flex items-center gap-4">
+              <div className="rounded-full bg-emerald-100 p-3">
+                <DollarSign className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-sm text-emerald-700">Expected Commission</p>
+                <Skeleton className="h-7 w-24" />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Filters Skeleton */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <Skeleton className="h-10 w-96" />
+              <div className="flex gap-3">
+                <Skeleton className="h-10 w-64" />
+                <Skeleton className="h-10 w-40" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Booking Cards Skeleton */}
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <BookingCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Bookings</h1>
+          <p className="mt-1 text-gray-500">
+            Manage your confirmed trips and track progress
+          </p>
+        </div>
+        <Card>
+          <CardContent className="py-16 text-center">
+            <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+              <AlertCircle className="h-8 w-8 text-red-500" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-1">Error loading bookings</h3>
+            <p className="text-gray-500 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

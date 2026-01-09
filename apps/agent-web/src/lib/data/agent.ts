@@ -809,3 +809,515 @@ export async function getAgentMatchForRequest(agentId: string, requestId: string
     expiresAt: match.expires_at ?? null,
   };
 }
+
+// ============================================================================
+// BOOKINGS
+// ============================================================================
+
+export type AgentBooking = {
+  id: string;
+  bookingNumber: string | null;
+  userId: string;
+  agentId: string;
+  itineraryId: string | null;
+  requestId: string | null;
+  state: string;
+  paymentState: string;
+  tripStartDate: string | null;
+  tripEndDate: string | null;
+  destinationCity: string | null;
+  destinationCountry: string | null;
+  travelerCount: number | null;
+  totalAmountCents: number;
+  agentPayoutCents: number | null;
+  cancellationReason: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // Client details (fetched via join or populated separately)
+  client?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    avatarUrl: string | null;
+  };
+};
+
+/**
+ * List bookings for the authenticated agent.
+ * Backend determines agent from JWT token.
+ */
+export async function listAgentBookings(options?: {
+  limit?: number;
+  offset?: number;
+  status?: string;
+}): Promise<AgentBooking[]> {
+  const { limit = 20, offset = 0, status } = options ?? {};
+
+  if (getAccessToken()) {
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.set('limit', String(limit));
+      queryParams.set('offset', String(offset));
+      if (status) {
+        queryParams.set('status', status);
+      }
+
+      const result = await tryFetchJson<{
+        success: boolean;
+        data: {
+          bookings: Array<{
+            id: string;
+            bookingNumber: string | null;
+            userId: string;
+            agentId: string;
+            itineraryId: string | null;
+            requestId: string | null;
+            state: string;
+            paymentState: string;
+            tripStartDate: string | null;
+            tripEndDate: string | null;
+            destinationCity: string | null;
+            destinationCountry: string | null;
+            travelerCount: number | null;
+            basePriceCents: number;
+            bookingFeeCents: number;
+            platformCommissionCents: number;
+            totalAmountCents: number;
+            agentPayoutCents: number | null;
+            cancellationReason: string | null;
+            cancelledAt: string | null;
+            agentConfirmedAt: string | null;
+            tripCompletedAt: string | null;
+            createdAt: string;
+            updatedAt: string;
+          }>;
+          pagination: { limit: number; offset: number; hasMore: boolean };
+        };
+      }>(`/api/booking-payments/api/v1/bookings?${queryParams.toString()}`);
+
+      const bookings = result?.data?.bookings ?? [];
+
+      return bookings.map((b) => ({
+        id: b.id,
+        bookingNumber: b.bookingNumber,
+        userId: b.userId,
+        agentId: b.agentId,
+        itineraryId: b.itineraryId,
+        requestId: b.requestId,
+        state: b.state?.toLowerCase?.() ?? String(b.state ?? ''),
+        paymentState: b.paymentState?.toLowerCase?.() ?? 'pending',
+        tripStartDate: b.tripStartDate,
+        tripEndDate: b.tripEndDate,
+        destinationCity: b.destinationCity,
+        destinationCountry: b.destinationCountry,
+        travelerCount: b.travelerCount,
+        totalAmountCents: b.totalAmountCents ?? 0,
+        agentPayoutCents: b.agentPayoutCents,
+        cancellationReason: b.cancellationReason,
+        cancelledAt: b.cancelledAt,
+        createdAt: b.createdAt,
+        updatedAt: b.updatedAt,
+      }));
+    } catch {
+      // fall back to empty array - no mock bookings available
+    }
+  }
+
+  // No backend available and no mock data for bookings in this data layer
+  return [];
+}
+
+/**
+ * Get a single booking by ID for the authenticated agent.
+ */
+export async function getAgentBookingById(bookingId: string): Promise<AgentBooking | null> {
+  if (getAccessToken()) {
+    try {
+      const result = await tryFetchJson<{
+        success: boolean;
+        data: {
+          id: string;
+          bookingNumber: string | null;
+          userId: string;
+          agentId: string;
+          itineraryId: string | null;
+          requestId: string | null;
+          state: string;
+          paymentState: string;
+          tripStartDate: string | null;
+          tripEndDate: string | null;
+          destinationCity: string | null;
+          destinationCountry: string | null;
+          travelerCount: number | null;
+          totalAmountCents: number;
+          agentPayoutCents: number | null;
+          cancellationReason: string | null;
+          cancelledAt: string | null;
+          createdAt: string;
+          updatedAt: string;
+        };
+      }>(`/api/booking-payments/api/v1/bookings/${encodeURIComponent(bookingId)}`);
+
+      const b = result?.data;
+      if (!b) return null;
+
+      return {
+        id: b.id,
+        bookingNumber: b.bookingNumber,
+        userId: b.userId,
+        agentId: b.agentId,
+        itineraryId: b.itineraryId,
+        requestId: b.requestId,
+        state: b.state?.toLowerCase?.() ?? String(b.state ?? ''),
+        paymentState: b.paymentState?.toLowerCase?.() ?? 'pending',
+        tripStartDate: b.tripStartDate,
+        tripEndDate: b.tripEndDate,
+        destinationCity: b.destinationCity,
+        destinationCountry: b.destinationCountry,
+        travelerCount: b.travelerCount,
+        totalAmountCents: b.totalAmountCents ?? 0,
+        agentPayoutCents: b.agentPayoutCents,
+        cancellationReason: b.cancellationReason,
+        cancelledAt: b.cancelledAt,
+        createdAt: b.createdAt,
+        updatedAt: b.updatedAt,
+      };
+    } catch {
+      // fall back
+    }
+  }
+
+  return null;
+}
+
+// ============================================================================
+// REVIEWS
+// ============================================================================
+
+export type AgentReview = {
+  id: string;
+  reviewerId: string;
+  reviewerType: string;
+  subjectId: string;
+  subjectType: string;
+  bookingId: string | null;
+  rating: number;
+  title: string | null;
+  content: string | null;
+  aspects: {
+    communication?: number;
+    knowledge?: number;
+    valueForMoney?: number;
+    responsiveness?: number;
+  } | null;
+  status: string;
+  reviewerDisplayName: string | null;
+  destination: string | null;
+  createdAt: string;
+  publishedAt: string | null;
+  response: {
+    content: string;
+    createdAt: string;
+  } | null;
+};
+
+/**
+ * List reviews received by the agent.
+ * Backend derives agent from JWT token.
+ */
+export async function listAgentReviews(): Promise<AgentReview[]> {
+  if (getAccessToken()) {
+    try {
+      const result = await tryFetchJson<{
+        given: any[];
+        received: Array<{
+          id: string;
+          reviewerId: string;
+          reviewerType: string;
+          subjectId: string;
+          subjectType: string;
+          bookingId: string | null;
+          rating: number;
+          title: string | null;
+          content: string | null;
+          aspects: any;
+          status: string;
+          createdAt: string;
+          publishedAt: string | null;
+          agentResponse?: {
+            content: string;
+            createdAt: string;
+          } | null;
+        }>;
+      }>('/api/reviews/api/v1/reviews/my');
+
+      const received = result?.received ?? [];
+
+      return received.map((r) => ({
+        id: r.id,
+        reviewerId: r.reviewerId,
+        reviewerType: r.reviewerType?.toLowerCase?.() ?? 'traveler',
+        subjectId: r.subjectId,
+        subjectType: r.subjectType?.toLowerCase?.() ?? 'agent',
+        bookingId: r.bookingId,
+        rating: r.rating ?? 5,
+        title: r.title,
+        content: r.content,
+        aspects: r.aspects ?? null,
+        status: r.status?.toLowerCase?.() ?? 'published',
+        reviewerDisplayName: null, // Would need to fetch from identity service
+        destination: null, // Would need to fetch from booking data
+        createdAt: r.createdAt,
+        publishedAt: r.publishedAt,
+        response: r.agentResponse ?? null,
+      }));
+    } catch {
+      // fall back to empty array
+    }
+  }
+
+  return [];
+}
+
+/**
+ * Submit a response to a review.
+ */
+export async function respondToReview(reviewId: string, content: string): Promise<void> {
+  if (getAccessToken()) {
+    try {
+      await tryFetchJson(`/api/reviews/api/v1/reviews/${encodeURIComponent(reviewId)}/respond`, {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+      });
+      return;
+    } catch {
+      // fall back
+    }
+  }
+}
+
+// ============================================================================
+// ITINERARY DATA
+// ============================================================================
+
+export type AgentItinerary = {
+  id: string;
+  requestId: string;
+  agentId: string;
+  travelerId: string;
+  status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | string;
+  disclosureState: 'OBFUSCATED' | 'PARTIAL' | 'REVEALED' | string;
+  overview: {
+    title: string;
+    summary?: string;
+    startDate: string;
+    endDate: string;
+    numberOfDays: number;
+    numberOfNights: number;
+    destinations: string[];
+    travelersCount: number;
+    tripType?: string;
+  };
+  pricing?: {
+    currency: string;
+    totalPrice: number;
+    pricePerPerson?: number;
+    depositAmount?: number;
+    inclusions?: string[];
+    exclusions?: string[];
+    paymentTerms?: string;
+  };
+  items: Array<{
+    id: string;
+    dayNumber: number;
+    type: string;
+    title: string;
+    description?: string;
+    startTime?: string;
+    endTime?: string;
+    location?: string;
+    priceCents?: number;
+    notes?: string;
+    confirmed: boolean;
+  }>;
+  version: number;
+  termsAndConditions?: string;
+  cancellationPolicy?: string;
+  internalNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt?: string;
+  approvedAt?: string;
+  disclosedAt?: string;
+  // Virtual fields for display
+  client?: {
+    firstName: string;
+    lastName: string;
+  };
+  viewCount?: number;
+  rating?: number | null;
+};
+
+export type ListItinerariesOptions = {
+  requestId?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+};
+
+/**
+ * List itineraries for the current agent.
+ */
+export async function listAgentItineraries(options: ListItinerariesOptions = {}): Promise<AgentItinerary[]> {
+  if (getAccessToken()) {
+    try {
+      const params = new URLSearchParams();
+      if (options.requestId) params.set('requestId', options.requestId);
+      if (options.status) params.set('status', options.status);
+      if (options.page) params.set('page', String(options.page));
+      if (options.limit) params.set('limit', String(options.limit));
+
+      const queryString = params.toString();
+      const url = '/api/itineraries/api/v1/itineraries' + (queryString ? `?${queryString}` : '');
+
+      const result = await tryFetchJson<{
+        items: AgentItinerary[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      }>(url);
+
+      return result?.items ?? [];
+    } catch {
+      // fall back to empty array
+    }
+  }
+
+  return [];
+}
+
+/**
+ * Get a single itinerary by ID.
+ */
+export async function getAgentItineraryById(itineraryId: string): Promise<AgentItinerary | null> {
+  if (getAccessToken()) {
+    try {
+      const result = await tryFetchJson<AgentItinerary>(
+        `/api/itineraries/api/v1/itineraries/${encodeURIComponent(itineraryId)}`
+      );
+      return result ?? null;
+    } catch {
+      // fall back
+    }
+  }
+
+  return null;
+}
+
+export type CreateItineraryInput = {
+  requestId: string;
+  travelerId: string;
+  overview: {
+    title: string;
+    summary?: string;
+    startDate: string;
+    endDate: string;
+    numberOfDays: number;
+    numberOfNights: number;
+    destinations: string[];
+    travelersCount?: number;
+    tripType?: string;
+  };
+  pricing?: {
+    currency?: string;
+    totalPrice: number;
+    pricePerPerson?: number;
+    depositAmount?: number;
+    inclusions?: string[];
+    exclusions?: string[];
+    paymentTerms?: string;
+  };
+  termsAndConditions?: string;
+  cancellationPolicy?: string;
+  internalNotes?: string;
+};
+
+/**
+ * Create a new itinerary.
+ */
+export async function createItinerary(input: CreateItineraryInput): Promise<AgentItinerary | null> {
+  if (getAccessToken()) {
+    try {
+      const result = await tryFetchJson<AgentItinerary>(
+        '/api/itineraries/api/v1/itineraries',
+        {
+          method: 'POST',
+          body: JSON.stringify(input),
+        }
+      );
+      return result ?? null;
+    } catch {
+      // fall back
+    }
+  }
+
+  return null;
+}
+
+export type UpdateItineraryInput = Partial<Omit<CreateItineraryInput, 'requestId' | 'travelerId'>>;
+
+/**
+ * Update an existing itinerary.
+ */
+export async function updateItinerary(itineraryId: string, input: UpdateItineraryInput): Promise<AgentItinerary | null> {
+  if (getAccessToken()) {
+    try {
+      const result = await tryFetchJson<AgentItinerary>(
+        `/api/itineraries/api/v1/itineraries/${encodeURIComponent(itineraryId)}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(input),
+        }
+      );
+      return result ?? null;
+    } catch {
+      // fall back
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Change the status of an itinerary.
+ */
+export async function changeItineraryStatus(itineraryId: string, status: string): Promise<void> {
+  if (getAccessToken()) {
+    try {
+      await tryFetchJson(
+        `/api/itineraries/api/v1/itineraries/${encodeURIComponent(itineraryId)}/status`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ status }),
+        }
+      );
+    } catch {
+      // ignore
+    }
+  }
+}
+
+/**
+ * Delete an itinerary (soft delete / cancel).
+ */
+export async function deleteItinerary(itineraryId: string): Promise<void> {
+  if (getAccessToken()) {
+    try {
+      await changeItineraryStatus(itineraryId, 'CANCELLED');
+    } catch {
+      // ignore
+    }
+  }
+}

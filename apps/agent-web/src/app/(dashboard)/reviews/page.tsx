@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Star,
@@ -15,6 +15,8 @@ import {
   ChevronDown,
   Flag,
   MoreVertical,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import {
   Button,
@@ -35,105 +37,90 @@ import {
   Avatar,
   AvatarFallback,
   Progress,
+  Skeleton,
 } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import { listAgentReviews, type AgentReview } from '@/lib/data/agent';
 
 // ============================================================================
-// MOCK DATA
+// TYPES
 // ============================================================================
 
-const mockReviews = [
-  {
-    id: 'rev-1',
-    client: { firstName: 'Amit', lastName: 'Patel' },
-    destination: 'Andaman Islands',
-    tripId: 'BK-2024-079',
-    rating: 5,
-    title: 'Absolutely Perfect Trip!',
-    content: 'Our agent exceeded all expectations. Every detail was meticulously planned, from the beach resort to the scuba diving experience. The local seafood restaurant recommendations were spot-on, and the sunset at Radhanagar Beach was unforgettable.',
-    aspects: {
-      communication: 5,
-      knowledge: 5,
-      valueForMoney: 5,
-      responsiveness: 5,
-    },
-    createdAt: '2024-10-15',
-    tripDate: '2024-10-01',
-    helpful: 12,
-    response: {
-      content: 'Thank you so much for your kind words, Amit! It was a pleasure planning your Andaman adventure. I hope to help you with your next trip soon!',
-      createdAt: '2024-10-16',
-    },
-  },
-  {
-    id: 'rev-2',
-    client: { firstName: 'Rahul', lastName: 'Verma' },
-    destination: 'Ladakh, India',
-    tripId: 'BK-2024-082',
-    rating: 5,
-    title: 'Family Trip of a Lifetime',
-    content: 'Traveling with kids to Ladakh seemed daunting, but our agent made it seamless. The mix of adventure activities with cultural experiences was perfect. Pangong Lake was a highlight, and the local Ladakhi cuisine in Leh was amazing.',
-    aspects: {
-      communication: 5,
-      knowledge: 5,
-      valueForMoney: 4,
-      responsiveness: 5,
-    },
-    createdAt: '2024-12-05',
-    tripDate: '2024-11-20',
-    helpful: 8,
-    response: null,
-  },
-  {
-    id: 'rev-3',
-    client: { firstName: 'Sneha', lastName: 'Gupta' },
-    destination: 'Ranthambore Safari',
-    tripId: 'BK-2024-085',
-    rating: 4,
-    title: 'Great Safari Experience',
-    content: 'The safari experience was incredible - we spotted tigers on our very first safari! The luxury resort was beyond expectations. Only minor hiccup was some vehicle issues that caused a delay, but the agent handled it professionally.',
-    aspects: {
-      communication: 4,
-      knowledge: 5,
-      valueForMoney: 4,
-      responsiveness: 4,
-    },
-    createdAt: '2024-03-15',
-    tripDate: '2024-03-01',
-    helpful: 6,
-    response: {
-      content: 'Thank you for the wonderful review, Sneha! I apologize for the vehicle delay - it was beyond our control but I\'m glad we could adjust the itinerary smoothly. Looking forward to your next adventure!',
-      createdAt: '2024-03-16',
-    },
-  },
-  {
-    id: 'rev-4',
-    client: { firstName: 'Priya', lastName: 'Sharma' },
-    destination: 'Rajasthan, India',
-    tripId: 'BK-2024-087',
-    rating: 5,
-    title: 'Romantic Rajasthan Getaway',
-    content: 'This trip was for our anniversary and it couldn\'t have been more perfect. The heritage haveli in Udaipur was charming, the private palace dinner was magical, and the desert camp in Jaisalmer was a dream.',
-    aspects: {
-      communication: 5,
-      knowledge: 5,
-      valueForMoney: 5,
-      responsiveness: 5,
-    },
-    createdAt: '2024-02-20',
-    tripDate: '2024-02-10',
-    helpful: 15,
-    response: null,
-  },
-];
+type ReviewCardData = {
+  id: string;
+  client: { firstName: string; lastName: string };
+  destination: string;
+  tripId: string | null;
+  rating: number;
+  title: string;
+  content: string;
+  aspects: {
+    communication: number;
+    knowledge: number;
+    valueForMoney: number;
+    responsiveness: number;
+  };
+  createdAt: string;
+  tripDate: string;
+  helpful: number;
+  response: {
+    content: string;
+    createdAt: string;
+  } | null;
+};
 
-const ratingDistribution = [
-  { stars: 5, count: 42, percentage: 78 },
-  { stars: 4, count: 8, percentage: 15 },
-  { stars: 3, count: 3, percentage: 5 },
-  { stars: 2, count: 1, percentage: 2 },
-  { stars: 1, count: 0, percentage: 0 },
-];
+type RatingDistribution = {
+  stars: number;
+  count: number;
+  percentage: number;
+};
+
+// ============================================================================
+// DATA TRANSFORMATION
+// ============================================================================
+
+function transformReviewToCard(review: AgentReview): ReviewCardData {
+  // Parse reviewer name from display name or use placeholder
+  const nameParts = (review.reviewerDisplayName || 'Verified Traveler').split(' ');
+  const firstName = nameParts[0] || 'Verified';
+  const lastName = nameParts.slice(1).join(' ') || 'Traveler';
+
+  return {
+    id: review.id,
+    client: { firstName, lastName },
+    destination: review.destination || 'Trip',
+    tripId: review.bookingId,
+    rating: review.rating,
+    title: review.title || 'Review',
+    content: review.content || '',
+    aspects: {
+      communication: review.aspects?.communication ?? review.rating,
+      knowledge: review.aspects?.knowledge ?? review.rating,
+      valueForMoney: review.aspects?.valueForMoney ?? review.rating,
+      responsiveness: review.aspects?.responsiveness ?? review.rating,
+    },
+    createdAt: review.createdAt,
+    tripDate: review.publishedAt || review.createdAt,
+    helpful: 0, // Not tracked in current API
+    response: review.response,
+  };
+}
+
+function calculateRatingDistribution(reviews: ReviewCardData[]): RatingDistribution[] {
+  const counts = [0, 0, 0, 0, 0]; // 1-5 stars
+  reviews.forEach((r) => {
+    if (r.rating >= 1 && r.rating <= 5) {
+      counts[r.rating - 1]++;
+    }
+  });
+  const total = reviews.length || 1;
+
+  return [5, 4, 3, 2, 1].map((stars) => ({
+    stars,
+    count: counts[stars - 1],
+    percentage: Math.round((counts[stars - 1] / total) * 100),
+  }));
+}
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -183,18 +170,25 @@ function RatingStars({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'm
   );
 }
 
-function RatingOverview() {
-  const averageRating = 4.8;
-  const totalReviews = 54;
+function RatingOverview({ reviews, ratingDistribution }: { reviews: ReviewCardData[]; ratingDistribution: RatingDistribution[] }) {
+  const totalReviews = reviews.length;
+  const averageRating = totalReviews > 0
+    ? Number((reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(1))
+    : 0;
+  
+  // Calculate "would recommend" as percentage of 4+ star reviews
+  const wouldRecommend = totalReviews > 0
+    ? Math.round((reviews.filter((r) => r.rating >= 4).length / totalReviews) * 100)
+    : 0;
 
   return (
     <Card className="p-6">
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Average Rating */}
         <div className="text-center lg:text-left lg:pr-8 lg:border-r lg:border-gray-100">
-          <div className="text-5xl font-bold text-gray-900 mb-2">{averageRating}</div>
+          <div className="text-5xl font-bold text-gray-900 mb-2">{averageRating || '-'}</div>
           <RatingStars rating={Math.round(averageRating)} size="md" />
-          <p className="text-sm text-gray-500 mt-2">{totalReviews} reviews</p>
+          <p className="text-sm text-gray-500 mt-2">{totalReviews} review{totalReviews !== 1 ? 's' : ''}</p>
         </div>
 
         {/* Rating Distribution */}
@@ -212,13 +206,13 @@ function RatingOverview() {
         <div className="grid grid-cols-2 gap-4 lg:pl-8 lg:border-l lg:border-gray-100">
           <div className="text-center p-4 rounded-lg bg-emerald-50">
             <Award className="h-6 w-6 text-emerald-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold text-emerald-700">92%</p>
+            <p className="text-2xl font-bold text-emerald-700">{wouldRecommend}%</p>
             <p className="text-xs text-emerald-600">Would recommend</p>
           </div>
           <div className="text-center p-4 rounded-lg bg-indigo-50">
             <TrendingUp className="h-6 w-6 text-indigo-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold text-indigo-700">+0.2</p>
-            <p className="text-xs text-indigo-600">vs. last quarter</p>
+            <p className="text-2xl font-bold text-indigo-700">{totalReviews}</p>
+            <p className="text-xs text-indigo-600">Total reviews</p>
           </div>
         </div>
       </div>
@@ -226,7 +220,7 @@ function RatingOverview() {
   );
 }
 
-function ReviewCard({ review, onRespond }: { review: typeof mockReviews[0]; onRespond: () => void }) {
+function ReviewCard({ review, onRespond }: { review: ReviewCardData; onRespond: () => void }) {
   return (
     <Card className="transition-all duration-200 hover:shadow-lg">
       <CardContent className="p-6">
@@ -323,6 +317,32 @@ function ReviewCard({ review, onRespond }: { review: typeof mockReviews[0]; onRe
 }
 
 // ============================================================================
+// SKELETON COMPONENTS
+// ============================================================================
+
+function ReviewCardSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-start gap-3">
+            <Skeleton className="h-10 w-10 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+          </div>
+          <Skeleton className="h-5 w-24" />
+        </div>
+        <Skeleton className="h-5 w-64 mb-2" />
+        <Skeleton className="h-20 w-full mb-4" />
+        <Skeleton className="h-16 w-full" />
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================================
 // MAIN PAGE
 // ============================================================================
 
@@ -330,8 +350,32 @@ export default function ReviewsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
+  const [reviews, setReviews] = useState<ReviewCardData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredReviews = mockReviews.filter((review) => {
+  // Fetch reviews on mount
+  useEffect(() => {
+    async function loadReviews() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const apiReviews = await listAgentReviews();
+        setReviews(apiReviews.map(transformReviewToCard));
+      } catch (err) {
+        console.error('Failed to load reviews:', err);
+        setError('Failed to load reviews. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadReviews();
+  }, []);
+
+  const ratingDistribution = calculateRatingDistribution(reviews);
+
+  const filteredReviews = reviews.filter((review) => {
     if (activeTab === 'responded' && !review.response) return false;
     if (activeTab === 'pending' && review.response) return false;
     if (activeTab === '5star' && review.rating !== 5) return false;
@@ -353,7 +397,70 @@ export default function ReviewsPage() {
     }
   });
 
-  const pendingCount = mockReviews.filter((r) => !r.response).length;
+  const pendingCount = reviews.filter((r) => !r.response).length;
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Reviews</h1>
+          <p className="mt-1 text-gray-500">
+            See what your clients are saying about their trips
+          </p>
+        </div>
+        <Card className="p-6">
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="lg:pr-8">
+              <Skeleton className="h-16 w-16 mb-2" />
+              <Skeleton className="h-5 w-24" />
+            </div>
+            <div className="flex-1 space-y-2">
+              {[5, 4, 3, 2, 1].map((i) => (
+                <Skeleton key={i} className="h-4 w-full" />
+              ))}
+            </div>
+          </div>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <Skeleton className="h-10 w-96" />
+          </CardContent>
+        </Card>
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <ReviewCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Reviews</h1>
+          <p className="mt-1 text-gray-500">
+            See what your clients are saying about their trips
+          </p>
+        </div>
+        <Card>
+          <CardContent className="py-16 text-center">
+            <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+              <AlertCircle className="h-8 w-8 text-red-500" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-1">Error loading reviews</h3>
+            <p className="text-gray-500 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -366,7 +473,7 @@ export default function ReviewsPage() {
       </div>
 
       {/* Rating Overview */}
-      <RatingOverview />
+      <RatingOverview reviews={reviews} ratingDistribution={ratingDistribution} />
 
       {/* Filters */}
       <Card>
