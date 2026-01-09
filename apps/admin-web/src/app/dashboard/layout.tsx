@@ -16,6 +16,7 @@ const navItems = [
   { href: '/dashboard/services', label: 'Services', icon: '🩺' },
   { href: '/dashboard/agents', label: 'Agents', icon: '👥' },
   { href: '/dashboard/destinations', label: 'Destinations', icon: '🗺️' },
+  { href: '/dashboard/itineraries', label: 'Itineraries', icon: '📝' },
   { href: '/dashboard/disputes', label: 'Disputes', icon: '⚖️' },
   { href: '/dashboard/refunds', label: 'Refunds', icon: '💰' },
   { href: '/dashboard/matching', label: 'Matching', icon: '🔗' },
