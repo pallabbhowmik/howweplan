@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUserSession } from '@/lib/user/session';
 import { fetchRequest, fetchRequestProposals, type TravelRequest, type Proposal } from '@/lib/data/api';
+import { PriceBudgetComparison, SavingsHighlight } from '@/components/trust/PriceBudgetComparison';
 
 export default function ProposalsPage() {
   const params = useParams();
@@ -141,17 +142,33 @@ export default function ProposalsPage() {
                       )}
                     </div>
 
-                    {/* Highlights */}
-                    <div className="flex flex-wrap gap-4 text-sm">
-                      <div className="flex items-center gap-1">
-                        <span className="font-semibold text-lg">₹{proposal.totalPrice.toLocaleString('en-IN')}</span>
-                        <span className="text-muted-foreground">total</span>
-                      </div>
-                      {proposal.validUntil && (
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          Valid until {formatDate(proposal.validUntil)}
+                    {/* Price & Budget Comparison */}
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-4 text-sm">
+                        <div className="flex items-center gap-1">
+                          <span className="font-semibold text-lg">₹{proposal.totalPrice.toLocaleString('en-IN')}</span>
+                          <span className="text-muted-foreground">total</span>
                         </div>
+                        {proposal.validUntil && (
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            Valid until {formatDate(proposal.validUntil)}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Visual Budget Comparison */}
+                      {request.budgetMin != null && request.budgetMax != null && (
+                        <PriceBudgetComparison
+                          price={proposal.totalPrice}
+                          budget={{
+                            min: request.budgetMin,
+                            max: request.budgetMax,
+                            currency: request.budgetCurrency || 'INR',
+                          }}
+                          variant="compact"
+                          showProgressBar={true}
+                        />
                       )}
                     </div>
 

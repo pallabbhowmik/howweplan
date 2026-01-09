@@ -17,3 +17,17 @@ export type {
   ResponseTimeDisplay,
   ResponseTimeIndicatorProps,
 } from './ResponseTimeIndicator';
+export {
+  PriceBudgetComparison,
+  PriceBudgetBadge,
+  SavingsHighlight,
+  PriceBudgetComparisonSkeleton,
+  analyzePriceBudget,
+  formatAmount,
+} from './PriceBudgetComparison';
+export type {
+  PricePosition,
+  BudgetRange,
+  PriceBudgetComparisonProps,
+  PriceAnalysis,
+} from './PriceBudgetComparison';

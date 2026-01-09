@@ -143,3 +143,18 @@ export {
   formatResponseTimeDisplay,
   getTrendDisplay,
 } from './response-time';
+
+// =============================================================================
+// PRICE VS BUDGET COMPARISON
+// =============================================================================
+
+export {
+  type PricePosition,
+  type BudgetRange,
+  type PriceAnalysis,
+  type PricePositionConfig,
+  PRICE_POSITION_CONFIG,
+  analyzePriceBudget,
+  getPricePositionConfig,
+  formatINR,
+} from './price-budget';
