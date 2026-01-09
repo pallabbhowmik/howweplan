@@ -765,7 +765,7 @@ CREATE TRIGGER prevent_audit_delete BEFORE DELETE ON audit_events FOR EACH ROW E
 
 -- Agent Stats: Stores computed trust statistics for each agent
 CREATE TABLE IF NOT EXISTS agent_stats (
-    agent_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    agent_id UUID PRIMARY KEY REFERENCES agents(id) ON DELETE CASCADE,
     
     -- Activity metrics
     total_proposals_submitted INTEGER NOT NULL DEFAULT 0,

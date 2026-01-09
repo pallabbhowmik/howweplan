@@ -29,6 +29,27 @@ type AgentMe = {
   rating: number | null;
   totalReviews: number;
   isVerified: boolean;
+  // From agent_profiles
+  verificationStatus: string | null;
+  businessName: string | null;
+  bio: string | null;
+  specialties: string[];
+  // From agents table
+  languages: string[];
+  destinations: string[];
+  yearsOfExperience: number;
+  agencyName: string | null;
+  commissionRate: number;
+  completedBookings: number;
+  responseTimeMinutes: number | null;
+  isAvailable: boolean;
+  // From agent_stats (trust metrics)
+  trustLevel: string | null;
+  badges: string[];
+  platformProtectionScore: number | null;
+  platformProtectionEligible: boolean | null;
+  averageRating: number | null;
+  ratingCount: number | null;
 };
 
 type AgentRequestMatch = {
@@ -123,31 +144,81 @@ async function loadAgentIdForUserId(userId: string): Promise<string | null> {
 
 async function getAgentMe(userId: string): Promise<AgentMe | null> {
   const { rows } = await query<{
+    // From users table
     user_id: string;
-    agent_id: string;
     email: string;
     first_name: string;
     last_name: string;
     avatar_url: string | null;
+    // From agents table
+    agent_id: string;
     tier: string | null;
     rating: string | number | null;
     total_reviews: number | null;
     is_verified: boolean | null;
+    bio: string | null;
+    languages: string[] | null;
+    destinations: string[] | null;
+    years_of_experience: number | null;
+    agency_name: string | null;
+    commission_rate: string | number | null;
+    completed_bookings: number | null;
+    response_time_minutes: number | null;
+    is_available: boolean | null;
+    specializations: string[] | null;
+    // From agent_profiles table
+    verification_status: string | null;
+    business_name: string | null;
+    profile_bio: string | null;
+    specialties: string[] | null;
+    // From agent_stats table
+    trust_level: string | null;
+    badges: string[] | null;
+    platform_protection_score: number | null;
+    platform_protection_eligible: boolean | null;
+    average_rating: string | number | null;
+    rating_count: number | null;
   }>(
     `
     SELECT
+      -- User basic info
       u.id as user_id,
-      a.id as agent_id,
       u.email,
       u.first_name,
       u.last_name,
       u.avatar_url,
+      -- Agent operational data
+      a.id as agent_id,
       a.tier,
       a.rating,
       a.total_reviews,
-      a.is_verified
+      a.is_verified,
+      a.bio,
+      a.languages,
+      a.destinations,
+      a.years_of_experience,
+      a.agency_name,
+      a.commission_rate,
+      a.completed_bookings,
+      a.response_time_minutes,
+      a.is_available,
+      a.specializations,
+      -- Agent profile (verification)
+      ap.verification_status,
+      ap.business_name,
+      ap.bio as profile_bio,
+      ap.specialties,
+      -- Agent stats (trust & reputation)
+      ast.trust_level,
+      ast.badges,
+      ast.platform_protection_score,
+      ast.platform_protection_eligible,
+      ast.average_rating,
+      ast.rating_count
     FROM agents a
     JOIN users u ON u.id = a.user_id
+    LEFT JOIN agent_profiles ap ON ap.user_id = a.user_id
+    LEFT JOIN agent_stats ast ON ast.agent_id = a.id
     WHERE a.user_id = $1
     LIMIT 1
     `,
@@ -168,6 +239,27 @@ async function getAgentMe(userId: string): Promise<AgentMe | null> {
     rating: row.rating === null ? null : Number(row.rating),
     totalReviews: row.total_reviews ?? 0,
     isVerified: Boolean(row.is_verified),
+    // From agent_profiles
+    verificationStatus: row.verification_status,
+    businessName: row.business_name,
+    bio: row.profile_bio ?? row.bio,
+    specialties: row.specialties ?? row.specializations ?? [],
+    // From agents table
+    languages: row.languages ?? [],
+    destinations: row.destinations ?? [],
+    yearsOfExperience: row.years_of_experience ?? 0,
+    agencyName: row.agency_name,
+    commissionRate: row.commission_rate === null ? 0.1 : Number(row.commission_rate),
+    completedBookings: row.completed_bookings ?? 0,
+    responseTimeMinutes: row.response_time_minutes,
+    isAvailable: row.is_available ?? true,
+    // From agent_stats
+    trustLevel: row.trust_level,
+    badges: row.badges ?? [],
+    platformProtectionScore: row.platform_protection_score,
+    platformProtectionEligible: row.platform_protection_eligible,
+    averageRating: row.average_rating === null ? null : Number(row.average_rating),
+    ratingCount: row.rating_count,
   };
 }
 

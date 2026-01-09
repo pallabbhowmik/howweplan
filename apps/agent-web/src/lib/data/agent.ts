@@ -23,6 +23,27 @@ export type AgentIdentity = {
   rating: number | null;
   totalReviews: number;
   isVerified: boolean;
+  // Extended fields from agent_profiles
+  verificationStatus?: string | null;
+  businessName?: string | null;
+  bio?: string | null;
+  specialties?: string[];
+  // Extended fields from agents table
+  languages?: string[];
+  destinations?: string[];
+  yearsOfExperience?: number;
+  agencyName?: string | null;
+  commissionRate?: number;
+  completedBookings?: number;
+  responseTimeMinutes?: number | null;
+  isAvailable?: boolean;
+  // Extended fields from agent_stats
+  trustLevel?: string | null;
+  badges?: string[];
+  platformProtectionScore?: number | null;
+  platformProtectionEligible?: boolean | null;
+  averageRating?: number | null;
+  ratingCount?: number | null;
 };
 
 export type AgentStatsSummary = {
@@ -341,6 +362,27 @@ export async function getAgentIdentity(agentId: string): Promise<AgentIdentity |
       rating: number | null;
       totalReviews: number;
       isVerified: boolean;
+      // Extended fields from agent_profiles
+      verificationStatus?: string | null;
+      businessName?: string | null;
+      bio?: string | null;
+      specialties?: string[];
+      // Extended fields from agents table
+      languages?: string[];
+      destinations?: string[];
+      yearsOfExperience?: number;
+      agencyName?: string | null;
+      commissionRate?: number;
+      completedBookings?: number;
+      responseTimeMinutes?: number | null;
+      isAvailable?: boolean;
+      // Extended fields from agent_stats
+      trustLevel?: string | null;
+      badges?: string[];
+      platformProtectionScore?: number | null;
+      platformProtectionEligible?: boolean | null;
+      averageRating?: number | null;
+      ratingCount?: number | null;
     } }>('/api/matching/api/v1/agent/me');
 
     const d = (me as any)?.data ?? me;
@@ -352,10 +394,31 @@ export async function getAgentIdentity(agentId: string): Promise<AgentIdentity |
         firstName: String(d.firstName ?? ''),
         lastName: String(d.lastName ?? ''),
         avatarUrl: (d.avatarUrl ?? null) as string | null,
-        tier: String(d.tier ?? ''),
+        tier: String(d.tier ?? 'bench'),
         rating: d.rating === null || d.rating === undefined ? null : Number(d.rating),
         totalReviews: Number(d.totalReviews ?? 0),
         isVerified: Boolean(d.isVerified),
+        // Extended fields from agent_profiles
+        verificationStatus: d.verificationStatus ?? null,
+        businessName: d.businessName ?? null,
+        bio: d.bio ?? null,
+        specialties: Array.isArray(d.specialties) ? d.specialties : [],
+        // Extended fields from agents table
+        languages: Array.isArray(d.languages) ? d.languages : [],
+        destinations: Array.isArray(d.destinations) ? d.destinations : [],
+        yearsOfExperience: Number(d.yearsOfExperience ?? 0),
+        agencyName: d.agencyName ?? null,
+        commissionRate: Number(d.commissionRate ?? 0.1),
+        completedBookings: Number(d.completedBookings ?? 0),
+        responseTimeMinutes: d.responseTimeMinutes ?? null,
+        isAvailable: d.isAvailable ?? true,
+        // Extended fields from agent_stats
+        trustLevel: d.trustLevel ?? null,
+        badges: Array.isArray(d.badges) ? d.badges : [],
+        platformProtectionScore: d.platformProtectionScore ?? null,
+        platformProtectionEligible: d.platformProtectionEligible ?? null,
+        averageRating: d.averageRating === null || d.averageRating === undefined ? null : Number(d.averageRating),
+        ratingCount: d.ratingCount ?? null,
       };
     }
     return null;
