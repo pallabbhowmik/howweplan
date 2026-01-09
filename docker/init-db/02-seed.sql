@@ -6,14 +6,23 @@
 -- - 2 Agents (1 star tier, 1 bench tier)
 -- - 1 Regular user
 -- - Sample travel request, itinerary, booking for E2E testing
+--
+-- TEST CREDENTIALS (password for all users: Test@1234)
+-- - Admin:  admin@howweplan.com / Test@1234
+-- - Agent:  star.agent@howweplan.com / Test@1234
+-- - Agent:  bench.agent@howweplan.com / Test@1234  
+-- - User:   user@howweplan.com / Test@1234
 -- ============================================================================
+
+-- Argon2id hash for password "Test@1234" (generated with argon2id, memoryCost=65536, timeCost=3, parallelism=4)
+-- DO NOT use this hash in production - it's for local development only!
 
 -- ============================================================================
 -- USERS
 -- ============================================================================
 
 -- Admin User
-INSERT INTO users (id, email, email_verified, first_name, last_name, role, is_active)
+INSERT INTO users (id, email, email_verified, first_name, last_name, role, is_active, password_hash, status)
 VALUES (
     'a0000000-0000-0000-0000-000000000001',
     'admin@howweplan.com',
@@ -21,11 +30,13 @@ VALUES (
     'Admin',
     'User',
     'admin',
-    TRUE
+    TRUE,
+    '$argon2id$v=19$m=65536,t=3,p=4$b5eh4cK7wz3Bryi+jI+Dmw$MtC/JCubO05/F5u3lFVobnKEoWAdkIkPGuFafaBz4Hg',
+    'active'
 );
 
 -- Star Agent User Account
-INSERT INTO users (id, email, email_verified, phone, first_name, last_name, role, is_active)
+INSERT INTO users (id, email, email_verified, phone, first_name, last_name, role, is_active, password_hash, status)
 VALUES (
     'a0000000-0000-0000-0000-000000000002',
     'star.agent@howweplan.com',
@@ -34,11 +45,13 @@ VALUES (
     'Priya',
     'Sharma',
     'agent',
-    TRUE
+    TRUE,
+    '$argon2id$v=19$m=65536,t=3,p=4$b5eh4cK7wz3Bryi+jI+Dmw$MtC/JCubO05/F5u3lFVobnKEoWAdkIkPGuFafaBz4Hg',
+    'active'
 );
 
 -- Bench Agent User Account
-INSERT INTO users (id, email, email_verified, phone, first_name, last_name, role, is_active)
+INSERT INTO users (id, email, email_verified, phone, first_name, last_name, role, is_active, password_hash, status)
 VALUES (
     'a0000000-0000-0000-0000-000000000003',
     'bench.agent@howweplan.com',
@@ -47,11 +60,13 @@ VALUES (
     'Rahul',
     'Verma',
     'agent',
-    TRUE
+    TRUE,
+    '$argon2id$v=19$m=65536,t=3,p=4$b5eh4cK7wz3Bryi+jI+Dmw$MtC/JCubO05/F5u3lFVobnKEoWAdkIkPGuFafaBz4Hg',
+    'active'
 );
 
 -- Regular User
-INSERT INTO users (id, email, email_verified, phone, first_name, last_name, role, is_active)
+INSERT INTO users (id, email, email_verified, phone, first_name, last_name, role, is_active, password_hash, status)
 VALUES (
     'a0000000-0000-0000-0000-000000000004',
     'user@howweplan.com',
@@ -60,7 +75,9 @@ VALUES (
     'Amit',
     'Patel',
     'user',
-    TRUE
+    TRUE,
+    '$argon2id$v=19$m=65536,t=3,p=4$b5eh4cK7wz3Bryi+jI+Dmw$MtC/JCubO05/F5u3lFVobnKEoWAdkIkPGuFafaBz4Hg',
+    'active'
 );
 
 -- ============================================================================
