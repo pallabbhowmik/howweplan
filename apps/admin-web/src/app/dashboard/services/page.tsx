@@ -62,87 +62,81 @@ type FilterOption = 'all' | 'healthy' | 'unhealthy' | 'error' | 'not_configured'
 
 const SERVICE_META: Record<string, { 
   description: string; 
-  port: number; 
+  productionUrl?: string;
   category: 'core' | 'business' | 'support';
   icon: React.ElementType;
 }> = {
-  'supabase-rest': {
-    description: 'PostgreSQL REST API proxy',
-    port: 54321,
+  'gateway': {
+    description: 'API Gateway and request routing',
+    productionUrl: 'https://howweplan-irjf.onrender.com',
     category: 'core',
-    icon: Database,
-  },
-  'audit': {
-    description: 'Activity logging and compliance tracking',
-    port: 3010,
-    category: 'support',
-    icon: FileText,
+    icon: Globe,
   },
   'identity': {
     description: 'User authentication and authorization',
-    port: 3011,
+    productionUrl: 'https://howweplan-tozr.onrender.com',
     category: 'core',
     icon: Shield,
   },
   'requests': {
     description: 'Travel request management',
-    port: 3012,
+    productionUrl: 'https://howweplan-requests-kghq.onrender.com',
     category: 'business',
     icon: FileText,
   },
   'matching': {
     description: 'Agent-request matching algorithm',
-    port: 3013,
+    productionUrl: 'https://howweplan-matching-6wxj.onrender.com',
     category: 'business',
     icon: Users,
   },
   'itineraries': {
     description: 'Trip itinerary creation and management',
-    port: 3014,
+    productionUrl: 'https://howweplan-uo1z.onrender.com',
     category: 'business',
     icon: Globe,
   },
   'booking-payments': {
     description: 'Booking and payment processing',
-    port: 3015,
+    productionUrl: 'https://howweplan-booking-payments-npgv.onrender.com',
     category: 'business',
     icon: CreditCard,
   },
   'messaging': {
     description: 'Real-time chat and communications',
-    port: 3016,
+    productionUrl: 'https://howweplan-ptx3.onrender.com',
     category: 'business',
     icon: MessageSquare,
   },
+  'notifications': {
+    description: 'Push notifications and alerts',
+    productionUrl: 'https://howweplan-4cx5.onrender.com',
+    category: 'support',
+    icon: Bell,
+  },
+  'event-bus': {
+    description: 'Event-driven messaging and pub/sub',
+    productionUrl: 'https://howweplan-eventbus-sicz.onrender.com',
+    category: 'core',
+    icon: Zap,
+  },
+  'audit': {
+    description: 'Activity logging and compliance tracking',
+    productionUrl: 'https://howweplan-audit-gdzb.onrender.com',
+    category: 'support',
+    icon: FileText,
+  },
   'disputes': {
     description: 'Dispute resolution and management',
-    port: 3017,
+    productionUrl: undefined, // Not deployed
     category: 'support',
     icon: AlertCircle,
   },
   'reviews': {
     description: 'Rating and review system',
-    port: 3018,
+    productionUrl: undefined, // Not deployed
     category: 'business',
     icon: Star,
-  },
-  'notifications': {
-    description: 'Push notifications and alerts',
-    port: 3019,
-    category: 'support',
-    icon: Bell,
-  },
-  'gateway': {
-    description: 'API Gateway and request routing',
-    port: 3001,
-    category: 'core',
-    icon: Globe,
-  },
-  'event-bus': {
-    description: 'Event-driven messaging and pub/sub',
-    port: 3020,
-    category: 'core',
-    icon: Zap,
   },
 };
 
@@ -280,7 +274,7 @@ function ServiceCard({
   const meta = SERVICE_META[service.id];
   const Icon = meta?.icon ?? Server;
   const description = meta?.description ?? 'Microservice';
-  const port = meta?.port;
+  const productionUrl = meta?.productionUrl;
   const category = meta?.category ?? 'core';
   
   const categoryColors: Record<string, string> = {
@@ -309,8 +303,10 @@ function ServiceCard({
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-muted-foreground">Port</span>
-            <p className="font-mono font-medium">{port ?? '—'}</p>
+            <span className="text-muted-foreground">Service URL</span>
+            <p className="font-mono text-xs truncate" title={productionUrl}>
+              {productionUrl ? new URL(productionUrl).hostname : 'Not deployed'}
+            </p>
           </div>
           <div>
             <span className="text-muted-foreground">HTTP Status</span>
@@ -323,12 +319,12 @@ function ServiceCard({
           <LatencyIndicator latencyMs={service.latencyMs} />
         </div>
         
-        {service.baseUrl && (
+        {(productionUrl || service.healthUrl) && (
           <div className="flex items-center gap-2">
             <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">
-              {service.healthUrl ?? service.baseUrl}
+              {service.healthUrl ?? productionUrl}
             </code>
-            <CopyButton text={service.healthUrl ?? service.baseUrl} />
+            <CopyButton text={service.healthUrl ?? productionUrl ?? ''} />
           </div>
         )}
         

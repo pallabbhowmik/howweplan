@@ -10,15 +10,14 @@ type ServiceId =
   | 'itineraries'
   | 'booking-payments'
   | 'messaging'
-  | 'disputes'
-  | 'reviews'
   | 'notifications'
   | 'event-bus';
 
 type ServiceConfig = {
   id: ServiceId;
   name: string;
-  gatewayPath: string;
+  productionUrl: string;
+  healthPath: string;
 };
 
 type ServiceStatus = {
@@ -31,78 +30,75 @@ type ServiceStatus = {
   details?: string;
 };
 
-function getGatewayBaseUrl(): string {
-  // Use the public API base URL (gateway). This route runs server-side.
-  return env.NEXT_PUBLIC_API_BASE_URL;
-}
-
 function getTimeoutMs(): number {
   return env.NEXT_PUBLIC_SERVICE_HEALTH_TIMEOUT_MS;
 }
 
+/**
+ * Production service URLs - direct health checks
+ * These are the actual Render.com deployment URLs
+ */
 function getServiceConfigs(): ServiceConfig[] {
-  // In production we route ALL service visibility through the gateway.
-  // This avoids accidental bypass of auth/RBAC and keeps the network perimeter simple.
   return [
     {
       id: 'gateway',
       name: 'Gateway',
-      gatewayPath: '/health',
-    },
-    {
-      id: 'audit',
-      name: 'Audit',
-      gatewayPath: '/api/audit/health',
+      productionUrl: 'https://howweplan-irjf.onrender.com',
+      healthPath: '/health',
     },
     {
       id: 'identity',
       name: 'Identity',
-      gatewayPath: '/api/identity/api/v1/health',
+      productionUrl: 'https://howweplan-tozr.onrender.com',
+      healthPath: '/api/v1/health',
     },
     {
       id: 'requests',
       name: 'Requests',
-      gatewayPath: '/api/requests/api/v1/health',
+      productionUrl: 'https://howweplan-requests-kghq.onrender.com',
+      healthPath: '/api/v1/health',
     },
     {
       id: 'matching',
       name: 'Matching',
-      gatewayPath: '/api/matching/health',
+      productionUrl: 'https://howweplan-matching-6wxj.onrender.com',
+      healthPath: '/health',
     },
     {
       id: 'itineraries',
       name: 'Itineraries',
-      gatewayPath: '/api/itineraries/health',
+      productionUrl: 'https://howweplan-uo1z.onrender.com',
+      healthPath: '/health',
     },
     {
       id: 'booking-payments',
       name: 'Booking-Payments',
-      gatewayPath: '/api/booking-payments/health',
+      productionUrl: 'https://howweplan-booking-payments-npgv.onrender.com',
+      healthPath: '/health',
     },
     {
       id: 'messaging',
       name: 'Messaging',
-      gatewayPath: '/api/messaging/health',
-    },
-    {
-      id: 'disputes',
-      name: 'Disputes',
-      gatewayPath: '/api/disputes/health',
-    },
-    {
-      id: 'reviews',
-      name: 'Reviews',
-      gatewayPath: '/api/reviews/health',
+      productionUrl: 'https://howweplan-ptx3.onrender.com',
+      healthPath: '/health',
     },
     {
       id: 'notifications',
       name: 'Notifications',
-      gatewayPath: '/api/notifications/health',
+      productionUrl: 'https://howweplan-4cx5.onrender.com',
+      healthPath: '/health',
     },
     {
       id: 'event-bus',
       name: 'Event Bus',
-      gatewayPath: '/api/event-bus/health',
+      productionUrl: 'https://howweplan-eventbus-sicz.onrender.com',
+      healthPath: '/health',
+    },
+    {
+      id: 'audit',
+      name: 'Audit',
+      productionUrl: 'https://howweplan-audit-gdzb.onrender.com',
+      healthPath: '/health',
     },
   ];
 }
@@ -114,17 +110,8 @@ function truncateDetails(input: string, maxLen: number = 200): string {
 }
 
 async function checkService(service: ServiceConfig, timeoutMs: number): Promise<ServiceStatus> {
-  const gatewayBaseUrl = getGatewayBaseUrl();
-  if (!gatewayBaseUrl) {
-    return {
-      id: service.id,
-      name: service.name,
-      status: 'not_configured',
-      details: 'Gateway base URL not configured',
-    };
-  }
-
-  const healthUrl = `${gatewayBaseUrl}${service.gatewayPath}`;
+  // Direct health check to the production service URL
+  const healthUrl = `${service.productionUrl}${service.healthPath}`;
   const startedAt = Date.now();
 
   try {
