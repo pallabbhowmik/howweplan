@@ -1072,7 +1072,8 @@ function UpcomingTripCard({ booking }: { booking: Booking }) {
   const travelerCount = booking.request?.travelers 
     ? getTravelerCount(booking.request.travelers) 
     : undefined;
-  const highlights = booking.request?.interests || [];
+  // Get interests from preferences if available, otherwise default to empty array
+  const highlights = (booking.request?.preferences?.interests as string[]) || [];
   
   return (
     <div className="space-y-4">
