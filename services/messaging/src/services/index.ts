@@ -9,3 +9,4 @@ export * from './evidence.service';
 export * from './masking.service';
 export * from './message.service';
 export * from './ratelimit.service';
+export * from './anti-leak.service';

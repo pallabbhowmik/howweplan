@@ -53,3 +53,30 @@ export {
   type AdminActionPayload,
   type AdminActionEvent,
 } from './audit-events';
+
+// =============================================================================
+// TRUST & REPUTATION EVENTS
+// =============================================================================
+
+export {
+  TRUST_EVENT_TYPES,
+  type TrustEventType,
+  type ReviewSubmittedPayload,
+  type ReviewSubmittedEvent,
+  type ReviewHiddenPayload,
+  type ReviewHiddenEvent,
+  type BadgeAssignedPayload,
+  type BadgeAssignedEvent,
+  type BadgeRevokedPayload,
+  type BadgeRevokedEvent,
+  type AgentViolationDetectedPayload,
+  type AgentViolationDetectedEvent,
+  type ViolationResolvedPayload,
+  type ViolationResolvedEvent,
+  type TrustLevelChangedPayload,
+  type TrustLevelChangedEvent,
+  type AgentStatsRecalculatedPayload,
+  type AgentStatsRecalculatedEvent,
+  type ReviewUnlockedPayload,
+  type ReviewUnlockedEvent,
+} from './trust-events';

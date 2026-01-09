@@ -88,3 +88,37 @@ export {
   type AuditEventStateChange,
   type AuditAction,
 } from './audit-event';
+
+// =============================================================================
+// TRUST & REPUTATION TYPES
+// =============================================================================
+
+export {
+  TrustLevel,
+  AgentBadge,
+  ViolationType,
+  type AgentStats,
+  type BadgeRules,
+  type TrustLevelRules,
+  type PlatformProtectionConfig,
+  type BadgeHistoryEntry,
+  type ViolationRecord,
+  type AgentPublicProfile,
+  DEFAULT_BADGE_RULES,
+  DEFAULT_TRUST_LEVEL_RULES,
+  DEFAULT_PLATFORM_PROTECTION_CONFIG,
+  getResponseTimeLabel,
+  getProposalActivityLevel,
+} from './agent-trust';
+
+export {
+  type TrustReview,
+  type TrustReviewSubmission,
+  type ReviewEligibility,
+  type ReviewWindowConfig,
+  type AggregatedReviewStats,
+  DEFAULT_REVIEW_WINDOW_CONFIG,
+  isValidRating,
+  validateReviewRatings,
+  calculateReviewWindow,
+} from './trust-review';
