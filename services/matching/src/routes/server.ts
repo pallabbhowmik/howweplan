@@ -362,7 +362,7 @@ async function requestHandler(
   const url = parsedUrl.pathname;
 
   // CORS headers - handle both gateway-proxied requests and direct access
-  const origin = req.headers.origin || '*';
+  const origin = req.headers.origin;
   const allowedOrigins = [
     'https://howweplan-agent.vercel.app',
     'https://howweplan-user.vercel.app',
@@ -372,7 +372,7 @@ async function requestHandler(
     'http://localhost:3002',
     'http://localhost:3003',
   ];
-  const corsOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  const corsOrigin = (origin && allowedOrigins.includes(origin)) ? origin : allowedOrigins[0];
   
   res.setHeader('Access-Control-Allow-Origin', corsOrigin);
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -436,31 +436,7 @@ async function requestHandler(
 
       logger.info({ requestId, correlationId }, 'Received internal match trigger');
 
-      // Trigger matching via the webhook handler by simulating a REQUEST_CREATED event
-      await handleWebhook(
-        {
-          ...req,
-          headers: { ...req.headers, 'x-api-key': env.EVENT_BUS_API_KEY },
-        } as IncomingMessage,
-        {
-          writeHead: () => {},
-          end: () => {},
-        } as any
-      );
-
-      // Actually, let's call the event handler directly instead
-      // Get event handlers and trigger matching
-      const event = {
-        eventId: correlationId || `match-${Date.now()}`,
-        eventType: 'RequestCreated',
-        occurredAt: new Date().toISOString(),
-        version: '1.0.0',
-        correlationId: correlationId || requestId,
-        source: 'requests-service',
-        payload: { request },
-      };
-
-      // For now, let's just create the agent_matches directly in the database
+      // Create agent_matches directly in the database
       // This is a simplified version - the full matching engine would score agents
       const { rows: agents } = await query<{ id: string }>(
         `SELECT id FROM agents WHERE is_verified = true LIMIT 5`
