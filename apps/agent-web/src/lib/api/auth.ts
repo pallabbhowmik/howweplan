@@ -108,6 +108,30 @@ export async function logout(accessToken: string): Promise<void> {
   }
 }
 
+export interface RegisterAgentParams {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  agencyName?: string;
+}
+
+export async function registerAgent(params: RegisterAgentParams): Promise<AuthResponse> {
+  const response = await fetch(`${normalizedBaseUrl}/api/identity/auth/register`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      ...params,
+      role: 'agent', // Always register as agent in agent-web
+    }),
+  });
+
+  return handleResponse<AuthResponse>(response);
+}
+
 const ACCESS_TOKEN_KEY = 'tc_access_token';
 const REFRESH_TOKEN_KEY = 'tc_refresh_token';
 const USER_KEY = 'tc_user';

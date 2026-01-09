@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   Mail, 
   Lock, 
@@ -21,8 +22,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert } from '@/components/ui/alert';
+import { registerAgent, storeAuthTokens } from '@/lib/api/auth';
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -58,12 +61,31 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      // TODO: Implement registration API call
-      // await registerAgent(formData);
+      const response = await registerAgent({
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone || undefined,
+        agencyName: formData.agencyName || undefined,
+      });
       
-      // For now, simulate success after a delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Store auth tokens and redirect to dashboard
+      storeAuthTokens(response);
+      
+      // Set cookie for SSR
+      if (typeof document !== 'undefined') {
+        const expires = new Date(Date.now() + response.expiresIn * 1000).toUTCString();
+        const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = `tc-auth-token=${response.accessToken}; path=/; expires=${expires}; SameSite=Lax${secure}`;
+      }
+      
       setIsSubmitted(true);
+      
+      // Redirect to dashboard after a short delay
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 2000);
     } catch (err: any) {
       setError(err?.message ?? 'Registration failed. Please try again.');
     } finally {
@@ -152,16 +174,15 @@ export default function RegisterPage() {
                     <CheckCircle className="h-8 w-8 text-emerald-600" />
                   </div>
                   <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-                    Application Submitted!
+                    Welcome to HowWePlan!
                   </h2>
                   <p className="text-slate-600 dark:text-slate-400">
-                    Thank you for applying to become a HowWePlan agent. We will review your application and get back to you within 2-3 business days.
+                    Your agent account has been created successfully. Redirecting you to the dashboard...
                   </p>
-                  <Link href="/login">
-                    <Button className="mt-4 bg-emerald-600 hover:bg-emerald-700">
-                      Go to Login
-                    </Button>
-                  </Link>
+                  <div className="flex items-center justify-center gap-2 text-emerald-600">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Redirecting...</span>
+                  </div>
                 </div>
               ) : (
                 <>
