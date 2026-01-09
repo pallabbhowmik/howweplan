@@ -12,12 +12,7 @@ export async function healthRoutes(fastify: FastifyInstance): Promise<void> {
    */
   fastify.get(
     '/',
-    {
-      schema: {
-        description: 'Root endpoint - redirects to health check',
-        tags: ['health'],
-      },
-    },
+    {},
     async (_request: FastifyRequest, reply: FastifyReply) => {
       return reply.redirect('/health');
     }
@@ -31,8 +26,6 @@ export async function healthRoutes(fastify: FastifyInstance): Promise<void> {
     '/health',
     {
       schema: {
-        description: 'Liveness probe - is the service running?',
-        tags: ['health'],
         response: {
           200: {
             type: 'object',
