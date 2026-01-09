@@ -335,17 +335,18 @@ export function AgentTrustPanel({
 
       {/* Action confirmation dialog */}
       <ReasonDialog
-        isOpen={actionDialogOpen}
-        onClose={() => {
-          setActionDialogOpen(false);
-          setPendingAction(null);
-          setSelectedBadge(null);
+        open={actionDialogOpen}
+        onOpenChange={(open) => {
+          setActionDialogOpen(open);
+          if (!open) {
+            setPendingAction(null);
+            setSelectedBadge(null);
+          }
         }}
         onConfirm={handleActionConfirm}
         title={getActionTitle()}
         description="This action will be logged to the audit trail. Please provide a reason."
-        requireReason={true}
-        isLoading={isLoading}
+        actionLabel="Confirm"
       />
     </div>
   );

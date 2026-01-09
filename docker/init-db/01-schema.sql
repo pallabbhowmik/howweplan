@@ -760,6 +760,253 @@ DROP TRIGGER IF EXISTS prevent_audit_delete ON audit_events;
 CREATE TRIGGER prevent_audit_delete BEFORE DELETE ON audit_events FOR EACH ROW EXECUTE FUNCTION prevent_audit_modification();
 
 -- ============================================================================
+-- TRUST & REPUTATION SYSTEM
+-- ============================================================================
+
+-- Agent Stats: Stores computed trust statistics for each agent
+CREATE TABLE IF NOT EXISTS agent_stats (
+    agent_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- Activity metrics
+    total_proposals_submitted INTEGER NOT NULL DEFAULT 0,
+    total_bookings_completed INTEGER NOT NULL DEFAULT 0,
+    total_bookings_cancelled INTEGER NOT NULL DEFAULT 0,
+    
+    -- Rating metrics (computed from trust_reviews)
+    average_rating DECIMAL(3,2) CHECK (average_rating IS NULL OR (average_rating >= 1 AND average_rating <= 5)),
+    rating_count INTEGER NOT NULL DEFAULT 0,
+    
+    -- Response time metrics (in minutes)
+    response_time_p50 INTEGER,
+    response_time_p90 INTEGER,
+    
+    -- Trust & compliance
+    platform_violation_count INTEGER NOT NULL DEFAULT 0,
+    trust_level VARCHAR(20) NOT NULL DEFAULT 'LEVEL_1' 
+        CHECK (trust_level IN ('LEVEL_1', 'LEVEL_2', 'LEVEL_3')),
+    badges TEXT[] NOT NULL DEFAULT '{}',
+    
+    -- Verification status (synced from identity service)
+    identity_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    bank_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    
+    -- Platform protection
+    platform_protection_score INTEGER NOT NULL DEFAULT 100 CHECK (platform_protection_score >= 0 AND platform_protection_score <= 100),
+    platform_protection_eligible BOOLEAN NOT NULL DEFAULT TRUE,
+    
+    -- Agent status (for admin actions)
+    is_frozen BOOLEAN NOT NULL DEFAULT FALSE,
+    frozen_at TIMESTAMP WITH TIME ZONE,
+    frozen_by UUID REFERENCES users(id),
+    frozen_reason TEXT,
+    
+    -- Timestamps
+    last_updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    last_recalculated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_stats_trust_level ON agent_stats(trust_level);
+CREATE INDEX IF NOT EXISTS idx_agent_stats_rating ON agent_stats(average_rating DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_agent_stats_protection ON agent_stats(platform_protection_eligible);
+CREATE INDEX IF NOT EXISTS idx_agent_stats_frozen ON agent_stats(is_frozen) WHERE is_frozen = TRUE;
+
+-- Trust Reviews: Immutable review records from completed bookings
+CREATE TABLE IF NOT EXISTS trust_reviews (
+    review_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    booking_id UUID NOT NULL UNIQUE REFERENCES bookings(id) ON DELETE RESTRICT,
+    agent_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    
+    -- Rating dimensions (1-5 scale)
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    planning_quality INTEGER NOT NULL CHECK (planning_quality >= 1 AND planning_quality <= 5),
+    responsiveness INTEGER NOT NULL CHECK (responsiveness >= 1 AND responsiveness <= 5),
+    accuracy_vs_promise INTEGER NOT NULL CHECK (accuracy_vs_promise >= 1 AND accuracy_vs_promise <= 5),
+    
+    -- Optional text feedback
+    comment TEXT CHECK (comment IS NULL OR LENGTH(comment) <= 2000),
+    
+    -- Immutability flag (always true, enforced by trigger)
+    is_immutable BOOLEAN NOT NULL DEFAULT TRUE,
+    
+    -- Timestamps (immutable after creation)
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    
+    -- Visibility control (admin only can modify)
+    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
+    hidden_at TIMESTAMP WITH TIME ZONE,
+    hidden_by UUID REFERENCES users(id),
+    hidden_reason TEXT,
+    
+    -- Ensure one review per booking per user
+    CONSTRAINT uq_trust_reviews_booking_user UNIQUE (booking_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_trust_reviews_agent ON trust_reviews(agent_id);
+CREATE INDEX IF NOT EXISTS idx_trust_reviews_user ON trust_reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_trust_reviews_booking ON trust_reviews(booking_id);
+CREATE INDEX IF NOT EXISTS idx_trust_reviews_created ON trust_reviews(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_trust_reviews_visible ON trust_reviews(agent_id, is_hidden) WHERE is_hidden = FALSE;
+
+-- Badge History: Tracks all badge assignments and revocations
+CREATE TABLE IF NOT EXISTS badge_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    agent_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    badge VARCHAR(50) NOT NULL 
+        CHECK (badge IN ('VERIFIED_AGENT', 'PLATFORM_TRUSTED', 'TOP_PLANNER', 'ON_TIME_EXPERT', 'NEWLY_VERIFIED')),
+    action VARCHAR(20) NOT NULL CHECK (action IN ('ASSIGNED', 'REVOKED')),
+    reason TEXT NOT NULL,
+    triggered_by VARCHAR(20) NOT NULL CHECK (triggered_by IN ('SYSTEM', 'ADMIN')),
+    admin_id UUID REFERENCES users(id),
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_badge_history_agent ON badge_history(agent_id);
+CREATE INDEX IF NOT EXISTS idx_badge_history_badge ON badge_history(badge);
+CREATE INDEX IF NOT EXISTS idx_badge_history_created ON badge_history(created_at DESC);
+
+-- Violations: Records platform violations that affect trust scores
+CREATE TABLE IF NOT EXISTS violations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    agent_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    violation_type VARCHAR(50) NOT NULL 
+        CHECK (violation_type IN (
+            'CONTACT_INFO_LEAK', 
+            'EXTERNAL_PAYMENT_LINK', 
+            'PAYMENT_INFO_LEAK', 
+            'EXTERNAL_LINK_SHARE',
+            'FRAUD_DETECTED',
+            'EXCESSIVE_CANCELLATIONS',
+            'DISPUTE_LOST',
+            'POLICY_VIOLATION'
+        )),
+    description TEXT NOT NULL,
+    severity VARCHAR(20) NOT NULL CHECK (severity IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
+    
+    -- Context
+    booking_id UUID REFERENCES bookings(id),
+    message_id UUID,
+    evidence JSONB NOT NULL DEFAULT '{}',
+    
+    -- Detection info
+    auto_detected BOOLEAN NOT NULL DEFAULT TRUE,
+    reported_by UUID REFERENCES users(id),
+    
+    -- Resolution
+    resolved_at TIMESTAMP WITH TIME ZONE,
+    resolved_by UUID REFERENCES users(id),
+    resolution_notes TEXT,
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_violations_agent ON violations(agent_id);
+CREATE INDEX IF NOT EXISTS idx_violations_type ON violations(violation_type);
+CREATE INDEX IF NOT EXISTS idx_violations_severity ON violations(severity);
+CREATE INDEX IF NOT EXISTS idx_violations_unresolved ON violations(agent_id, resolved_at) WHERE resolved_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_violations_created ON violations(created_at DESC);
+
+-- Review Eligibility Cache: For performance
+CREATE TABLE IF NOT EXISTS review_eligibility (
+    booking_id UUID PRIMARY KEY REFERENCES bookings(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    agent_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    is_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+    reason TEXT,
+    unlocked_at TIMESTAMP WITH TIME ZONE,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    review_submitted BOOLEAN NOT NULL DEFAULT FALSE,
+    review_id UUID REFERENCES trust_reviews(review_id),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_review_eligibility_user ON review_eligibility(user_id);
+CREATE INDEX IF NOT EXISTS idx_review_eligibility_eligible ON review_eligibility(user_id, is_eligible) WHERE is_eligible = TRUE AND review_submitted = FALSE;
+
+-- Trigger to prevent updates to immutable review fields
+CREATE OR REPLACE FUNCTION prevent_review_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.review_id != NEW.review_id OR
+       OLD.booking_id != NEW.booking_id OR
+       OLD.agent_id != NEW.agent_id OR
+       OLD.user_id != NEW.user_id OR
+       OLD.rating != NEW.rating OR
+       OLD.planning_quality != NEW.planning_quality OR
+       OLD.responsiveness != NEW.responsiveness OR
+       OLD.accuracy_vs_promise != NEW.accuracy_vs_promise OR
+       OLD.comment IS DISTINCT FROM NEW.comment OR
+       OLD.created_at != NEW.created_at THEN
+        RAISE EXCEPTION 'Trust reviews are immutable. Only visibility can be changed.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_prevent_review_update ON trust_reviews;
+CREATE TRIGGER trigger_prevent_review_update
+    BEFORE UPDATE ON trust_reviews
+    FOR EACH ROW
+    EXECUTE FUNCTION prevent_review_update();
+
+-- Function to increment violation count atomically
+CREATE OR REPLACE FUNCTION increment_agent_violation_count(p_agent_id UUID)
+RETURNS void AS $$
+BEGIN
+    UPDATE agent_stats 
+    SET platform_violation_count = platform_violation_count + 1,
+        last_updated_at = NOW()
+    WHERE agent_id = p_agent_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to recalculate agent stats from reviews
+CREATE OR REPLACE FUNCTION recalculate_agent_review_stats(p_agent_id UUID)
+RETURNS void AS $$
+DECLARE
+    v_avg_rating DECIMAL(3,2);
+    v_rating_count INTEGER;
+BEGIN
+    SELECT 
+        ROUND(AVG(rating)::numeric, 2),
+        COUNT(*)
+    INTO v_avg_rating, v_rating_count
+    FROM trust_reviews
+    WHERE agent_id = p_agent_id AND is_hidden = FALSE;
+    
+    UPDATE agent_stats
+    SET average_rating = v_avg_rating,
+        rating_count = v_rating_count,
+        last_recalculated_at = NOW(),
+        last_updated_at = NOW()
+    WHERE agent_id = p_agent_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to auto-recalculate stats when review is added/hidden
+CREATE OR REPLACE FUNCTION trigger_recalculate_agent_stats()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        PERFORM recalculate_agent_review_stats(NEW.agent_id);
+    ELSIF TG_OP = 'UPDATE' AND OLD.is_hidden != NEW.is_hidden THEN
+        PERFORM recalculate_agent_review_stats(NEW.agent_id);
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_review_stats_update ON trust_reviews;
+CREATE TRIGGER trigger_review_stats_update
+    AFTER INSERT OR UPDATE ON trust_reviews
+    FOR EACH ROW
+    EXECUTE FUNCTION trigger_recalculate_agent_stats();
+
+-- ============================================================================
 -- GRANT PERMISSIONS
 -- ============================================================================
 

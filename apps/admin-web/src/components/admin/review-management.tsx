@@ -149,10 +149,12 @@ export function ReviewManagement({
 
       {/* Action dialog */}
       <ReasonDialog
-        isOpen={actionDialogOpen}
-        onClose={() => {
-          setActionDialogOpen(false);
-          setSelectedReview(null);
+        open={actionDialogOpen}
+        onOpenChange={(open) => {
+          setActionDialogOpen(open);
+          if (!open) {
+            setSelectedReview(null);
+          }
         }}
         onConfirm={handleActionConfirm}
         title={actionType === 'hide' ? 'Hide Review' : 'Unhide Review'}
@@ -161,8 +163,7 @@ export function ReviewManagement({
             ? 'This review will be hidden from public view. The original content is preserved for audit purposes.'
             : 'This review will be visible to the public again.'
         }
-        requireReason={true}
-        isLoading={isLoading}
+        actionLabel={actionType === 'hide' ? 'Hide' : 'Unhide'}
       />
     </div>
   );

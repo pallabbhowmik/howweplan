@@ -133,6 +133,7 @@ export function buildReviewSubmittedAudit(
 ): CreateAuditEvent {
   return {
     eventType: TRUST_EVENT_TYPES.REVIEW_SUBMITTED,
+    eventVersion: '1.0',
     correlationId,
     category: 'agent',
     severity: 'info',
@@ -164,11 +165,9 @@ export function buildReviewSubmittedAudit(
     source: {
       service: source,
     },
-    compliance: {
-      gdprRelevant: false,
-      piiContained: false,
-      retentionCategory: 'standard',
-    },
+    gdprRelevant: false,
+    piiContained: false,
+    retentionCategory: 'standard',
     metadata: {
       agentId: payload.agentId,
       immutable: true,
@@ -186,6 +185,7 @@ export function buildReviewHiddenAudit(
 ): CreateAuditEvent {
   return {
     eventType: TRUST_EVENT_TYPES.REVIEW_HIDDEN,
+    eventVersion: '1.0',
     correlationId,
     category: 'admin',
     severity: 'warning',
@@ -208,11 +208,9 @@ export function buildReviewHiddenAudit(
     source: {
       service: source,
     },
-    compliance: {
-      gdprRelevant: false,
-      piiContained: false,
-      retentionCategory: 'extended',
-    },
+    gdprRelevant: false,
+    piiContained: false,
+    retentionCategory: 'extended',
     metadata: {
       agentId: payload.agentId,
       adminAction: true,
@@ -231,6 +229,7 @@ export function buildBadgeAssignedAudit(
 ): CreateAuditEvent {
   return {
     eventType: TRUST_EVENT_TYPES.BADGE_ASSIGNED,
+    eventVersion: '1.0',
     correlationId,
     category: 'agent',
     severity: 'info',
@@ -253,11 +252,9 @@ export function buildBadgeAssignedAudit(
     source: {
       service: source,
     },
-    compliance: {
-      gdprRelevant: false,
-      piiContained: false,
-      retentionCategory: 'standard',
-    },
+    gdprRelevant: false,
+    piiContained: false,
+    retentionCategory: 'standard',
     metadata: {
       agentId: payload.agentId,
       badgeType: payload.badge,
@@ -277,6 +274,7 @@ export function buildBadgeRevokedAudit(
 ): CreateAuditEvent {
   return {
     eventType: TRUST_EVENT_TYPES.BADGE_REVOKED,
+    eventVersion: '1.0',
     correlationId,
     category: 'agent',
     severity: 'warning',
@@ -299,11 +297,9 @@ export function buildBadgeRevokedAudit(
     source: {
       service: source,
     },
-    compliance: {
-      gdprRelevant: false,
-      piiContained: false,
-      retentionCategory: 'extended',
-    },
+    gdprRelevant: false,
+    piiContained: false,
+    retentionCategory: 'extended',
     metadata: {
       agentId: payload.agentId,
       badgeType: payload.badge,
@@ -323,6 +319,7 @@ export function buildViolationDetectedAudit(
 ): CreateAuditEvent {
   return {
     eventType: TRUST_EVENT_TYPES.VIOLATION_DETECTED,
+    eventVersion: '1.0',
     correlationId,
     category: 'agent',
     severity: payload.severity === 'CRITICAL' ? 'critical' : 
@@ -353,11 +350,9 @@ export function buildViolationDetectedAudit(
     source: {
       service: source,
     },
-    compliance: {
-      gdprRelevant: false,
-      piiContained: true, // Evidence may contain PII
-      retentionCategory: 'extended',
-    },
+    gdprRelevant: false,
+    piiContained: true, // Evidence may contain PII
+    retentionCategory: 'extended',
     metadata: {
       agentId: payload.agentId,
       violationType: payload.violationType,
@@ -377,6 +372,7 @@ export function buildTrustLevelChangedAudit(
 ): CreateAuditEvent {
   return {
     eventType: TRUST_EVENT_TYPES.TRUST_LEVEL_CHANGED,
+    eventVersion: '1.0',
     correlationId,
     category: 'agent',
     severity: 'info',
@@ -399,11 +395,9 @@ export function buildTrustLevelChangedAudit(
     source: {
       service: source,
     },
-    compliance: {
-      gdprRelevant: false,
-      piiContained: false,
-      retentionCategory: 'standard',
-    },
+    gdprRelevant: false,
+    piiContained: false,
+    retentionCategory: 'standard',
     metadata: {
       agentId: payload.agentId,
       previousLevel: payload.previousLevel,
@@ -424,6 +418,7 @@ export function buildAgentFrozenAudit(
 ): CreateAuditEvent {
   return {
     eventType: TRUST_EVENT_TYPES.AGENT_FROZEN,
+    eventVersion: '1.0',
     correlationId,
     category: 'admin',
     severity: 'critical',
@@ -446,11 +441,9 @@ export function buildAgentFrozenAudit(
     source: {
       service: source,
     },
-    compliance: {
-      gdprRelevant: false,
-      piiContained: false,
-      retentionCategory: 'extended',
-    },
+    gdprRelevant: false,
+    piiContained: false,
+    retentionCategory: 'extended',
     metadata: {
       agentId: payload.agentId,
       adminAction: true,
