@@ -362,7 +362,8 @@ async function requestHandler(
   const url = parsedUrl.pathname;
 
   // CORS headers - handle both gateway-proxied requests and direct access
-  const origin = req.headers.origin;
+  const originHeader = req.headers.origin;
+  const origin = typeof originHeader === 'string' ? originHeader : undefined;
   const allowedOrigins = [
     'https://howweplan-agent.vercel.app',
     'https://howweplan-user.vercel.app',
