@@ -286,7 +286,7 @@ function ReviewCard({ review, onHide, onUnhide, isLoading }: ReviewCardProps) {
       {/* Comment */}
       {review.comment && (
         <div className="mt-4 p-3 bg-muted/50 rounded">
-          <p className="text-sm italic">"{review.comment}"</p>
+          <p className="text-sm italic">&ldquo;{review.comment}&rdquo;</p>
         </div>
       )}
 

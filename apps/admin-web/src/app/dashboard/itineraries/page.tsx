@@ -451,8 +451,8 @@ function ObfuscationRulesSection({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="hide">Hide Completely</SelectItem>
-                    <SelectItem value="generalize">Generalize (e.g., "4-star hotel")</SelectItem>
-                    <SelectItem value="category_only">Category Only (e.g., "Private Vehicle")</SelectItem>
+                    <SelectItem value="generalize">Generalize (e.g., &ldquo;4-star hotel&rdquo;)</SelectItem>
+                    <SelectItem value="category_only">Category Only (e.g., &ldquo;Private Vehicle&rdquo;)</SelectItem>
                     <SelectItem value="star_rating_only">Star Rating Only</SelectItem>
                   </SelectContent>
                 </Select>
