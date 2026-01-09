@@ -62,79 +62,66 @@ type FilterOption = 'all' | 'healthy' | 'unhealthy' | 'error' | 'not_configured'
 
 const SERVICE_META: Record<string, { 
   description: string; 
-  productionUrl?: string;
   category: 'core' | 'business' | 'support';
   icon: React.ElementType;
 }> = {
   'gateway': {
     description: 'API Gateway and request routing',
-    productionUrl: 'https://howweplan-irjf.onrender.com',
     category: 'core',
     icon: Globe,
   },
   'identity': {
     description: 'User authentication and authorization',
-    productionUrl: 'https://howweplan-tozr.onrender.com',
     category: 'core',
     icon: Shield,
   },
   'requests': {
     description: 'Travel request management',
-    productionUrl: 'https://howweplan-requests-kghq.onrender.com',
     category: 'business',
     icon: FileText,
   },
   'matching': {
     description: 'Agent-request matching algorithm',
-    productionUrl: 'https://howweplan-matching-6wxj.onrender.com',
     category: 'business',
     icon: Users,
   },
   'itineraries': {
     description: 'Trip itinerary creation and management',
-    productionUrl: 'https://howweplan-uo1z.onrender.com',
     category: 'business',
     icon: Globe,
   },
   'booking-payments': {
     description: 'Booking and payment processing',
-    productionUrl: 'https://howweplan-booking-payments-npgv.onrender.com',
     category: 'business',
     icon: CreditCard,
   },
   'messaging': {
     description: 'Real-time chat and communications',
-    productionUrl: 'https://howweplan-ptx3.onrender.com',
     category: 'business',
     icon: MessageSquare,
   },
   'notifications': {
     description: 'Push notifications and alerts',
-    productionUrl: 'https://howweplan-4cx5.onrender.com',
     category: 'support',
     icon: Bell,
   },
   'event-bus': {
     description: 'Event-driven messaging and pub/sub',
-    productionUrl: 'https://howweplan-eventbus-sicz.onrender.com',
     category: 'core',
     icon: Zap,
   },
   'audit': {
     description: 'Activity logging and compliance tracking',
-    productionUrl: 'https://howweplan-audit-gdzb.onrender.com',
     category: 'support',
     icon: FileText,
   },
   'disputes': {
     description: 'Dispute resolution and management',
-    productionUrl: undefined, // Not deployed
     category: 'support',
     icon: AlertCircle,
   },
   'reviews': {
     description: 'Rating and review system',
-    productionUrl: undefined, // Not deployed
     category: 'business',
     icon: Star,
   },
@@ -274,8 +261,16 @@ function ServiceCard({
   const meta = SERVICE_META[service.id];
   const Icon = meta?.icon ?? Server;
   const description = meta?.description ?? 'Microservice';
-  const productionUrl = meta?.productionUrl;
   const category = meta?.category ?? 'core';
+  
+  // Extract hostname from healthUrl for display
+  const displayHost = service.healthUrl ? (() => {
+    try {
+      return new URL(service.healthUrl).hostname;
+    } catch {
+      return 'Unknown';
+    }
+  })() : 'Not configured';
   
   const categoryColors: Record<string, string> = {
     core: 'border-l-blue-500',
@@ -303,9 +298,9 @@ function ServiceCard({
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-muted-foreground">Service URL</span>
-            <p className="font-mono text-xs truncate" title={productionUrl}>
-              {productionUrl ? new URL(productionUrl).hostname : 'Not deployed'}
+            <span className="text-muted-foreground">Service Host</span>
+            <p className="font-mono text-xs truncate" title={service.healthUrl}>
+              {displayHost}
             </p>
           </div>
           <div>
@@ -319,12 +314,12 @@ function ServiceCard({
           <LatencyIndicator latencyMs={service.latencyMs} />
         </div>
         
-        {(productionUrl || service.healthUrl) && (
+        {service.healthUrl && (
           <div className="flex items-center gap-2">
             <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">
-              {service.healthUrl ?? productionUrl}
+              {service.healthUrl}
             </code>
-            <CopyButton text={service.healthUrl ?? productionUrl ?? ''} />
+            <CopyButton text={service.healthUrl} />
           </div>
         )}
         

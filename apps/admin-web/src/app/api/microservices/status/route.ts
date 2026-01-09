@@ -11,12 +11,14 @@ type ServiceId =
   | 'booking-payments'
   | 'messaging'
   | 'notifications'
-  | 'event-bus';
+  | 'event-bus'
+  | 'disputes'
+  | 'reviews';
 
 type ServiceConfig = {
   id: ServiceId;
   name: string;
-  productionUrl: string;
+  urlEnvKey: keyof typeof env;
   healthPath: string;
 };
 
@@ -35,69 +37,80 @@ function getTimeoutMs(): number {
 }
 
 /**
- * Production service URLs - direct health checks
- * These are the actual Render.com deployment URLs
+ * Service configurations - URLs come from environment variables
  */
 function getServiceConfigs(): ServiceConfig[] {
   return [
     {
       id: 'gateway',
       name: 'Gateway',
-      productionUrl: 'https://howweplan-irjf.onrender.com',
+      urlEnvKey: 'NEXT_PUBLIC_SERVICE_GATEWAY_URL',
       healthPath: '/health',
     },
     {
       id: 'identity',
       name: 'Identity',
-      productionUrl: 'https://howweplan-tozr.onrender.com',
+      urlEnvKey: 'NEXT_PUBLIC_SERVICE_IDENTITY_URL',
       healthPath: '/api/v1/health',
     },
     {
       id: 'requests',
       name: 'Requests',
-      productionUrl: 'https://howweplan-requests-kghq.onrender.com',
+      urlEnvKey: 'NEXT_PUBLIC_SERVICE_REQUESTS_URL',
       healthPath: '/api/v1/health',
     },
     {
       id: 'matching',
       name: 'Matching',
-      productionUrl: 'https://howweplan-matching-6wxj.onrender.com',
+      urlEnvKey: 'NEXT_PUBLIC_SERVICE_MATCHING_URL',
       healthPath: '/health',
     },
     {
       id: 'itineraries',
       name: 'Itineraries',
-      productionUrl: 'https://howweplan-uo1z.onrender.com',
+      urlEnvKey: 'NEXT_PUBLIC_SERVICE_ITINERARIES_URL',
       healthPath: '/health',
     },
     {
       id: 'booking-payments',
       name: 'Booking-Payments',
-      productionUrl: 'https://howweplan-booking-payments-npgv.onrender.com',
+      urlEnvKey: 'NEXT_PUBLIC_SERVICE_BOOKING_PAYMENTS_URL',
       healthPath: '/health',
     },
     {
       id: 'messaging',
       name: 'Messaging',
-      productionUrl: 'https://howweplan-ptx3.onrender.com',
+      urlEnvKey: 'NEXT_PUBLIC_SERVICE_MESSAGING_URL',
       healthPath: '/health',
     },
     {
       id: 'notifications',
       name: 'Notifications',
-      productionUrl: 'https://howweplan-4cx5.onrender.com',
+      urlEnvKey: 'NEXT_PUBLIC_SERVICE_NOTIFICATIONS_URL',
       healthPath: '/health',
     },
     {
       id: 'event-bus',
       name: 'Event Bus',
-      productionUrl: 'https://howweplan-eventbus-sicz.onrender.com',
+      urlEnvKey: 'NEXT_PUBLIC_SERVICE_EVENTBUS_URL',
       healthPath: '/health',
     },
     {
       id: 'audit',
       name: 'Audit',
-      productionUrl: 'https://howweplan-audit-gdzb.onrender.com',
+      urlEnvKey: 'NEXT_PUBLIC_SERVICE_AUDIT_URL',
+      healthPath: '/health',
+    },
+    {
+      id: 'disputes',
+      name: 'Disputes',
+      urlEnvKey: 'NEXT_PUBLIC_SERVICE_DISPUTES_URL',
+      healthPath: '/health',
+    },
+    {
+      id: 'reviews',
+      name: 'Reviews',
+      urlEnvKey: 'NEXT_PUBLIC_SERVICE_REVIEWS_URL',
       healthPath: '/health',
     },
   ];
@@ -110,8 +123,19 @@ function truncateDetails(input: string, maxLen: number = 200): string {
 }
 
 async function checkService(service: ServiceConfig, timeoutMs: number): Promise<ServiceStatus> {
-  // Direct health check to the production service URL
-  const healthUrl = `${service.productionUrl}${service.healthPath}`;
+  // Get URL from environment variable
+  const baseUrl = env[service.urlEnvKey] as string | undefined;
+  
+  if (!baseUrl) {
+    return {
+      id: service.id,
+      name: service.name,
+      status: 'not_configured',
+      details: `Environment variable ${service.urlEnvKey} not set`,
+    };
+  }
+
+  const healthUrl = `${baseUrl}${service.healthPath}`;
   const startedAt = Date.now();
 
   try {
