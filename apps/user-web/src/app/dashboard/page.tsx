@@ -1083,7 +1083,7 @@ function UpcomingTripCard({ booking }: { booking: Booking }) {
         destination={destination}
         startDate={booking.travelStartDate}
         endDate={booking.travelEndDate}
-        isPaymentConfirmed={booking.paymentStatus === 'paid' || booking.status === 'confirmed'}
+        isPaymentConfirmed={booking.paymentState === 'paid' || booking.status === 'confirmed'}
         bookingReference={booking.bookingNumber}
         travelerCount={travelerCount}
         highlights={highlights.slice(0, 5)}
