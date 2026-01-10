@@ -47,7 +47,8 @@ function mapDbRowToUser(row: {
   created_at: string;
   updated_at: string;
 }): User {
-  const normalizedRole = (row.role ?? '').toUpperCase();
+  // UserRole values are lowercase ('user', 'agent', 'admin'), so normalize DB value to lowercase
+  const normalizedRole = (row.role ?? '').toLowerCase();
   const role = (Object.values(UserRole) as string[]).includes(normalizedRole)
     ? (normalizedRole as UserRole)
     : UserRole.USER;
