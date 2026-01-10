@@ -155,8 +155,16 @@ export function getRefreshToken(): string | null {
 
 export function getStoredUser(): AuthUser | null {
   if (typeof window === 'undefined') return null;
-  const stored = localStorage.getItem(USER_KEY);
-  return stored ? (JSON.parse(stored) as AuthUser) : null;
+  try {
+    const stored = localStorage.getItem(USER_KEY);
+    // Guard against 'undefined' string or invalid JSON
+    if (!stored || stored === 'undefined' || stored === 'null') return null;
+    return JSON.parse(stored) as AuthUser;
+  } catch {
+    // Corrupted data - clear it
+    localStorage.removeItem(USER_KEY);
+    return null;
+  }
 }
 
 export function clearAuthData(): void {

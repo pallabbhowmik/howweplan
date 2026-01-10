@@ -39,14 +39,25 @@ export function AgentSessionProvider({ children }: { children: React.ReactNode }
   const [authUser, setAuthUser] = React.useState<AuthUser | null>(null);
   const [agentId, setAgentId] = React.useState<string>(() => {
     if (typeof window === 'undefined') return demoAgents[0]!.agentId;
-    return window.localStorage.getItem(STORAGE_KEY) ?? demoAgents[0]!.agentId;
+    try {
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      // Guard against 'undefined' string
+      if (!stored || stored === 'undefined') return demoAgents[0]!.agentId;
+      return stored;
+    } catch {
+      return demoAgents[0]!.agentId;
+    }
   });
 
   // Load auth user on mount
   React.useEffect(() => {
-    const user = getStoredUser();
-    if (user) {
-      setAuthUser(user);
+    try {
+      const user = getStoredUser();
+      if (user) {
+        setAuthUser(user);
+      }
+    } catch {
+      // Ignore errors from corrupted localStorage
     }
   }, []);
 

@@ -284,7 +284,8 @@ function loadState(): StoredState {
   if (typeof window === 'undefined') return defaultState();
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultState();
+    // Guard against 'undefined' string or empty values
+    if (!raw || raw === 'undefined' || raw === 'null') return defaultState();
     const parsed = JSON.parse(raw) as StoredState;
     // Minimal shape check
     if (!parsed || typeof parsed !== 'object' || !parsed.conversations || !parsed.messages) {
