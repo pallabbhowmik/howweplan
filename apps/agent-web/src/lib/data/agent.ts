@@ -327,6 +327,10 @@ export class ApiError extends Error {
 }
 
 async function tryFetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  // Debug: Log token status before API call
+  const token = getAccessToken();
+  console.log(`[API Debug] ${path} - Token present: ${!!token}, Token prefix: ${token?.substring(0, 20)}...`);
+  
   const res = await authenticatedFetch(apiUrl(path), {
     ...init,
     headers: {
