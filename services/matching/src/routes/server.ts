@@ -102,7 +102,11 @@ function getGatewayUser(req: IncomingMessage): GatewayUser | null {
 function requireAgent(user: GatewayUser | null, res: ServerResponse): GatewayUser | null {
   if (!user) {
     logger.warn({ event: 'auth_failed', reason: 'no_user_headers', message: 'Missing X-User-Id or X-User-Role headers' });
-    sendJson(res, 401, { error: 'Unauthorized', details: 'Missing authentication headers' });
+    sendJson(res, 401, { 
+      error: 'Unauthorized', 
+      code: 'AUTH_NO_HEADERS',
+      details: 'Missing authentication headers. The API Gateway should forward X-User-Id and X-User-Role headers. This may indicate JWT verification failed at the gateway level.' 
+    });
     return null;
   }
   if (String(user.role).toLowerCase() !== 'agent') {
@@ -510,6 +514,24 @@ async function requestHandler(
 
   if (url === '/health' && method === 'GET') {
     handleHealthCheck(res);
+    return;
+  }
+
+  // Debug endpoint to show received headers - helps diagnose gateway issues
+  if (url === '/debug/headers' && method === 'GET') {
+    const relevantHeaders = {
+      'x-user-id': req.headers['x-user-id'] ?? 'NOT SET',
+      'x-user-role': req.headers['x-user-role'] ?? 'NOT SET',
+      'x-user-email': req.headers['x-user-email'] ?? 'NOT SET',
+      'x-request-id': req.headers['x-request-id'] ?? 'NOT SET',
+      'authorization': req.headers['authorization'] ? 'Bearer ***' : 'NOT SET',
+      'origin': req.headers['origin'] ?? 'NOT SET',
+    };
+    sendJson(res, 200, { 
+      message: 'Headers received by matching service',
+      headers: relevantHeaders,
+      timestamp: new Date().toISOString()
+    });
     return;
   }
 
