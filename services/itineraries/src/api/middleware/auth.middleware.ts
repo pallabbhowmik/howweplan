@@ -100,8 +100,29 @@ function verifyToken(token: string): JwtPayload {
 }
 
 /**
+ * Extract user from API Gateway forwarded headers.
+ * The gateway authenticates the JWT and forwards user info in headers.
+ */
+function getGatewayUser(req: Request): JwtPayload | null {
+  const userId = req.headers['x-user-id'] as string | undefined;
+  const role = req.headers['x-user-role'] as string | undefined;
+  const email = (req.headers['x-user-email'] as string | undefined) ?? '';
+
+  if (!userId || !role) return null;
+
+  const normalizedRole = String(role).toUpperCase();
+  const mappedRole: JwtPayload['role'] =
+    normalizedRole === 'AGENT' ? 'AGENT' :
+    normalizedRole === 'ADMIN' ? 'ADMIN' :
+    normalizedRole === 'SYSTEM' ? 'SYSTEM' : 'TRAVELER';
+
+  return { sub: userId, role: mappedRole, email };
+}
+
+/**
  * Authentication middleware.
  * Validates JWT token and attaches user to request.
+ * Checks API Gateway headers first (trusted), then falls back to JWT verification.
  */
 export function authenticate(
   req: Request,
@@ -109,6 +130,15 @@ export function authenticate(
   next: NextFunction
 ): void {
   try {
+    // First, check for gateway-forwarded headers (gateway has already authenticated)
+    const gatewayUser = getGatewayUser(req);
+    if (gatewayUser) {
+      (req as AuthenticatedRequest).user = gatewayUser;
+      next();
+      return;
+    }
+
+    // Fallback: verify JWT directly (for direct API calls or testing)
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {

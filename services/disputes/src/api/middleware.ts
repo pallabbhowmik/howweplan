@@ -116,12 +116,38 @@ export function requestLoggingMiddleware(
 /**
  * Authentication middleware.
  * Verifies JWT tokens for API access.
+ * Checks API Gateway headers first (trusted), then falls back to JWT verification.
  */
 export function authMiddleware(
   req: Request,
   res: Response,
   next: NextFunction
 ): void {
+  // First, check for gateway-forwarded headers (gateway has already authenticated)
+  const gatewayUserId = req.headers['x-user-id'] as string | undefined;
+  const gatewayUserRole = req.headers['x-user-role'] as string | undefined;
+  const gatewayUserEmail = req.headers['x-user-email'] as string | undefined;
+
+  if (gatewayUserId && gatewayUserRole) {
+    // Map gateway role to service role
+    const normalizedRole = String(gatewayUserRole).toLowerCase();
+    let role: AuthUser['role'] = 'traveler';
+    if (normalizedRole === 'admin') {
+      role = 'admin';
+    } else if (normalizedRole === 'agent') {
+      role = 'agent';
+    }
+
+    req.user = {
+      id: gatewayUserId,
+      email: gatewayUserEmail || `${gatewayUserId}@tripcomposer.local`,
+      role,
+    };
+    next();
+    return;
+  }
+
+  // Fallback: verify JWT directly (for direct API calls or testing)
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith('Bearer ')) {

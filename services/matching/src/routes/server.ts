@@ -585,13 +585,17 @@ async function requestHandler(
     const user = requireAgent(getGatewayUser(req), res);
     if (!user) return;
 
-    const me = await getAgentMe(user.userId);
-    if (!me) {
-      sendJson(res, 404, { error: 'Agent profile not found' });
-      return;
+    try {
+      const me = await getAgentMe(user.userId);
+      if (!me) {
+        sendJson(res, 404, { error: 'Agent profile not found' });
+        return;
+      }
+      sendJson(res, 200, { data: me });
+    } catch (error) {
+      logger.error({ err: error, userId: user.userId, endpoint: '/api/v1/agent/me' }, 'Failed to fetch agent profile');
+      sendJson(res, 500, { error: 'Failed to fetch agent profile', details: error instanceof Error ? error.message : 'Database error' });
     }
-
-    sendJson(res, 200, { data: me });
     return;
   }
 
@@ -599,17 +603,22 @@ async function requestHandler(
     const user = requireAgent(getGatewayUser(req), res);
     if (!user) return;
 
-    const agentId = await loadAgentIdForUserId(user.userId);
-    if (!agentId) {
-      sendJson(res, 404, { error: 'Agent not found' });
-      return;
+    try {
+      const agentId = await loadAgentIdForUserId(user.userId);
+      if (!agentId) {
+        sendJson(res, 404, { error: 'Agent not found' });
+        return;
+      }
+
+      const limit = Math.min(Math.max(Number(parsedUrl.searchParams.get('limit') ?? '50'), 1), 200);
+      const offset = Math.max(Number(parsedUrl.searchParams.get('offset') ?? '0'), 0);
+
+      const items = await listMatchesForAgent(agentId, limit, offset);
+      sendJson(res, 200, { items });
+    } catch (error) {
+      logger.error({ err: error, userId: user.userId, endpoint: '/api/v1/matches' }, 'Failed to fetch matches');
+      sendJson(res, 500, { error: 'Failed to fetch matches', details: error instanceof Error ? error.message : 'Database error' });
     }
-
-    const limit = Math.min(Math.max(Number(parsedUrl.searchParams.get('limit') ?? '50'), 1), 200);
-    const offset = Math.max(Number(parsedUrl.searchParams.get('offset') ?? '0'), 0);
-
-    const items = await listMatchesForAgent(agentId, limit, offset);
-    sendJson(res, 200, { items });
     return;
   }
 
@@ -619,19 +628,24 @@ async function requestHandler(
     if (!user) return;
     const matchId = acceptMatchRoute[1] ?? '';
 
-    const agentId = await loadAgentIdForUserId(user.userId);
-    if (!agentId) {
-      sendJson(res, 404, { error: 'Agent not found' });
-      return;
-    }
+    try {
+      const agentId = await loadAgentIdForUserId(user.userId);
+      if (!agentId) {
+        sendJson(res, 404, { error: 'Agent not found' });
+        return;
+      }
 
-    const ok = await acceptMatchForAgent(agentId, matchId);
-    if (!ok) {
-      sendJson(res, 409, { error: 'Match not in pending state or not found' });
-      return;
-    }
+      const ok = await acceptMatchForAgent(agentId, matchId);
+      if (!ok) {
+        sendJson(res, 409, { error: 'Match not in pending state or not found' });
+        return;
+      }
 
-    sendJson(res, 200, { success: true });
+      sendJson(res, 200, { success: true });
+    } catch (error) {
+      logger.error({ err: error, userId: user.userId, matchId, endpoint: '/api/v1/matches/:id/accept' }, 'Failed to accept match');
+      sendJson(res, 500, { error: 'Failed to accept match', details: error instanceof Error ? error.message : 'Database error' });
+    }
     return;
   }
 
@@ -641,30 +655,35 @@ async function requestHandler(
     if (!user) return;
     const matchId = declineMatchRoute[1] ?? '';
 
-    const agentId = await loadAgentIdForUserId(user.userId);
-    if (!agentId) {
-      sendJson(res, 404, { error: 'Agent not found' });
-      return;
-    }
-
-    let reason: string | null = null;
     try {
-      const body = await parseJsonBody(req);
-      if (typeof body?.reason === 'string' && body.reason.trim()) {
-        reason = body.reason.trim().slice(0, 500);
+      const agentId = await loadAgentIdForUserId(user.userId);
+      if (!agentId) {
+        sendJson(res, 404, { error: 'Agent not found' });
+        return;
       }
-    } catch {
-      sendJson(res, 400, { error: 'Invalid JSON' });
-      return;
-    }
 
-    const ok = await declineMatchForAgent(agentId, matchId, reason);
-    if (!ok) {
-      sendJson(res, 409, { error: 'Match not in pending state or not found' });
-      return;
-    }
+      let reason: string | null = null;
+      try {
+        const body = await parseJsonBody(req);
+        if (typeof body?.reason === 'string' && body.reason.trim()) {
+          reason = body.reason.trim().slice(0, 500);
+        }
+      } catch {
+        sendJson(res, 400, { error: 'Invalid JSON' });
+        return;
+      }
 
-    sendJson(res, 200, { success: true });
+      const ok = await declineMatchForAgent(agentId, matchId, reason);
+      if (!ok) {
+        sendJson(res, 409, { error: 'Match not in pending state or not found' });
+        return;
+      }
+
+      sendJson(res, 200, { success: true });
+    } catch (error) {
+      logger.error({ err: error, userId: user.userId, matchId, endpoint: '/api/v1/matches/:id/decline' }, 'Failed to decline match');
+      sendJson(res, 500, { error: 'Failed to decline match', details: error instanceof Error ? error.message : 'Database error' });
+    }
     return;
   }
 

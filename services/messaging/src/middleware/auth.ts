@@ -1,7 +1,9 @@
 /**
  * Messaging Service - Authentication Middleware
  *
- * Handles JWT verification and authorization.
+ * Handles authentication via:
+ * 1. API Gateway headers (X-User-Id, X-User-Role) - trusted when coming from gateway
+ * 2. JWT verification - fallback for direct API calls
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -36,6 +38,24 @@ export interface AuthMiddleware {
   requireAdmin: (req: Request, res: Response, next: NextFunction) => void;
   requireInternalAuth: (req: Request, res: Response, next: NextFunction) => void;
   optionalAuth: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+}
+
+/**
+ * Extract user from API Gateway forwarded headers.
+ * The gateway authenticates the JWT and forwards user info in headers.
+ */
+function getGatewayUser(req: Request): AuthenticatedUser | null {
+  const userId = req.headers['x-user-id'] as string | undefined;
+  const role = req.headers['x-user-role'] as string | undefined;
+  const email = (req.headers['x-user-email'] as string | undefined) ?? '';
+
+  if (!userId || !role) return null;
+
+  const normalizedRole = String(role).toUpperCase();
+  const userType: 'USER' | 'AGENT' | 'ADMIN' =
+    normalizedRole === 'AGENT' ? 'AGENT' : normalizedRole === 'ADMIN' ? 'ADMIN' : 'USER';
+
+  return { userId, userType, email };
 }
 
 export function createAuthMiddleware(): AuthMiddleware {
@@ -104,9 +124,19 @@ export function createAuthMiddleware(): AuthMiddleware {
   return {
     /**
      * Requires valid authentication.
+     * Checks API Gateway headers first (trusted), then falls back to JWT verification.
      */
     async requireAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
       try {
+        // First, check for gateway-forwarded headers (gateway has already authenticated)
+        const gatewayUser = getGatewayUser(req);
+        if (gatewayUser) {
+          req.user = gatewayUser;
+          next();
+          return;
+        }
+
+        // Fallback: verify JWT directly (for direct API calls or when gateway didn't set headers)
         const user = await verifyToken(req.headers.authorization);
 
         if (!user) {
@@ -160,9 +190,19 @@ export function createAuthMiddleware(): AuthMiddleware {
 
     /**
      * Optional authentication - doesn't fail if no token.
+     * Checks API Gateway headers first (trusted), then falls back to JWT verification.
      */
     async optionalAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
       try {
+        // First, check for gateway-forwarded headers
+        const gatewayUser = getGatewayUser(req);
+        if (gatewayUser) {
+          req.user = gatewayUser;
+          next();
+          return;
+        }
+
+        // Fallback: verify JWT directly
         const user = await verifyToken(req.headers.authorization);
         if (user) {
           req.user = user;
