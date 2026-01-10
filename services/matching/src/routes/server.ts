@@ -456,10 +456,20 @@ async function requestHandler(
   req: IncomingMessage,
   res: ServerResponse
 ): Promise<void> {
-  const rawUrl = req.url ?? '/';
+  let parsedUrl: URL;
+  let url: string;
+  
+  try {
+    const rawUrl = req.url ?? '/';
+    parsedUrl = new URL(rawUrl, `http://${req.headers.host ?? 'localhost'}`);
+    url = parsedUrl.pathname;
+  } catch (parseError) {
+    logger.error({ err: parseError, rawUrl: req.url }, 'Failed to parse request URL');
+    sendJson(res, 400, { error: 'Invalid request URL' });
+    return;
+  }
+  
   const method = req.method ?? 'GET';
-  const parsedUrl = new URL(rawUrl, `http://${req.headers.host ?? 'localhost'}`);
-  const url = parsedUrl.pathname;
 
   // CORS headers - handle both gateway-proxied requests and direct access
   const originHeader = req.headers.origin;
@@ -610,8 +620,11 @@ async function requestHandler(
         return;
       }
 
-      const limit = Math.min(Math.max(Number(parsedUrl.searchParams.get('limit') ?? '50'), 1), 200);
-      const offset = Math.max(Number(parsedUrl.searchParams.get('offset') ?? '0'), 0);
+      // Safe access to searchParams with fallback
+      const limitStr = parsedUrl?.searchParams?.get('limit') ?? '50';
+      const offsetStr = parsedUrl?.searchParams?.get('offset') ?? '0';
+      const limit = Math.min(Math.max(Number(limitStr), 1), 200);
+      const offset = Math.max(Number(offsetStr), 0);
 
       const items = await listMatchesForAgent(agentId, limit, offset);
       sendJson(res, 200, { items });
