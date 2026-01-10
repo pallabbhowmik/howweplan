@@ -48,18 +48,50 @@ interface RequestConfig extends RequestInit {
 // API CLIENT CLASS
 // ============================================================================
 
+/**
+ * Resolves the API base URL from environment or defaults.
+ * Uses the same logic as auth.ts for consistency.
+ */
+function getApiBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  
+  if (envUrl) {
+    // Normalize: remove trailing slash and /api suffix if present
+    return envUrl.replace(/\/+$/, '').replace(/\/api$/, '');
+  }
+  
+  // Safe local fallback for development only
+  if (process.env.NODE_ENV !== 'production') {
+    return 'http://localhost:3001';
+  }
+  
+  throw new Error(
+    'Missing NEXT_PUBLIC_API_BASE_URL (required). ' +
+    'Set it to your API Gateway base URL (e.g. https://<gateway-host> or http://localhost:3001).'
+  );
+}
+
 class ApiClient {
   private baseUrl: string;
   private timeout: number;
-  private authToken: string | null = null;
+  private getAuthToken: () => string | null;
 
   constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3011/api/v1';
+    this.baseUrl = getApiBaseUrl();
     this.timeout = 30000;
+    // Lazy import to avoid circular dependency
+    this.getAuthToken = () => {
+      if (typeof window === 'undefined') return null;
+      return localStorage.getItem('tc_access_token');
+    };
   }
 
-  setAuthToken(token: string | null): void {
-    this.authToken = token;
+  /**
+   * @deprecated Use automatic token retrieval instead. Token is now retrieved from localStorage.
+   */
+  setAuthToken(_token: string | null): void {
+    // No-op - kept for backward compatibility
+    // Token is now automatically retrieved from localStorage
   }
 
   async get<T>(path: string, config?: RequestConfig): Promise<T> {
@@ -109,8 +141,9 @@ class ApiClient {
   }
 
   private getAuthHeaders(): Record<string, string> {
-    if (this.authToken) {
-      return { Authorization: `Bearer ${this.authToken}` };
+    const token = this.getAuthToken();
+    if (token) {
+      return { Authorization: `Bearer ${token}` };
     }
     return {};
   }

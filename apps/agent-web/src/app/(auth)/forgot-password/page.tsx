@@ -8,6 +8,32 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert } from '@/components/ui/alert';
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  (process.env.NODE_ENV !== 'production' ? 'http://localhost:3001' : '');
+
+const normalizedBaseUrl = API_BASE_URL.replace(/\/+$/, '').replace(/\/api$/, '');
+
+async function requestPasswordReset(email: string): Promise<void> {
+  const response = await fetch(`${normalizedBaseUrl}/api/identity/auth/forgot-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  // Always return success to prevent email enumeration
+  // The backend should handle this securely as well
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    // Only throw on actual server errors, not "user not found" type errors
+    if (response.status >= 500) {
+      throw new Error(data.message || 'Failed to process request');
+    }
+  }
+}
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -20,14 +46,10 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      // TODO: Implement password reset API call
-      // await requestPasswordReset({ email });
-      
-      // For now, simulate success after a delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await requestPasswordReset(email);
       setIsSubmitted(true);
     } catch (err: any) {
-      setError(err?.message ?? 'Failed to send reset email');
+      setError(err?.message ?? 'Failed to send reset email. Please try again.');
     } finally {
       setIsLoading(false);
     }
