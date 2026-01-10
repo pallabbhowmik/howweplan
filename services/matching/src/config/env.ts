@@ -157,6 +157,22 @@ function validateEnv(): z.infer<typeof envSchema> {
     process.exit(1);
   }
 
+  // Production safety: never rely on localhost default DB.
+  if (result.data.NODE_ENV !== 'development') {
+    const rawDatabaseUrl = (process.env['DATABASE_URL'] ?? '').trim();
+    const configuredDatabaseUrl = rawDatabaseUrl || result.data.DATABASE_URL;
+    const isLocalhost = /(^|\/\/)(localhost|127\.0\.0\.1)(:|\/|$)/i.test(configuredDatabaseUrl);
+
+    if (!rawDatabaseUrl) {
+      console.error('\n❌ DATABASE_URL is required in staging/production (was not set).\n');
+      process.exit(1);
+    }
+    if (isLocalhost) {
+      console.error('\n❌ DATABASE_URL points to localhost in staging/production.\n');
+      process.exit(1);
+    }
+  }
+
   return result.data;
 }
 

@@ -562,7 +562,7 @@ async function requestHandler(
           );
           matchCount++;
         } catch (err) {
-          logger.warn({ requestId, agentId: agent.id, error: err }, 'Failed to create match');
+          logger.warn({ requestId, agentId: agent.id, err }, 'Failed to create match');
         }
       }
 
@@ -571,7 +571,7 @@ async function requestHandler(
       return;
 
     } catch (error) {
-      logger.error({ error }, 'Failed to process internal match trigger');
+      logger.error({ err: error }, 'Failed to process internal match trigger');
       sendJson(res, 500, { error: 'Internal server error' });
       return;
     }
@@ -680,14 +680,24 @@ export function startServer(): Promise<void> {
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
       requestHandler(req, res).catch((error) => {
-        logger.error({ error }, 'Request handler error');
+        logger.error(
+          {
+            err: error,
+            method: req.method,
+            url: req.url,
+            requestId: req.headers['x-request-id'],
+            userId: req.headers['x-user-id'],
+            userRole: req.headers['x-user-role'],
+          },
+          'Request handler error'
+        );
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Internal server error' }));
       });
     });
 
     server.on('error', (error) => {
-      logger.error({ error }, 'Server error');
+      logger.error({ err: error }, 'Server error');
       reject(error);
     });
 

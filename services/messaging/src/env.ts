@@ -300,6 +300,38 @@ function validateEnv(): Env {
       console.error('');
       process.exit(1);
     }
+
+  }
+
+  // ---------------------------------------------------------------------------
+  // Staging/production safety checks
+  // ---------------------------------------------------------------------------
+  const isProdLike = result.data.NODE_ENV === 'production' || result.data.NODE_ENV === 'staging';
+  if (isProdLike) {
+    const rawDatabaseUrl = (process.env['DATABASE_URL'] ?? '').trim();
+    const configuredDatabaseUrl = rawDatabaseUrl || result.data.DATABASE_URL;
+    const isLocalhost = /(^|\/\/)(localhost|127\.0\.0\.1)(:|\/|$)/i.test(configuredDatabaseUrl);
+    if (!rawDatabaseUrl) {
+      console.error('\n❌ DATABASE_URL is required in staging/production (was not set).\n');
+      process.exit(1);
+    }
+    if (isLocalhost) {
+      console.error('\n❌ DATABASE_URL points to localhost in staging/production.\n');
+      process.exit(1);
+    }
+
+    const algorithm = result.data.JWT_ALGORITHM;
+    const jwtPublicKey = getJwtPublicKey() || result.data.JWT_PUBLIC_KEY || '';
+    const jwtSecret = result.data.JWT_SECRET || '';
+
+    if (algorithm === 'RS256' && !jwtPublicKey.trim()) {
+      console.error('\n❌ JWT_PUBLIC_KEY (or secret file jwt-public.pem) is required for RS256 in staging/production.\n');
+      process.exit(1);
+    }
+    if (algorithm === 'HS256' && !jwtSecret.trim()) {
+      console.error('\n❌ JWT_SECRET is required for HS256 in staging/production.\n');
+      process.exit(1);
+    }
   }
 
   return result.data;

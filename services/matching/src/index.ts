@@ -74,7 +74,7 @@ async function start(): Promise<void> {
     }, 'Matching service started successfully');
 
   } catch (error) {
-    logger.fatal({ error }, 'Failed to start matching service');
+    logger.fatal({ err: error }, 'Failed to start matching service');
     process.exit(1);
   }
 }
@@ -107,7 +107,7 @@ function setupShutdownHandlers(cleanupInterval: NodeJS.Timeout): void {
       logger.info('Matching service shutdown complete');
       process.exit(0);
     } catch (error) {
-      logger.error({ error }, 'Error during shutdown');
+      logger.error({ err: error }, 'Error during shutdown');
       process.exit(1);
     }
   };
@@ -116,7 +116,7 @@ function setupShutdownHandlers(cleanupInterval: NodeJS.Timeout): void {
   process.on('SIGINT', () => shutdown('SIGINT'));
 
   process.on('uncaughtException', (error) => {
-    logger.fatal({ error }, 'Uncaught exception');
+    logger.fatal({ err: error }, 'Uncaught exception');
     shutdown('uncaughtException');
   });
 
