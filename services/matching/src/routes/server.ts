@@ -460,19 +460,23 @@ async function requestHandler(
   req: IncomingMessage,
   res: ServerResponse
 ): Promise<void> {
-  let parsedUrl: URL;
-  let url: string;
-  
+  const rawUrl = req.url ?? '/';
+
+  // Defensive defaults: even if URL parsing fails (or a future refactor forgets to return
+  // from the catch block), these will prevent runtime crashes like
+  // "Cannot read properties of undefined (reading 'searchParams')".
+  let parsedUrl: URL = new URL('http://localhost/');
+  let url: string = '/';
+
   try {
-    const rawUrl = req.url ?? '/';
     parsedUrl = new URL(rawUrl, `http://${req.headers.host ?? 'localhost'}`);
     url = parsedUrl.pathname;
   } catch (parseError) {
-    logger.error({ err: parseError, rawUrl: req.url }, 'Failed to parse request URL');
+    logger.error({ err: parseError, rawUrl }, 'Failed to parse request URL');
     sendJson(res, 400, { error: 'Invalid request URL' });
     return;
   }
-  
+
   const method = req.method ?? 'GET';
 
   // CORS headers - handle both gateway-proxied requests and direct access

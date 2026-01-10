@@ -82,7 +82,9 @@ class ApiClient {
     // Lazy import to avoid circular dependency
     this.getAuthToken = () => {
       if (typeof window === 'undefined') return null;
-      return localStorage.getItem('tc_access_token');
+      const token = localStorage.getItem('tc_access_token');
+      if (!token || token === 'undefined' || token === 'null') return null;
+      return token;
     };
   }
 
