@@ -296,6 +296,20 @@ app.get('/debug/jwt-status', (_req: Request, res: Response) => {
       ? config.jwt.publicKey.substring(0, 40) + '...'
       : null,
     hasSecret: !!config.jwt.secret,
+    hasSupabaseSecret: !!config.supabase?.jwtSecret,
+  });
+});
+
+// Debug endpoint to see what headers the gateway receives
+app.get('/debug/auth-headers', (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  res.json({
+    timestamp: new Date().toISOString(),
+    hasAuthHeader: !!authHeader,
+    authHeaderPrefix: authHeader ? authHeader.substring(0, 20) + '...' : null,
+    origin: req.headers.origin || 'NOT SET',
+    userAgent: req.headers['user-agent']?.substring(0, 50) + '...' || 'NOT SET',
+    reqUser: req.user ? { userId: req.user.userId, role: req.user.role } : null,
   });
 });
 
