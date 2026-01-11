@@ -75,22 +75,28 @@ export function createAuthMiddleware(): AuthMiddleware {
       const verifyKey = algorithm === 'RS256' ? config.auth.jwtPublicKey : config.auth.jwtSecret;
 
       if (verifyKey) {
-        const payload = jwt.verify(token, verifyKey, {
-          algorithms: [algorithm],
-          // Issuer in local dev configs has historically varied; enforce only when explicitly set.
-          ...(config.auth.jwtIssuer ? { issuer: config.auth.jwtIssuer } : {}),
-        }) as any;
+        try {
+          const payload = jwt.verify(token, verifyKey, {
+            algorithms: [algorithm],
+            // Issuer in local dev configs has historically varied; enforce only when explicitly set.
+            ...(config.auth.jwtIssuer ? { issuer: config.auth.jwtIssuer } : {}),
+          }) as any;
 
-        const role = String(payload?.role ?? 'USER').toUpperCase();
-        const userType: 'USER' | 'AGENT' | 'ADMIN' =
-          role === 'AGENT' ? 'AGENT' : role === 'ADMIN' ? 'ADMIN' : 'USER';
+          const role = String(payload?.role ?? 'USER').toUpperCase();
+          const userType: 'USER' | 'AGENT' | 'ADMIN' =
+            role === 'AGENT' ? 'AGENT' : role === 'ADMIN' ? 'ADMIN' : 'USER';
 
-        return {
-          userId: String(payload?.sub ?? ''),
-          userType,
-          // Identity access tokens do not currently include email in payload.
-          email: String(payload?.email ?? ''),
-        };
+          return {
+            userId: String(payload?.sub ?? ''),
+            userType,
+            email: String(payload?.email ?? ''),
+          };
+        } catch (jwtError) {
+           console.warn(`[Auth] Local JWT verification failed: ${(jwtError as Error).message}`);
+           // Fallthrough to Supabase check
+        }
+      } else {
+         console.warn('[Auth] No verification key available for local JWT validation');
       }
 
       // Back-compat fallback (slower): validate Supabase access tokens.
