@@ -162,6 +162,12 @@ export class ConversationService {
 
     const { data, error } = await query;
     if (error) {
+      console.error('[ConversationService] listConversations error:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
       throw Errors.INTERNAL_ERROR('Failed to list conversations');
     }
 
