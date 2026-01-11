@@ -559,8 +559,57 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 // SERVER STARTUP
 // =============================================================================
 
+// Periodic key refresh/retry
+function scheduleKeyFetchRetry() {
+  if (config.jwt.publicKey) return;
+  
+  logger.info({
+    timestamp: new Date().toISOString(),
+    event: 'jwt_public_key_background_retry_started',
+  });
+
+  const interval = setInterval(async () => {
+    if (config.jwt.publicKey) {
+      clearInterval(interval);
+      return;
+    }
+    
+    try {
+      // Try fetching again (single attempt)
+      const identityUrl = config.services.identity?.url;
+      if (!identityUrl) return;
+      
+      const url = `${identityUrl.replace(/\/+$/, '')}/api/v1/auth/public-key`;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
+      
+      if (res.ok) {
+        const body = (await res.json().catch(() => null)) as any;
+        const publicKey = body?.data?.publicKey || body?.publicKey;
+        if (typeof publicKey === 'string' && publicKey.includes('PUBLIC KEY')) {
+          config.jwt.publicKey = publicKey;
+          logger.info({
+            timestamp: new Date().toISOString(),
+            event: 'jwt_public_key_loaded_background',
+          });
+          clearInterval(interval);
+        }
+      }
+    } catch (err) {
+      // Silent fail in background
+    }
+  }, 10000); // Retry every 10 seconds
+}
+
 async function start(): Promise<void> {
   await initializeJwtPublicKey();
+  
+  // If key is still missing, schedule background retries
+  if (!config.jwt.publicKey) {
+    scheduleKeyFetchRetry();
+  }
 
   app.listen(PORT, () => {
   logger.info({
