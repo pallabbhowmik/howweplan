@@ -372,6 +372,24 @@ function createProxyOptions(serviceName: string, serviceUrl: string): Options {
         proxyReq.setHeader('X-User-Id', req.user.userId);
         proxyReq.setHeader('X-User-Role', req.user.role);
         proxyReq.setHeader('X-User-Email', req.user.email);
+        
+        // Debug log for Messaging service auth issues
+        if (serviceName === 'messaging') {
+          logger.debug({
+            event: 'proxy_headers_set',
+            service: serviceName,
+            userId: req.user.userId,
+            role: req.user.role
+          });
+        }
+      } else {
+        if (serviceName === 'messaging') {
+          logger.warn({
+            event: 'proxy_no_user',
+            service: serviceName,
+            message: 'Appropriate auth headers not set - req.user is missing'
+          });
+        }
       }
 
       // Forward original IP
