@@ -15,7 +15,17 @@
  * - Increment platformViolationCount on repeated violations
  */
 
-import { ViolationType } from '@tripcomposer/contracts';
+// Local enum definition to avoid dependency on @tripcomposer/contracts during Docker build
+enum ViolationType {
+  CONTACT_INFO_LEAK = 'CONTACT_INFO_LEAK',
+  EXTERNAL_PAYMENT_LINK = 'EXTERNAL_PAYMENT_LINK',
+  PAYMENT_INFO_LEAK = 'PAYMENT_INFO_LEAK',
+  EXTERNAL_LINK_SHARE = 'EXTERNAL_LINK_SHARE',
+  FRAUD_DETECTED = 'FRAUD_DETECTED',
+  EXCESSIVE_CANCELLATIONS = 'EXCESSIVE_CANCELLATIONS',
+  DISPUTE_LOST = 'DISPUTE_LOST',
+  POLICY_VIOLATION = 'POLICY_VIOLATION',
+}
 
 // =============================================================================
 // PATTERN DEFINITIONS
@@ -270,10 +280,10 @@ export const antiLeakService = {
    * Generate a violation record from detection result.
    */
   createViolationRecord(
-    agentId: string,
+    _agentId: string,
     result: LeakDetectionResult,
-    messageId: string | null,
-    bookingId: string | null
+    _messageId: string | null,
+    _bookingId: string | null
   ): ViolationDetails {
     const violationType = this.getMostSevereViolation(result) || ViolationType.POLICY_VIOLATION;
 
