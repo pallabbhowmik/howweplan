@@ -278,6 +278,10 @@ export const antiLeakService = {
 
   /**
    * Generate a violation record from detection result.
+   * @param _agentId - Agent ID (reserved for future audit logging)
+   * @param result - Leak detection result
+   * @param _messageId - Message ID (reserved for future audit logging)
+   * @param _bookingId - Booking ID (reserved for future audit logging)
    */
   createViolationRecord(
     _agentId: string,
