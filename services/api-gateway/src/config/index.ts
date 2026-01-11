@@ -36,9 +36,15 @@ function getJwtPublicKey(): string {
   const fileContent = readSecretFile('jwt-public.pem');
   if (fileContent) return fileContent;
   
-  // Fall back to environment variable
+  // Fall back to environment variable - log if found
   const envKey = process.env['JWT_PUBLIC_KEY'];
-  if (envKey) return envKey.replace(/\\n/g, '\n');
+  if (envKey) {
+    // Only log length to avoid leaking key
+    console.info(`✓ Loaded PUBLIC KEY from env JWT_PUBLIC_KEY (${envKey.length} chars)`);
+    return envKey.replace(/\\n/g, '\n');
+  } else {
+    console.warn('⚠️  JWT_PUBLIC_KEY not found in env or secrets. RS256 verification will fail unless fetched from Identity Service.');
+  }
   
   return '';
 }
