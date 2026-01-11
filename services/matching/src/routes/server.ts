@@ -647,8 +647,9 @@ async function requestHandler(
       }
 
       // Safe access to searchParams with fallback
-      const limitStr = parsedUrl?.searchParams?.get('limit') ?? '50';
-      const offsetStr = parsedUrl?.searchParams?.get('offset') ?? '0';
+      const searchParams = parsedUrl?.searchParams;
+      const limitStr = searchParams?.get('limit') ?? '50';
+      const offsetStr = searchParams?.get('offset') ?? '0';
       const limit = Math.min(Math.max(Number(limitStr), 1), 200);
       const offset = Math.max(Number(offsetStr), 0);
 

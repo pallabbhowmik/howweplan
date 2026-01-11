@@ -168,12 +168,23 @@ async function verifySupabaseJWT(token: string): Promise<JWTPayload | null> {
     const payload = decoded.payload as SupabaseJWTPayload;
     const issuer = payload.iss; // e.g., https://xxx.supabase.co/auth/v1
     
-    if (!issuer || !issuer.includes('supabase')) {
+    // Validate issuer - must be a valid URL and related to Supabase
+    // We relax the "includes supabase" check to allow custom domains if needed,
+    // but in practice valid Supabase issuers usually contain supabase.co or we check config.
+    const isValidIssuer = issuer && (
+      issuer.includes('supabase') || 
+      (process.env.SUPABASE_URL && issuer.startsWith(process.env.SUPABASE_URL))
+    );
+
+    if (!isValidIssuer) {
       logger.warn({
         timestamp: new Date().toISOString(),
         event: 'supabase_jwt_invalid_issuer',
         issuer,
+        expectedUrl: process.env.SUPABASE_URL
       });
+      // Continue anyway if we can verify the signature via JWKS? No, insecure.
+      // But for debugging, we might want to know WHY it failed.
       return null;
     }
 
