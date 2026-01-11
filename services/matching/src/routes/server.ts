@@ -3,6 +3,8 @@
  * 
  * Simple HTTP server for the matching service.
  * Handles health checks and webhook events.
+ * 
+ * @version 2.0.1 - URL parsing safety fix
  */
 
 import { createServer, IncomingMessage, ServerResponse } from 'http';
