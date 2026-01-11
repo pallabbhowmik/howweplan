@@ -5,7 +5,8 @@ let pool: Pool | null = null;
 
 /**
  * Validate DATABASE_URL format before passing to pg-pool.
- * pg-connection-string crashes if URL is malformed (e.g., missing protocol).
+ * Only check that it exists and has the right protocol prefix.
+ * Don't use new URL() as it's too strict for some valid postgres URLs.
  */
 function validateDatabaseUrl(url: string | undefined): string {
   if (!url || typeof url !== 'string') {
@@ -22,15 +23,6 @@ function validateDatabaseUrl(url: string | undefined): string {
     throw new Error(`DATABASE_URL must start with postgres:// or postgresql://, got: ${trimmed.substring(0, 20)}...`);
   }
 
-  // Try to parse as URL to catch malformed URLs before pg does
-  try {
-    new URL(trimmed);
-  } catch (urlError) {
-    // Log more details for debugging (mask password)
-    const maskedUrl = trimmed.replace(/(:\/\/[^:]+:)[^@]+(@)/, '$1****$2');
-    throw new Error(`DATABASE_URL is not a valid URL: ${(urlError as Error).message}. URL structure: ${maskedUrl}`);
-  }
-
   return trimmed;
 }
 
@@ -41,13 +33,8 @@ export function initializePool(): Pool {
   const validatedUrl = validateDatabaseUrl(env.DATABASE_URL);
   
   // Log sanitized connection info for debugging (hide password)
-  try {
-    const parsed = new URL(validatedUrl);
-    const sanitized = `${parsed.protocol}//${parsed.username}:****@${parsed.host}${parsed.pathname}`;
-    console.info(`[DB] Initializing pool with: ${sanitized}`);
-  } catch {
-    console.info('[DB] Initializing pool (could not parse URL for logging)');
-  }
+  const maskedUrl = validatedUrl.replace(/(:\/\/[^:]+:)[^@]+(@)/, '$1****$2');
+  console.info(`[DB] Initializing pool with: ${maskedUrl}`);
 
   pool = new Pool({
     connectionString: validatedUrl,
