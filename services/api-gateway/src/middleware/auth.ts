@@ -162,8 +162,8 @@ async function verifySupabaseJWT(token: string): Promise<JWTPayload | null> {
     hasKid: !!kid,
   });
 
-  // For ES256, we need to fetch the public key from JWKS
-  if (algorithm === 'ES256') {
+  // For ES256 or RS256, we need to fetch the public key from JWKS
+  if (algorithm === 'ES256' || algorithm === 'RS256') {
     // Extract Supabase project URL from issuer
     const payload = decoded.payload as SupabaseJWTPayload;
     const issuer = payload.iss; // e.g., https://xxx.supabase.co/auth/v1
@@ -199,11 +199,12 @@ async function verifySupabaseJWT(token: string): Promise<JWTPayload | null> {
       };
 
       return new Promise((resolve) => {
-        jwt.verify(token, getKey, { algorithms: ['ES256'] }, (err, verifiedPayload) => {
+        jwt.verify(token, getKey, { algorithms: ['ES256', 'RS256'] }, (err, verifiedPayload) => {
           if (err) {
             logger.warn({
               timestamp: new Date().toISOString(),
-              event: 'supabase_jwt_es256_verify_failed',
+              event: 'supabase_jwt_verify_failed',
+              algorithm,
               error: err.message,
             });
             resolve(null);
@@ -232,7 +233,8 @@ async function verifySupabaseJWT(token: string): Promise<JWTPayload | null> {
 
           logger.info({
             timestamp: new Date().toISOString(),
-            event: 'supabase_jwt_es256_verify_success',
+            event: 'supabase_jwt_verify_success',
+            algorithm,
             userId: supaPayload.sub,
             role,
           });
@@ -243,7 +245,8 @@ async function verifySupabaseJWT(token: string): Promise<JWTPayload | null> {
     } catch (error) {
       logger.warn({
         timestamp: new Date().toISOString(),
-        event: 'supabase_jwt_es256_error',
+        event: 'supabase_jwt_verify_error',
+        algorithm,
         error: error instanceof Error ? error.message : String(error),
       });
       return null;
