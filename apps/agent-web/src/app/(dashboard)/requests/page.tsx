@@ -83,7 +83,17 @@ function titleize(value: string): string {
 
 function toRequestVM(match: AgentRequestMatch): RequestVM {
   const req = match.request;
-  const dest: any = req?.destination ?? {};
+  
+  // Parse destination - handle JSON string
+  let dest: any = req?.destination ?? {};
+  if (typeof dest === 'string') {
+    try {
+      dest = JSON.parse(dest);
+    } catch {
+      dest = {};
+    }
+  }
+  
   const regions: string[] = Array.isArray(dest?.regions) ? dest.regions.filter(Boolean) : [];
   const country = typeof dest?.country === 'string' ? dest.country : '—';
 
@@ -94,9 +104,26 @@ function toRequestVM(match: AgentRequestMatch): RequestVM {
       ? `${regions[0]} +${regions.length - 1}`
       : req?.title ?? country;
 
-  const travelers: any = req?.travelers ?? {};
+  // Parse travelers - handle JSON string
+  let travelers: any = req?.travelers ?? {};
+  if (typeof travelers === 'string') {
+    try {
+      travelers = JSON.parse(travelers);
+    } catch {
+      travelers = {};
+    }
+  }
 
-  const preferences: any = req?.preferences ?? {};
+  // Parse preferences - handle JSON string
+  let preferences: any = req?.preferences ?? {};
+  if (typeof preferences === 'string') {
+    try {
+      preferences = JSON.parse(preferences);
+    } catch {
+      preferences = {};
+    }
+  }
+  
   const interests = Array.from(
     new Set<string>([
       ...regions,

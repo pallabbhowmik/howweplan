@@ -190,31 +190,60 @@ function getStatusLabel(status: string): string {
 
 // Transform API match to card data
 function transformMatchToCard(match: AgentRequestMatch): RequestCardData {
-  const dest = match.request?.destination;
+  let dest = match.request?.destination;
   let destination = 'Unknown Destination';
   let country = 'India';
   
-  if (dest) {
-    if (typeof dest === 'object') {
-      const regions = (dest as any).regions;
-      if (Array.isArray(regions) && regions.length > 0) {
-        destination = regions.slice(0, 2).join(' & ');
-      }
-      country = (dest as any).country || 'India';
-    } else if (typeof dest === 'string') {
+  // Handle JSON string - parse it first
+  if (typeof dest === 'string') {
+    try {
+      dest = JSON.parse(dest);
+    } catch {
+      // Not valid JSON, use as plain string
       destination = dest;
+      dest = null;
     }
   }
+  
+  if (dest && typeof dest === 'object') {
+    const regions = (dest as any).regions;
+    if (Array.isArray(regions) && regions.length > 0) {
+      destination = regions.slice(0, 2).join(' & ');
+    } else if ((dest as any).city) {
+      destination = (dest as any).city;
+    }
+    country = (dest as any).country || 'India';
+  }
 
-  const travelers = match.request?.travelers;
+  let travelers = match.request?.travelers;
   let adults = 2, children = 0;
+  
+  // Handle JSON string for travelers
+  if (typeof travelers === 'string') {
+    try {
+      travelers = JSON.parse(travelers);
+    } catch {
+      travelers = null;
+    }
+  }
+  
   if (travelers && typeof travelers === 'object') {
     adults = (travelers as any).adults ?? 2;
     children = (travelers as any).children ?? 0;
   }
 
-  const prefs = match.request?.preferences;
+  let prefs = match.request?.preferences;
   let interests: string[] = [];
+  
+  // Handle JSON string for preferences
+  if (typeof prefs === 'string') {
+    try {
+      prefs = JSON.parse(prefs);
+    } catch {
+      prefs = null;
+    }
+  }
+  
   if (prefs && typeof prefs === 'object') {
     const prefsObj = prefs as any;
     if (Array.isArray(prefsObj.interests)) {

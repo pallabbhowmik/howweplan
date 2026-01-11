@@ -31,10 +31,21 @@ function formatCurrency(amount: number, currency: string = 'INR'): string {
 }
 
 function destinationLabel(destination: any): string {
-  const country = typeof destination?.country === 'string' ? destination.country : null;
-  const regions = Array.isArray(destination?.regions) ? destination.regions.filter(Boolean) : [];
+  // Handle JSON string
+  let dest = destination;
+  if (typeof dest === 'string') {
+    try {
+      dest = JSON.parse(dest);
+    } catch {
+      return dest || 'Destination';
+    }
+  }
+  
+  const country = typeof dest?.country === 'string' ? dest.country : null;
+  const regions = Array.isArray(dest?.regions) ? dest.regions.filter(Boolean) : [];
   if (country && regions.length > 0) return `${country} • ${regions.join(', ')}`;
   if (country) return country;
+  if (regions.length > 0) return regions.join(', ');
   return 'Destination';
 }
 
