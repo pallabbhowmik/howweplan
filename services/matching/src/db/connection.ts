@@ -26,7 +26,9 @@ function validateDatabaseUrl(url: string | undefined): string {
   try {
     new URL(trimmed);
   } catch (urlError) {
-    throw new Error(`DATABASE_URL is not a valid URL: ${(urlError as Error).message}`);
+    // Log more details for debugging (mask password)
+    const maskedUrl = trimmed.replace(/(:\/\/[^:]+:)[^@]+(@)/, '$1****$2');
+    throw new Error(`DATABASE_URL is not a valid URL: ${(urlError as Error).message}. URL structure: ${maskedUrl}`);
   }
 
   return trimmed;
