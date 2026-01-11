@@ -3,11 +3,52 @@ import { env } from '../config/index.js';
 
 let pool: Pool | null = null;
 
+/**
+ * Validate DATABASE_URL format before passing to pg-pool.
+ * pg-connection-string crashes if URL is malformed (e.g., missing protocol).
+ */
+function validateDatabaseUrl(url: string | undefined): string {
+  if (!url || typeof url !== 'string') {
+    throw new Error('DATABASE_URL environment variable is not set or empty');
+  }
+
+  const trimmed = url.trim();
+  if (!trimmed) {
+    throw new Error('DATABASE_URL environment variable is empty after trimming');
+  }
+
+  // Must start with postgres:// or postgresql://
+  if (!trimmed.startsWith('postgres://') && !trimmed.startsWith('postgresql://')) {
+    throw new Error(`DATABASE_URL must start with postgres:// or postgresql://, got: ${trimmed.substring(0, 20)}...`);
+  }
+
+  // Try to parse as URL to catch malformed URLs before pg does
+  try {
+    new URL(trimmed);
+  } catch (urlError) {
+    throw new Error(`DATABASE_URL is not a valid URL: ${(urlError as Error).message}`);
+  }
+
+  return trimmed;
+}
+
 export function initializePool(): Pool {
   if (pool) return pool;
 
+  // Validate DATABASE_URL before creating pool
+  const validatedUrl = validateDatabaseUrl(env.DATABASE_URL);
+  
+  // Log sanitized connection info for debugging (hide password)
+  try {
+    const parsed = new URL(validatedUrl);
+    const sanitized = `${parsed.protocol}//${parsed.username}:****@${parsed.host}${parsed.pathname}`;
+    console.info(`[DB] Initializing pool with: ${sanitized}`);
+  } catch {
+    console.info('[DB] Initializing pool (could not parse URL for logging)');
+  }
+
   pool = new Pool({
-    connectionString: env.DATABASE_URL,
+    connectionString: validatedUrl,
     min: env.DATABASE_POOL_MIN,
     max: env.DATABASE_POOL_MAX,
     connectionTimeoutMillis: 5000,   // Fast fail on connection issues (reduced from 10s)

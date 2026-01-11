@@ -401,22 +401,41 @@ async function declineMatchForAgent(agentId: string, matchId: string, reason: st
 }
 
 /**
- * Health check response
+ * Health check response with DB connectivity check
  */
-function handleHealthCheck(res: ServerResponse): void {
+async function handleHealthCheck(res: ServerResponse): Promise<void> {
   const eventBus = getEventBus();
   
+  // Check database connectivity
+  let dbStatus = 'unknown';
+  let dbError: string | undefined;
+  try {
+    const { rows } = await query<{ now: Date }>('SELECT NOW() as now');
+    if (rows.length > 0) {
+      dbStatus = 'connected';
+    }
+  } catch (err) {
+    dbStatus = 'error';
+    dbError = err instanceof Error ? err.message : 'Unknown database error';
+  }
+  
+  const isHealthy = dbStatus === 'connected';
+  
   const health = {
-    status: 'healthy',
+    status: isHealthy ? 'healthy' : 'degraded',
     service: env.SERVICE_NAME,
-    version: '1.0.0',
+    version: '2.0.2',
     timestamp: new Date().toISOString(),
     eventBus: {
       connected: eventBus.connected,
     },
+    database: {
+      status: dbStatus,
+      ...(dbError && { error: dbError }),
+    },
   };
 
-  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.writeHead(isHealthy ? 200 : 503, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify(health));
 }
 
@@ -518,7 +537,11 @@ async function requestHandler(
   }
 
   if (url === '/health' && method === 'GET') {
-    handleHealthCheck(res);
+    handleHealthCheck(res).catch((err) => {
+      logger.error({ err }, 'Health check failed');
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'error', message: 'Health check failed' }));
+    });
     return;
   }
 
