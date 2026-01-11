@@ -463,9 +463,8 @@ async function requestHandler(
   const rawUrl = req.url ?? '/';
 
   // Defensive defaults: even if URL parsing fails (or a future refactor forgets to return
-  // from the catch block), these will prevent runtime crashes like
-  // "Cannot read properties of undefined (reading 'searchParams')".
-  let parsedUrl: URL = new URL('http://localhost/');
+  // from the catch block), these will prevent runtime crashes.
+  let parsedUrl: URL | undefined = undefined;
   let url: string = '/';
 
   try {
