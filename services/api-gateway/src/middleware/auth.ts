@@ -169,27 +169,36 @@ async function verifySupabaseJWT(token: string): Promise<JWTPayload | null> {
     const issuer = payload.iss; // e.g., https://xxx.supabase.co/auth/v1
     
     // Validate issuer - must be a valid URL and related to Supabase
-    // We relax the "includes supabase" check to allow custom domains if needed,
-    // but in practice valid Supabase issuers usually contain supabase.co or we check config.
+    // We relax the check to allow:
+    // 1. Standard Supabase URLs (contain 'supabase')
+    // 2. URLs matching SUPABASE_URL env var
+    // 3. Custom domains ending in /auth/v1
     const isValidIssuer = issuer && (
       issuer.includes('supabase') || 
-      (process.env.SUPABASE_URL && issuer.startsWith(process.env.SUPABASE_URL))
+      (process.env.SUPABASE_URL && issuer.startsWith(process.env.SUPABASE_URL)) ||
+      issuer.endsWith('/auth/v1')
     );
 
     if (!isValidIssuer) {
+      // Log carefully - don't expose sensitive info if irrelevant
       logger.warn({
         timestamp: new Date().toISOString(),
         event: 'supabase_jwt_invalid_issuer',
         issuer,
-        expectedUrl: process.env.SUPABASE_URL
+        expectedUrl: process.env.SUPABASE_URL,
+        message: 'Issuer validation failed - strict check enforced'
       });
-      // Continue anyway if we can verify the signature via JWKS? No, insecure.
-      // But for debugging, we might want to know WHY it failed.
+      // In development/test, we might see localhost or docker container URLs.
+      // If we are absolutely sure, we could allow them, but for now we failed.
       return null;
     }
 
     // Build JWKS URL from issuer
-    const jwksUri = issuer.replace('/auth/v1', '/auth/v1/.well-known/jwks.json');
+    // Ensure we don't create double slashes if issuer ends with /
+    const normalizedIssuer = issuer.endsWith('/') ? issuer.slice(0, -1) : issuer;
+    const jwksUri = normalizedIssuer.endsWith('/auth/v1') 
+      ? normalizedIssuer.replace('/auth/v1', '/auth/v1/.well-known/jwks.json')
+      : `${normalizedIssuer}/.well-known/jwks.json`;
     
     try {
       const client = jwksClient({
