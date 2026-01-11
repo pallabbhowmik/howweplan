@@ -211,14 +211,41 @@ CREATE TABLE IF NOT EXISTS disputes (
 );
 
 -- =============================================
+-- CONVERSATIONS TABLE (Messaging Service)
+-- =============================================
+DO $$ BEGIN
+    CREATE TYPE conversation_state AS ENUM (
+        'ACTIVE',
+        'PAUSED',
+        'CLOSED'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS conversations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    agent_id UUID REFERENCES agents(id) ON DELETE CASCADE,
+    state conversation_state DEFAULT 'ACTIVE',
+    contacts_revealed BOOLEAN DEFAULT FALSE,
+    booking_state VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    contacts_revealed_at TIMESTAMP WITH TIME ZONE
+);
+
+-- =============================================
 -- MESSAGES TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    conversation_id UUID NOT NULL,
-    sender_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    recipient_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+    sender_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    sender_type VARCHAR(20) CHECK (sender_type IN ('user', 'agent', 'system')),
     content TEXT NOT NULL,
+    content_type VARCHAR(20) DEFAULT 'text' CHECK (content_type IN ('text', 'image', 'file', 'system')),
     attachments JSONB DEFAULT '[]',
     is_read BOOLEAN DEFAULT false,
     read_at TIMESTAMP WITH TIME ZONE,
@@ -296,6 +323,10 @@ CREATE TABLE IF NOT EXISTS app_settings (
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_agents_user_id ON agents(user_id);
+CREATE INDEX idx_conversations_booking_id ON conversations(booking_id);
+CREATE INDEX idx_conversations_user_id ON conversations(user_id);
+CREATE INDEX idx_conversations_agent_id ON conversations(agent_id);
+CREATE INDEX idx_conversations_state ON conversations(state);
 CREATE INDEX idx_travel_requests_user_id ON travel_requests(user_id);
 CREATE INDEX idx_travel_requests_status ON travel_requests(status);
 CREATE INDEX idx_itinerary_options_request_id ON itinerary_options(request_id);
@@ -329,6 +360,7 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_admins_updated_at BEFORE UPDATE ON admins FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_agents_updated_at BEFORE UPDATE ON agents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_conversations_updated_at BEFORE UPDATE ON conversations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_travel_requests_updated_at BEFORE UPDATE ON travel_requests FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_itinerary_options_updated_at BEFORE UPDATE ON itinerary_options FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_bookings_updated_at BEFORE UPDATE ON bookings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
