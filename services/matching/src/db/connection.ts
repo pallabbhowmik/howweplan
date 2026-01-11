@@ -3,12 +3,17 @@ import { env } from '../config/index.js';
 
 let pool: Pool | null = null;
 
+// Version for debugging deployment issues
+const CONNECTION_MODULE_VERSION = '2.1.0';
+
 /**
  * Validate DATABASE_URL format before passing to pg-pool.
  * Only check that it exists and has the right protocol prefix.
  * Don't use new URL() as it's too strict for some valid postgres URLs.
  */
 function validateDatabaseUrl(url: string | undefined): string {
+  console.info(`[DB v${CONNECTION_MODULE_VERSION}] Validating DATABASE_URL...`);
+  
   if (!url || typeof url !== 'string') {
     throw new Error('DATABASE_URL environment variable is not set or empty');
   }
