@@ -8,7 +8,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { config } from '../env';
-import { TravelRequest, TravelStyle, CancelledBy } from './request.entity';
+import { TravelRequest, TravelStyle, CancelledBy, RequestPreferences } from './request.entity';
 import { RequestState, OPEN_REQUEST_STATES } from './request.state-machine';
 import { RequestNotFoundError, RepositoryError } from './request.errors';
 
@@ -29,6 +29,7 @@ interface RequestRow {
   budget_min: number;
   budget_max: number;
   budget_currency: string;
+  preferences: Record<string, unknown> | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -339,6 +340,7 @@ function fromRow(row: RequestRow): TravelRequest {
       maxAmount: row.budget_max,
       currency: row.budget_currency,
     },
+    preferences: row.preferences as RequestPreferences | null,
     notes: row.notes,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),

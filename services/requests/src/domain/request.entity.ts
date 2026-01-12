@@ -20,6 +20,7 @@ export interface TravelRequest {
   readonly travelers: TravelerCount;
   readonly travelStyle: TravelStyle;
   readonly budgetRange: BudgetRange;
+  readonly preferences: RequestPreferences | null;
   readonly notes: string | null;
   
   // Metadata
@@ -52,6 +53,14 @@ export interface BudgetRange {
   readonly currency: string;
 }
 
+export interface RequestPreferences {
+  readonly dietary_restrictions?: string[];
+  readonly special_occasions?: string[];
+  readonly accommodation_type?: string;
+  readonly interests?: string[];
+  [key: string]: unknown;
+}
+
 export type CancelledBy = 'user' | 'system' | 'admin';
 
 /**
@@ -67,6 +76,7 @@ export function createTravelRequest(params: {
   travelers: TravelerCount;
   travelStyle: TravelStyle;
   budgetRange: BudgetRange;
+  preferences: RequestPreferences | null;
   notes: string | null;
   expiresAt: Date;
 }): TravelRequest {
@@ -83,6 +93,7 @@ export function createTravelRequest(params: {
     travelers: params.travelers,
     travelStyle: params.travelStyle,
     budgetRange: params.budgetRange,
+    preferences: params.preferences,
     notes: params.notes,
     createdAt: now,
     updatedAt: now,

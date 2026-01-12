@@ -37,6 +37,7 @@ export const RequestResponseSchema = z.object({
     formatted: z.string(),
   }),
   
+  preferences: z.record(z.unknown()).nullable(),
   notes: z.string().nullable(),
   
   createdAt: z.string(),
@@ -125,6 +126,7 @@ export function toRequestResponse(request: TravelRequest): RequestResponse {
       ),
     },
     
+    preferences: request.preferences,
     notes: request.notes,
     
     createdAt: request.createdAt.toISOString(),

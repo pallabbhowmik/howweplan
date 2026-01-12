@@ -686,9 +686,10 @@ export async function getTravelRequestDetails(requestId: string): Promise<Travel
 
   // Try to fetch user details if available
   let client: TravelRequestDetails['client'] = null;
-  if (req.user_id || req.userId) {
+  const userId = req.user_id ?? req.userId;
+  if (userId) {
     try {
-      const user = await tryFetchJson<any>(`/api/identity/api/v1/users/${req.user_id || req.userId}`);
+      const user = await tryFetchJson<any>(`/api/identity/api/v1/users/${userId}`);
       if (user) {
         client = {
           firstName: user.first_name ?? user.firstName ?? '',
@@ -702,20 +703,28 @@ export async function getTravelRequestDetails(requestId: string): Promise<Travel
     }
   }
 
+  // Handle nested budgetRange structure from API
+  const budgetMin = req.budgetRange?.minAmount ?? req.budget_min ?? req.budgetMin ?? null;
+  const budgetMax = req.budgetRange?.maxAmount ?? req.budget_max ?? req.budgetMax ?? null;
+  const budgetCurrency = req.budgetRange?.currency ?? req.budget_currency ?? req.budgetCurrency ?? 'INR';
+
+  // Handle nested travelers structure
+  const travelers = req.travelers ?? { adults: 1, children: 0, infants: 0 };
+
   return {
     id: req.id,
-    userId: req.user_id ?? req.userId,
-    title: req.title,
-    description: req.description ?? null,
+    userId: userId,
+    title: req.title ?? `Trip to ${req.destination}`,
+    description: req.notes ?? req.description ?? null,
     destination: req.destination,
     departureDate: req.departure_date ?? req.departureDate,
     returnDate: req.return_date ?? req.returnDate,
-    budgetMin: req.budget_min ?? req.budgetMin ?? null,
-    budgetMax: req.budget_max ?? req.budgetMax ?? null,
-    budgetCurrency: req.budget_currency ?? req.budgetCurrency ?? null,
-    travelers: req.travelers,
+    budgetMin,
+    budgetMax,
+    budgetCurrency,
+    travelers,
     travelStyle: req.travel_style ?? req.travelStyle ?? null,
-    preferences: req.preferences,
+    preferences: req.preferences ?? null,
     state: req.state,
     createdAt: req.created_at ?? req.createdAt,
     expiresAt: req.expires_at ?? req.expiresAt ?? null,
