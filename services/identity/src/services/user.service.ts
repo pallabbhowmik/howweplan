@@ -242,8 +242,9 @@ export async function registerUser(
 
   const user = mapDbRowToUser(data);
 
-  // If registering as an agent, create agent profile
+  // If registering as an agent, create agent profile AND agents table entry
   if (role === UserRole.AGENT && env.ENABLE_AGENT_VERIFICATION) {
+    // Create agent_profiles record (for verification workflow)
     await db.from('agent_profiles').insert({
       user_id: userId,
       verification_status: AgentVerificationStatus.NOT_SUBMITTED,
@@ -254,6 +255,32 @@ export async function registerUser(
       bio: null,
       specialties: [],
     });
+
+    // Create agents table entry (for matching service)
+    // New agents are NOT verified but ARE available - they can still be matched
+    // for development/testing. In production, you may want is_verified=false,is_available=false
+    const { error: agentError } = await db.from('agents').insert({
+      user_id: userId,
+      bio: null,
+      specializations: [],
+      languages: [],
+      destinations: [],
+      years_of_experience: 0,
+      agency_name: null,
+      tier: 'bench',
+      commission_rate: 0.1000,
+      rating: null,
+      total_reviews: 0,
+      completed_bookings: 0,
+      response_time_minutes: null,
+      is_verified: false,
+      is_available: true, // Available by default so they can receive matches
+    });
+
+    if (agentError) {
+      console.error(`Failed to create agents entry for user ${userId}:`, agentError);
+      // Don't fail registration, but log the error
+    }
   }
 
   // Create tokens

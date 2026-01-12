@@ -31,7 +31,7 @@ import { toRequestSnapshot } from '../events/request.events';
 import { CapEnforcementService } from './cap-enforcement.service';
 import { AuditService } from './audit.service';
 import { Logger } from './logger.service';
-import { MatchingServiceClient, createMatchingServiceClient } from './matching.service';
+import { MatchingServiceClient } from './matching.service';
 
 export interface RequestService {
   createRequest(userId: string, input: ValidatedCreateRequest, context: EventContext): Promise<TravelRequest>;
@@ -230,17 +230,17 @@ export function createRequestService(
           request: {
             requestId: saved.id,
             userId: saved.userId,
-            title: saved.title || '',
-            description: saved.description,
+            title: saved.destination, // Use destination as title
+            description: saved.notes,
             destination: saved.destination,
             departureDate: saved.departureDate.toISOString(),
             returnDate: saved.returnDate.toISOString(),
-            budgetMin: saved.budgetMin,
-            budgetMax: saved.budgetMax,
-            budgetCurrency: saved.budgetCurrency,
+            budgetMin: saved.budgetRange.minAmount,
+            budgetMax: saved.budgetRange.maxAmount,
+            budgetCurrency: saved.budgetRange.currency,
             travelers: saved.travelers,
             travelStyle: saved.travelStyle,
-            preferences: saved.preferences,
+            preferences: null, // TravelRequest doesn't have preferences
           },
           correlationId: context.correlationId,
         }).catch((err) => {

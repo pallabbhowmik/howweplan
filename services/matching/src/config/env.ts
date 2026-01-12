@@ -57,6 +57,10 @@ const envSchema = z.object({
   EVENT_BUS_URL: z.string().url().default('http://localhost:3010'),
   EVENT_BUS_API_KEY: z.string().default('dev-event-bus-key-16'),
 
+  // Internal Service Communication
+  MESSAGING_SERVICE_URL: z.string().url().default('http://localhost:3016'),
+  INTERNAL_API_KEY: z.string().default('dev-internal-api-key'),
+
   // Database (accepts both postgres:// and postgresql://) - optional with default
   DATABASE_URL: z.string().default('postgresql://localhost:5432/tripcomposer').refine(
     (url) => url.startsWith('postgres://') || url.startsWith('postgresql://'),
@@ -203,6 +207,14 @@ export const isDevelopment = env.NODE_ENV === 'development';
 export const eventBusConfig = {
   url: env.EVENT_BUS_URL,
   apiKey: env.EVENT_BUS_API_KEY,
+} as const;
+
+/**
+ * Services configuration object
+ */
+export const servicesConfig = {
+  messagingServiceUrl: env.MESSAGING_SERVICE_URL,
+  internalApiKey: env.INTERNAL_API_KEY,
 } as const;
 
 /**

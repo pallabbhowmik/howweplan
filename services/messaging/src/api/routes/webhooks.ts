@@ -111,5 +111,48 @@ export function createWebhookRoutes(
     }
   );
 
+  /**
+   * POST /webhooks/match-accepted
+   * Called by Matching Service when an agent accepts a match.
+   * Creates a conversation between the user and agent.
+   */
+  router.post(
+    '/match-accepted',
+    authMiddleware.requireInternalAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const { userId, agentId, requestId, matchId } = req.body;
+
+        if (!userId || !agentId) {
+          res.status(400).json({ error: 'Missing userId or agentId' });
+          return;
+        }
+
+        const conversation = await conversationService.createConversation(
+          {
+            userId,
+            agentId,
+            bookingId: null,
+          },
+          {
+            actorId: 'SYSTEM',
+            actorType: 'ADMIN',
+            ipAddress: req.ip,
+            userAgent: 'matching-service',
+          }
+        );
+
+        console.log(`[Webhook] Created conversation ${conversation.id} for match ${matchId} (user: ${userId}, agent: ${agentId})`);
+
+        res.status(201).json({ 
+          success: true, 
+          data: { conversationId: conversation.id } 
+        });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
   return router;
 }

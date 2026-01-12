@@ -332,7 +332,47 @@ export const messagingApi = {
 // Bookings Service API (via Gateway)
 // ============================================================================
 
+export interface CreateBookingParams {
+  userId: string;
+  agentId: string;
+  itineraryId: string;
+  tripStartDate: string; // ISO date string
+  tripEndDate: string; // ISO date string
+  destinationCity: string;
+  destinationCountry: string;
+  travelerCount: number;
+  basePriceCents: number;
+}
+
+export interface CreateCheckoutParams {
+  bookingId: string;
+  successUrl: string;
+  cancelUrl: string;
+}
+
 export const bookingsApi = {
+  /**
+   * Create a new booking
+   */
+  createBooking: (params: CreateBookingParams) => {
+    const idempotencyKey = `booking-${params.userId}-${params.itineraryId}-${Date.now()}`;
+    return apiRequest(`/api/booking-payments/api/v1/bookings`, {
+      method: 'POST',
+      body: JSON.stringify({ ...params, idempotencyKey }),
+    });
+  },
+
+  /**
+   * Create a checkout session for payment
+   */
+  createCheckout: (params: CreateCheckoutParams) => {
+    const idempotencyKey = `checkout-${params.bookingId}-${Date.now()}`;
+    return apiRequest(`/api/booking-payments/api/v1/checkout`, {
+      method: 'POST',
+      body: JSON.stringify({ ...params, idempotencyKey }),
+    });
+  },
+
   /**
    * List user's bookings
    */

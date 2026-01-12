@@ -376,7 +376,65 @@ async function listMatchesForAgent(agentId: string, limit: number, offset: numbe
   }));
 }
 
+/**
+ * Get match details including user ID
+ */
+async function getMatchDetails(matchId: string, agentId: string): Promise<{ userId: string; requestId: string } | null> {
+  const { rows } = await query<{ user_id: string; request_id: string }>(
+    `
+    SELECT tr.user_id, am.request_id
+    FROM agent_matches am
+    JOIN travel_requests tr ON tr.id = am.request_id
+    WHERE am.id = $1 AND am.agent_id = $2
+    `,
+    [matchId, agentId]
+  );
+  return rows[0] ? { userId: rows[0].user_id, requestId: rows[0].request_id } : null;
+}
+
+/**
+ * Create conversation via messaging service internal webhook (best-effort, non-blocking)
+ */
+async function createConversationForMatch(userId: string, agentId: string, requestId: string, matchId: string): Promise<void> {
+  // Import config dynamically to avoid circular dependencies
+  const { servicesConfig } = await import('../config/env.js');
+  const messagingServiceUrl = servicesConfig.messagingServiceUrl;
+  const internalApiKey = servicesConfig.internalApiKey;
+  
+  try {
+    const response = await fetch(`${messagingServiceUrl}/api/v1/webhooks/match-accepted`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Api-Key': internalApiKey,
+      },
+      body: JSON.stringify({
+        userId,
+        agentId,
+        requestId,
+        matchId,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      logger.info({ userId, agentId, conversationId: data?.data?.conversationId }, 'Conversation created for match');
+    } else {
+      const errorText = await response.text().catch(() => 'unknown');
+      logger.warn({ userId, agentId, status: response.status, error: errorText }, 'Failed to create conversation');
+    }
+  } catch (error) {
+    logger.warn({ err: error, userId, agentId }, 'Failed to call messaging service');
+  }
+}
+
 async function acceptMatchForAgent(agentId: string, matchId: string): Promise<boolean> {
+  // Get match details first to get user ID
+  const matchDetails = await getMatchDetails(matchId, agentId);
+  if (!matchDetails) {
+    return false;
+  }
+
   const { rowCount } = await query(
     `
     UPDATE agent_matches
@@ -385,6 +443,14 @@ async function acceptMatchForAgent(agentId: string, matchId: string): Promise<bo
     `,
     [matchId, agentId]
   );
+  
+  if (rowCount > 0) {
+    // Create conversation asynchronously (don't block the response)
+    createConversationForMatch(matchDetails.userId, agentId, matchDetails.requestId, matchId).catch((err) => {
+      logger.error({ err }, 'Background conversation creation failed');
+    });
+  }
+  
   return rowCount > 0;
 }
 
@@ -563,6 +629,51 @@ async function requestHandler(
     return;
   }
 
+  // Debug endpoint to check agent status
+  if (url === '/debug/agents' && method === 'GET') {
+    try {
+      const { rows: stats } = await query<{ 
+        total: string; 
+        verified: string; 
+        available: string;
+        verified_and_available: string;
+      }>(`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE is_verified = true) as verified,
+          COUNT(*) FILTER (WHERE is_available = true) as available,
+          COUNT(*) FILTER (WHERE is_verified = true AND is_available = true) as verified_and_available
+        FROM agents
+      `);
+      
+      const { rows: recentMatches } = await query<{ count: string }>(`
+        SELECT COUNT(*) as count FROM agent_matches WHERE matched_at > NOW() - INTERVAL '24 hours'
+      `);
+
+      const { rows: recentRequests } = await query<{ count: string }>(`
+        SELECT COUNT(*) as count FROM travel_requests WHERE created_at > NOW() - INTERVAL '24 hours'
+      `);
+
+      sendJson(res, 200, {
+        agents: {
+          total: parseInt(stats[0]?.total || '0'),
+          verified: parseInt(stats[0]?.verified || '0'),
+          available: parseInt(stats[0]?.available || '0'),
+          verifiedAndAvailable: parseInt(stats[0]?.verified_and_available || '0'),
+        },
+        last24h: {
+          matches: parseInt(recentMatches[0]?.count || '0'),
+          requests: parseInt(recentRequests[0]?.count || '0'),
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error({ err: error }, 'Failed to get agent debug info');
+      sendJson(res, 500, { error: 'Failed to get agent info' });
+    }
+    return;
+  }
+
   if (url === '/metrics' && method === 'GET') {
     handleMetrics(res);
     return;
@@ -596,19 +707,38 @@ async function requestHandler(
         return;
       }
 
-      logger.info({ requestId, correlationId }, 'Received internal match trigger');
+      logger.info({ requestId, correlationId, destination: request?.destination }, 'Received internal match trigger');
 
-      // Create agent_matches directly in the database
-      // This is a simplified version - the full matching engine would score agents
-      const { rows: agents } = await query<{ id: string }>(
-        `SELECT id FROM agents WHERE is_verified = true LIMIT 5`
+      // First try to get verified agents
+      let { rows: agents } = await query<{ id: string; is_verified: boolean }>(
+        `SELECT id, is_verified FROM agents WHERE is_verified = true AND is_available = true LIMIT 5`
       );
 
+      // If no verified agents, fall back to any available agents
       if (agents.length === 0) {
-        logger.warn({ requestId }, 'No verified agents found for matching');
-        sendJson(res, 200, { success: true, matchCount: 0, message: 'No agents available' });
+        logger.warn({ requestId }, 'No verified agents found, trying any available agents');
+        const result = await query<{ id: string; is_verified: boolean }>(
+          `SELECT id, is_verified FROM agents WHERE is_available = true LIMIT 5`
+        );
+        agents = result.rows;
+      }
+
+      // Last resort: get any agents at all
+      if (agents.length === 0) {
+        logger.warn({ requestId }, 'No available agents found, trying any agents');
+        const result = await query<{ id: string; is_verified: boolean }>(
+          `SELECT id, is_verified FROM agents LIMIT 5`
+        );
+        agents = result.rows;
+      }
+
+      if (agents.length === 0) {
+        logger.error({ requestId }, 'No agents exist in the database!');
+        sendJson(res, 200, { success: false, matchCount: 0, message: 'No agents exist in database' });
         return;
       }
+
+      logger.info({ requestId, agentCount: agents.length, verified: agents.filter(a => a.is_verified).length }, 'Found agents for matching');
 
       // Create matches for each available agent
       let matchCount = 0;

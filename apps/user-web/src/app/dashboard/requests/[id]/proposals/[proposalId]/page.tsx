@@ -27,6 +27,7 @@ import {
   ChevronUp,
   Info,
   AlertCircle,
+  CreditCard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +35,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUserSession } from '@/lib/user/session';
 import { fetchRequest, fetchRequestProposals, type TravelRequest, type Proposal } from '@/lib/data/api';
+import { bookingsApi } from '@/lib/api/client';
 import { PriceBudgetComparison } from '@/components/trust/PriceBudgetComparison';
 import { ItineraryTemplateEnhanced, type ItineraryDay, type ItineraryItem, type TimeOfDay, type ItemCategory } from '@/components/trust/ItineraryTemplateEnhanced';
 import { ResponseTimeIndicator } from '@/components/trust/ResponseTimeIndicator';
@@ -121,10 +123,12 @@ export default function ProposalDetailPage() {
   const requestId = params.id as string;
   const proposalId = params.proposalId as string;
   
-  const { loading: userLoading } = useUserSession();
+  const { user, loading: userLoading } = useUserSession();
   const [request, setRequest] = useState<TravelRequest | null>(null);
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [loading, setLoading] = useState(true);
+  const [bookingInProgress, setBookingInProgress] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('itinerary');
   const [showAllInclusions, setShowAllInclusions] = useState(false);
   const [showAllExclusions, setShowAllExclusions] = useState(false);
@@ -188,9 +192,82 @@ export default function ProposalDetailPage() {
     );
   }
 
-  const handleBookNow = () => {
-    // TODO: Implement booking flow
-    alert('Booking flow coming soon!');
+  const handleBookNow = async () => {
+    if (!user || !request || !proposal) {
+      setBookingError('Please login to book this trip');
+      return;
+    }
+
+    setBookingInProgress(true);
+    setBookingError(null);
+
+    try {
+      // Get destination info from request
+      const destination = request.destination || {};
+      const destinationCity = destination.city || destination.label || 'Unknown City';
+      const destinationCountry = destination.country || 'Unknown Country';
+
+      // Calculate dates
+      const tripStartDate = request.departureDate || new Date().toISOString().split('T')[0];
+      const tripEndDate = request.returnDate || tripStartDate;
+
+      // Get traveler count from travelers field
+      let travelerCount = 1;
+      if (request.travelers) {
+        if (typeof request.travelers === 'number') {
+          travelerCount = request.travelers;
+        } else if (typeof request.travelers === 'object') {
+          const t = request.travelers as any;
+          travelerCount = (t.adults || 0) + (t.children || 0) + (t.infants || 0) || 1;
+        }
+      }
+
+      // Convert price to cents (API expects cents)
+      const basePriceCents = Math.round(proposal.totalPrice * 100);
+
+      // Create booking
+      const bookingResult = await bookingsApi.createBooking({
+        userId: user.id,
+        agentId: proposal.agentId,
+        itineraryId: proposal.id, // Using proposal ID as itinerary ID
+        tripStartDate,
+        tripEndDate,
+        destinationCity,
+        destinationCountry,
+        travelerCount,
+        basePriceCents,
+      });
+
+      const bookingData = bookingResult?.data || bookingResult;
+      const bookingId = bookingData?.id || bookingData?.bookingId;
+
+      if (!bookingId) {
+        throw new Error('Failed to create booking - no booking ID returned');
+      }
+
+      // Create checkout session
+      const checkoutResult = await bookingsApi.createCheckout({
+        bookingId,
+        successUrl: `${window.location.origin}/dashboard/bookings/${bookingId}/success`,
+        cancelUrl: `${window.location.origin}/dashboard/requests/${requestId}/proposals/${proposalId}?cancelled=true`,
+      });
+
+      const checkoutData = checkoutResult?.data || checkoutResult;
+      const checkoutUrl = checkoutData?.url || checkoutData?.checkoutUrl;
+
+      if (checkoutUrl) {
+        // Redirect to payment page
+        window.location.href = checkoutUrl;
+      } else {
+        // If no checkout URL, redirect to booking details
+        router.push(`/dashboard/bookings/${bookingId}`);
+      }
+    } catch (error: any) {
+      console.error('Booking error:', error);
+      setBookingError(error.message || 'Failed to create booking. Please try again.');
+    } finally {
+      setBookingInProgress(false);
+    }
   };
 
   return (
@@ -203,6 +280,7 @@ export default function ProposalDetailPage() {
         <ArrowLeft className="h-4 w-4 mr-1" />
         Back to All Proposals
       </Link>
+
 
       {/* Header Section */}
       <div className="grid lg:grid-cols-3 gap-6">
@@ -311,12 +389,34 @@ export default function ProposalDetailPage() {
               </div>
             )}
 
-            <Button onClick={handleBookNow} className="w-full" size="lg">
-              Book This Trip
+            {bookingError && (
+              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-lg p-2 mb-4">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                {bookingError}
+              </div>
+            )}
+
+            <Button 
+              onClick={handleBookNow} 
+              className="w-full" 
+              size="lg"
+              disabled={bookingInProgress}
+            >
+              {bookingInProgress ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Book This Trip
+                </>
+              )}
             </Button>
             
             <p className="text-xs text-center text-muted-foreground mt-3">
-              No payment required now • Free cancellation available
+              Secure payment • Free cancellation available
             </p>
           </CardContent>
         </Card>
