@@ -15,6 +15,7 @@ import { AuthMiddleware, AdminAuthMiddleware } from '../middleware/auth.middlewa
 import {
   createCreateRequestHandler,
   createGetRequestHandler,
+  createAgentGetRequestHandler,
   createListRequestsHandler,
   createSubmitRequestHandler,
   createCancelRequestHandler,
@@ -94,6 +95,15 @@ export function createRoutes(deps: RoutesDependencies): Router {
   userRouter.post('/:requestId/cancel', createCancelRequestHandler(deps.requestService));
 
   router.use('/requests', userRouter);
+
+  // Agent routes (for matched agents to access request details)
+  const agentRouter = Router();
+  agentRouter.use(deps.authMiddleware);
+  
+  // GET /agent/requests/:requestId - Get request details (requires accepted match)
+  agentRouter.get('/requests/:requestId', createAgentGetRequestHandler(deps.requestService));
+  
+  router.use('/agent', agentRouter);
 
   // Admin routes (require admin authentication)
   const adminRouter = Router();

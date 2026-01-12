@@ -881,6 +881,54 @@ async function requestHandler(
     return;
   }
 
+  // Verify match - used by other services to check if an agent has a valid match for a request
+  if (url.startsWith('/api/v1/matches/verify') && method === 'GET') {
+    // This is an internal service endpoint - can be called with service headers or user auth
+    const searchParams = parsedUrl?.searchParams;
+    const agentId = searchParams?.get('agentId');
+    const requestId = searchParams?.get('requestId');
+
+    if (!agentId || !requestId) {
+      sendJson(res, 400, { 
+        success: false, 
+        error: 'Missing required parameters: agentId and requestId' 
+      });
+      return;
+    }
+
+    try {
+      const result = await query<{ id: string; status: string }>(
+        `SELECT id, status FROM matches 
+         WHERE agent_id = $1 AND request_id = $2 
+         AND status IN ('accepted', 'itinerary_submitted', 'booked')
+         LIMIT 1`,
+        [agentId, requestId]
+      );
+
+      if (result.rows.length > 0) {
+        const match = result.rows[0];
+        sendJson(res, 200, { 
+          success: true, 
+          data: { 
+            id: match.id, 
+            agentId, 
+            requestId, 
+            status: match.status 
+          } 
+        });
+      } else {
+        sendJson(res, 200, { 
+          success: false, 
+          error: 'No accepted match found for this agent and request' 
+        });
+      }
+    } catch (error) {
+      logger.error({ err: error, agentId, requestId, endpoint: '/api/v1/matches/verify' }, 'Failed to verify match');
+      sendJson(res, 500, { success: false, error: 'Failed to verify match' });
+    }
+    return;
+  }
+
   // 404 for unknown routes
   res.writeHead(404, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: 'Not found' }));

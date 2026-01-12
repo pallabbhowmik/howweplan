@@ -680,8 +680,8 @@ export async function getTravelRequestDetails(requestId: string): Promise<Travel
     throw new ApiError('Not authenticated. Please log in.', 401, 'NOT_AUTHENTICATED');
   }
 
-  // Fetch request details from the requests service
-  const req = await tryFetchJson<any>(`/api/requests/api/v1/requests/${requestId}`);
+  // Fetch request details from the agent-specific endpoint (verifies match access)
+  const req = await tryFetchJson<any>(`/api/requests/api/v1/agent/requests/${requestId}`);
   if (!req) return null;
 
   // Try to fetch user details if available
