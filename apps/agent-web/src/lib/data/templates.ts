@@ -254,7 +254,17 @@ export async function getTemplateSuggestions(
   }
   if (limit) params.set('limit', String(limit));
 
-  const url = `${apiUrl}${TEMPLATES_BASE}/suggestions${params.toString() ? `?${params}` : ''}`;
+
+  // Defensive: ensure apiUrl is called with a string, not a function
+  let basePath = TEMPLATES_BASE;
+  if (typeof basePath !== 'string') {
+    throw new Error('TEMPLATES_BASE is not a string');
+  }
+  const path = `${basePath}/suggestions${params.toString() ? `?${params}` : ''}`;
+  if (typeof path !== 'string') {
+    throw new Error('Path for apiUrl is not a string');
+  }
+  const url = apiUrl(path);
   const response = await authenticatedFetch(url);
 
   if (!response.ok) {
