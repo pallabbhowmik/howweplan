@@ -66,6 +66,8 @@ const ROUTE_PERMISSIONS: RoutePermission[] = [
   { path: /^\/api\/requests\/[^/]+$/, method: 'GET', roles: ['user'] },
   { path: /^\/api\/requests\/[^/]+$/, method: ['PUT', 'PATCH'], roles: ['user'] },
   { path: /^\/api\/requests\/[^/]+$/, method: 'DELETE', roles: ['user', 'admin'] },
+  // Agent access to requests (via /api/v1/agent/requests)
+  { path: /^\/api\/requests\/api\/v1\/agent\/requests\/[^/]+$/, method: 'GET', roles: ['agent'] },
   
   // Itineraries Service
   { path: '/api/itineraries', method: 'GET', roles: ['user'] },
