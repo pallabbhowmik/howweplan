@@ -69,6 +69,11 @@ export function createAgentGetRequestHandler(requestService: RequestService) {
                 ['accepted', 'itinerary_submitted', 'booked'].includes(matchData.data.status)) {
               matchVerified = true;
             }
+          } else {
+            // If matching service returns error (5xx, 503 suspended, etc), allow access
+            // The agent may have a valid match but matching service is down
+            console.error(`Matching service returned ${response.status}, allowing access as fallback`);
+            matchVerified = true;
           }
         } catch (error) {
           console.error('Failed to verify match with matching service:', error);
