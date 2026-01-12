@@ -889,6 +889,8 @@ async function requestHandler(
     const userId = searchParams?.get('userId'); // Alternative: pass userId and we lookup agentId
     const requestId = searchParams?.get('requestId');
 
+    logger.info({ agentId, userId, requestId, endpoint: '/api/v1/matches/verify' }, 'Match verify request received');
+
     if ((!agentId && !userId) || !requestId) {
       sendJson(res, 400, { 
         success: false, 
@@ -900,11 +902,13 @@ async function requestHandler(
     try {
       // If userId provided instead of agentId, look up the agentId
       if (!agentId && userId) {
+        logger.info({ userId }, 'Looking up agentId for userId');
         const agentResult = await query<{ id: string }>(
           'SELECT id FROM agents WHERE user_id = $1 LIMIT 1',
           [userId]
         );
         agentId = agentResult.rows[0]?.id ?? null;
+        logger.info({ userId, foundAgentId: agentId }, 'Agent lookup result');
         
         if (!agentId) {
           sendJson(res, 200, { 
@@ -915,6 +919,7 @@ async function requestHandler(
         }
       }
 
+      logger.info({ agentId, requestId }, 'Querying matches table');
       const result = await query<{ id: string; status: string }>(
         `SELECT id, status FROM matches 
          WHERE agent_id = $1 AND request_id = $2 
@@ -922,6 +927,7 @@ async function requestHandler(
          LIMIT 1`,
         [agentId, requestId]
       );
+      logger.info({ agentId, requestId, matchFound: result.rows.length > 0, match: result.rows[0] }, 'Match query result');
 
       const match = result.rows[0];
       if (match) {
