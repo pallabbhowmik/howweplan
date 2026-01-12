@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -281,7 +281,7 @@ function DayPlanCard({
 // MAIN PAGE
 // ============================================================================
 
-export default function NewItineraryPage() {
+function NewItineraryPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestId = searchParams.get('requestId');
@@ -816,5 +816,18 @@ export default function NewItineraryPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+// Wrap with Suspense for useSearchParams
+export default function NewItineraryPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <NewItineraryPageContent />
+    </Suspense>
   );
 }
