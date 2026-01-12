@@ -170,16 +170,33 @@ router.patch(
 
 /**
  * GET /users/:userId
- * Get a user by ID. Only accessible to the user themselves or admins.
+ * Get a user by ID. Accessible to the user themselves, admins, or agents (for viewing client info).
  */
 router.get(
   '/:userId',
   requireAuth,
   validateParams(userIdParamSchema),
-  requireOwnership('userId'),
   async (req: Request, res: Response): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
     const { userId } = req.params as z.infer<typeof userIdParamSchema>;
+
+    // Allow: owner, admin, or agent (agents can view client profiles for matched requests)
+    const isOwner = authReq.identity.sub === userId;
+    const isAdmin = authReq.identity.role === 'admin';
+    const isAgent = authReq.identity.role === 'agent';
+
+    if (!isOwner && !isAdmin && !isAgent) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'IDENTITY_INSUFFICIENT_PERMISSIONS',
+          message: 'You do not have permission to view this user',
+        },
+        requestId: authReq.correlationId,
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
 
     try {
       const user = await getUserById(userId);
