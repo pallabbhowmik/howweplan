@@ -44,7 +44,7 @@ export function createAgentGetRequestHandler(requestService: RequestService) {
       }
 
       // Verify the agent has an accepted match for this request
-      // Call matching service to verify
+      // Call matching service to verify (pass userId, matching service will lookup agentId)
       const matchingServiceUrl = config.matching.serviceUrl;
       
       // Skip match verification in development if matching service isn't configured
@@ -52,7 +52,8 @@ export function createAgentGetRequestHandler(requestService: RequestService) {
       
       if (matchingServiceUrl && !matchingServiceUrl.includes('localhost')) {
         try {
-          const verifyUrl = `${matchingServiceUrl}/api/v1/matches/verify?agentId=${agentId}&requestId=${requestId}`;
+          // Use userId parameter - matching service will lookup the agentId from agents table
+          const verifyUrl = `${matchingServiceUrl}/api/v1/matches/verify?userId=${agentId}&requestId=${requestId}`;
           const response = await fetch(verifyUrl, {
             headers: {
               'Content-Type': 'application/json',

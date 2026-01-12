@@ -885,18 +885,36 @@ async function requestHandler(
   if (url.startsWith('/api/v1/matches/verify') && method === 'GET') {
     // This is an internal service endpoint - can be called with service headers or user auth
     const searchParams = parsedUrl?.searchParams;
-    const agentId = searchParams?.get('agentId');
+    let agentId = searchParams?.get('agentId');
+    const userId = searchParams?.get('userId'); // Alternative: pass userId and we lookup agentId
     const requestId = searchParams?.get('requestId');
 
-    if (!agentId || !requestId) {
+    if ((!agentId && !userId) || !requestId) {
       sendJson(res, 400, { 
         success: false, 
-        error: 'Missing required parameters: agentId and requestId' 
+        error: 'Missing required parameters: (agentId or userId) and requestId' 
       });
       return;
     }
 
     try {
+      // If userId provided instead of agentId, look up the agentId
+      if (!agentId && userId) {
+        const agentResult = await query<{ id: string }>(
+          'SELECT id FROM agents WHERE user_id = $1 LIMIT 1',
+          [userId]
+        );
+        agentId = agentResult.rows[0]?.id ?? null;
+        
+        if (!agentId) {
+          sendJson(res, 200, { 
+            success: false, 
+            error: 'Agent not found for this user' 
+          });
+          return;
+        }
+      }
+
       const result = await query<{ id: string; status: string }>(
         `SELECT id, status FROM matches 
          WHERE agent_id = $1 AND request_id = $2 
@@ -923,7 +941,7 @@ async function requestHandler(
         });
       }
     } catch (error) {
-      logger.error({ err: error, agentId, requestId, endpoint: '/api/v1/matches/verify' }, 'Failed to verify match');
+      logger.error({ err: error, agentId, userId, requestId, endpoint: '/api/v1/matches/verify' }, 'Failed to verify match');
       sendJson(res, 500, { success: false, error: 'Failed to verify match' });
     }
     return;
