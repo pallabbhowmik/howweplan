@@ -58,9 +58,12 @@ import { useAgentSession } from '@/lib/agent/session';
 import {
   getTravelRequestDetails,
   createItinerary,
+  changeItineraryStatus,
   type TravelRequestDetails,
   type CreateItineraryInput,
 } from '@/lib/data/agent';
+import { TemplatePicker, type ItineraryTemplate } from '@/components/templates';
+import { recordTemplateUsage } from '@/lib/data/templates';
 
 // ============================================================================
 // TYPES
@@ -585,6 +588,8 @@ function NewItineraryPageContent() {
   const [success, setSuccess] = useState(false);
   const [request, setRequest] = useState<TravelRequestDetails | null>(null);
   const [requestPanelExpanded, setRequestPanelExpanded] = useState(true);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState<ItineraryTemplate | null>(null);
 
   const [form, setForm] = useState<FormState>({
     title: '',
@@ -690,9 +695,63 @@ function NewItineraryPageContent() {
     }));
   };
 
+  // Apply template to form
+  const applyTemplate = async (template: ItineraryTemplate) => {
+    setSelectedTemplate(template);
+    const content = template.content as any;
+    
+    // Build days from template content
+    const templateDays: DayPlan[] = [];
+    if (content.days && Array.isArray(content.days)) {
+      content.days.forEach((day: any, idx: number) => {
+        // Extract activity names from ActivityContent[] or string[]
+        let activityNames: string[] = [''];
+        if (day.activities && Array.isArray(day.activities)) {
+          activityNames = day.activities.map((act: any) => 
+            typeof act === 'string' ? act : (act.name || act.description || '')
+          ).filter(Boolean);
+          if (activityNames.length === 0) activityNames = [''];
+        }
+        
+        templateDays.push({
+          dayNumber: idx + 1,
+          title: day.title || '',
+          description: day.notes || day.description || '', // Support both 'notes' and 'description'
+          activities: activityNames,
+        });
+      });
+    }
+
+    // Update form with template content
+    setForm((prev) => ({
+      ...prev,
+      title: content.title || prev.title,
+      summary: content.summary || content.notes || prev.summary,
+      inclusions: content.inclusions?.length ? content.inclusions : prev.inclusions,
+      exclusions: content.exclusions?.length ? content.exclusions : prev.exclusions,
+      tripType: content.tripType || prev.tripType,
+      days: templateDays.length ? templateDays : prev.days,
+    }));
+
+    // Record usage for smart suggestions
+    try {
+      await recordTemplateUsage(template.id);
+    } catch (err) {
+      console.error('Failed to record template usage:', err);
+    }
+
+    // Hide template picker after selection
+    setShowTemplatePicker(false);
+  };
+
   const handleSubmit = async (asDraft: boolean = true) => {
     if (!requestId || !request) {
       setError('No request selected');
+      return;
+    }
+
+    if (!agent?.agentId) {
+      setError('Agent session not available. Please refresh the page.');
       return;
     }
 
@@ -700,19 +759,30 @@ function NewItineraryPageContent() {
     setError(null);
 
     try {
+      // Map form tripType to backend enum values (uppercase)
+      const tripTypeMap: Record<string, string> = {
+        'leisure': 'OTHER',
+        'adventure': 'ADVENTURE',
+        'honeymoon': 'HONEYMOON',
+        'family': 'FAMILY',
+        'business': 'CITY_BREAK',
+        'pilgrimage': 'CULTURAL',
+      };
+
       const input: CreateItineraryInput = {
         requestId,
+        agentId: agent?.agentId || '',
         travelerId: request.userId,
         overview: {
           title: form.title,
           summary: form.summary,
-          startDate: form.startDate,
-          endDate: form.endDate,
+          startDate: new Date(form.startDate).toISOString(),
+          endDate: new Date(form.endDate).toISOString(),
           numberOfDays,
           numberOfNights,
           destinations: form.destinations,
           travelersCount: parseTravelers(request.travelers).adults + parseTravelers(request.travelers).children,
-          tripType: form.tripType,
+          tripType: tripTypeMap[form.tripType] || 'OTHER',
         },
         pricing: {
           currency: form.currency,
@@ -729,6 +799,17 @@ function NewItineraryPageContent() {
 
       const result = await createItinerary(input);
       if (result) {
+        // If not saving as draft, submit the itinerary to the client
+        if (!asDraft && result.id) {
+          try {
+            await changeItineraryStatus(result.id, 'SUBMITTED');
+          } catch (submitErr: any) {
+            console.error('Failed to submit itinerary:', submitErr);
+            setError(`Itinerary created but failed to send: ${submitErr?.message || 'Unknown error'}`);
+            setSaving(false);
+            return;
+          }
+        }
         setSuccess(true);
         setTimeout(() => {
           router.push('/itineraries');
@@ -857,6 +938,41 @@ function NewItineraryPageContent() {
           isExpanded={requestPanelExpanded}
           onToggle={() => setRequestPanelExpanded(!requestPanelExpanded)}
         />
+      )}
+
+      {/* Template Picker - Smart Suggestions */}
+      {request && showTemplatePicker && (
+        <TemplatePicker
+          context={{
+            destination: parseDestination(request.destination).join(', '),
+            travelStyle: request.travelStyle || undefined,
+            duration: calculateDays(request.departureDate, request.returnDate),
+          }}
+          onSelect={applyTemplate}
+          onStartFromScratch={() => setShowTemplatePicker(false)}
+        />
+      )}
+
+      {/* Template Applied Banner */}
+      {selectedTemplate && !showTemplatePicker && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-green-700">
+                <CheckCircle className="h-5 w-5" />
+                <span>Template applied: <strong>{selectedTemplate.name}</strong></span>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowTemplatePicker(true)}
+                className="text-green-700 hover:text-green-800"
+              >
+                Change Template
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Itinerary Details Form */}

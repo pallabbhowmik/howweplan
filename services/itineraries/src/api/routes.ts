@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { SubmissionHandler } from './handlers/submission.handler.js';
 import type { ItineraryHandler } from './handlers/itinerary.handler.js';
 import type { DisclosureHandler } from './handlers/disclosure.handler.js';
+import { templateHandler } from './handlers/template.handler.js';
 import {
   authenticate,
   authenticateInternal,
@@ -30,6 +31,14 @@ import {
   obfuscateItineraryRequestSchema,
   restoreVersionRequestSchema,
 } from './dto/index.js';
+import {
+  createTemplateRequestSchema,
+  updateTemplateRequestSchema,
+  listTemplatesQuerySchema,
+  suggestionsQuerySchema,
+  duplicateTemplateRequestSchema,
+  recordUsageRequestSchema,
+} from './dto/template.dto.js';
 
 /**
  * Create API routes.
@@ -278,6 +287,113 @@ export function createRoutes(
   );
 
   router.use('/api/v1/itineraries', itinerariesRouter);
+
+  // ============================================================
+  // TEMPLATE ROUTES (Agent's reusable templates)
+  // ============================================================
+  const templatesRouter = Router();
+
+  // Get smart suggestions (must be before /:id to avoid conflict)
+  templatesRouter.get(
+    '/suggestions',
+    authenticate,
+    requireAgentOrAdmin,
+    validateQuery(suggestionsQuerySchema),
+    templateHandler.getSuggestions
+  );
+
+  // Get metadata - destinations
+  templatesRouter.get(
+    '/meta/destinations',
+    authenticate,
+    requireAgentOrAdmin,
+    templateHandler.getDestinations
+  );
+
+  // Get metadata - tags
+  templatesRouter.get(
+    '/meta/tags',
+    authenticate,
+    requireAgentOrAdmin,
+    templateHandler.getTags
+  );
+
+  // Create template
+  templatesRouter.post(
+    '/',
+    authenticate,
+    requireAgentOrAdmin,
+    validateBody(createTemplateRequestSchema),
+    templateHandler.create
+  );
+
+  // List templates
+  templatesRouter.get(
+    '/',
+    authenticate,
+    requireAgentOrAdmin,
+    validateQuery(listTemplatesQuerySchema),
+    templateHandler.list
+  );
+
+  // Get template by ID
+  templatesRouter.get(
+    '/:id',
+    authenticate,
+    requireAgentOrAdmin,
+    validateParams(idParamSchema),
+    templateHandler.getById
+  );
+
+  // Update template
+  templatesRouter.put(
+    '/:id',
+    authenticate,
+    requireAgentOrAdmin,
+    validateParams(idParamSchema),
+    validateBody(updateTemplateRequestSchema),
+    templateHandler.update
+  );
+
+  // Delete template
+  templatesRouter.delete(
+    '/:id',
+    authenticate,
+    requireAgentOrAdmin,
+    validateParams(idParamSchema),
+    templateHandler.delete
+  );
+
+  // Duplicate template
+  templatesRouter.post(
+    '/:id/duplicate',
+    authenticate,
+    requireAgentOrAdmin,
+    validateParams(idParamSchema),
+    validateBody(duplicateTemplateRequestSchema),
+    templateHandler.duplicate
+  );
+
+  // Toggle favorite
+  templatesRouter.post(
+    '/:id/favorite',
+    authenticate,
+    requireAgentOrAdmin,
+    validateParams(idParamSchema),
+    templateHandler.toggleFavorite
+  );
+
+  // Record usage
+  templatesRouter.post(
+    '/:id/usage',
+    authenticate,
+    requireAgentOrAdmin,
+    validateParams(idParamSchema),
+    validateBody(recordUsageRequestSchema),
+    templateHandler.recordUsage
+  );
+
+  router.use('/api/v1/templates', templatesRouter);
 
   // ============================================================
   // INTERNAL ROUTES (service-to-service)

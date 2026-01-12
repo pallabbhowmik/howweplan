@@ -1134,6 +1134,7 @@ export async function getAgentItineraryById(itineraryId: string): Promise<AgentI
 
 export type CreateItineraryInput = {
   requestId: string;
+  agentId: string;
   travelerId: string;
   overview: {
     title: string;
