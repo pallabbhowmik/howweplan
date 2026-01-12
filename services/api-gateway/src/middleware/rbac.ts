@@ -59,6 +59,8 @@ const ROUTE_PERMISSIONS: RoutePermission[] = [
   },
   { path: '/api/identity/users', method: 'GET', roles: ['admin'] },
   { path: '/api/identity/users', method: 'POST', roles: ['admin'] },
+  // Allow agents to fetch specific user profiles (for viewing client details)
+  { path: /^\/api\/identity\/api\/v1\/users\/[^/]+$/, method: 'GET', roles: ['agent', 'admin'] },
   
   // Requests Service
   { path: '/api/requests', method: 'GET', roles: ['user'] }, // Users see their own, agents see assigned
