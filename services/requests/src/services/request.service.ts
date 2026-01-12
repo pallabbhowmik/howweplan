@@ -115,6 +115,7 @@ export function createRequestService(
         travelers: input.travelers,
         travelStyle: input.travelStyle,
         budgetRange: input.budgetRange,
+        preferences: input.preferences ?? null,
         notes: input.notes,
         expiresAt,
       });

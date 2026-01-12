@@ -310,6 +310,7 @@ function toRow(request: TravelRequest): RequestRow {
     budget_max: request.budgetRange.maxAmount,
     budget_currency: request.budgetRange.currency,
     notes: request.notes,
+    preferences: request.preferences,
     created_at: request.createdAt.toISOString(),
     updated_at: request.updatedAt.toISOString(),
     expires_at: request.expiresAt.toISOString(),

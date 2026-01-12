@@ -95,6 +95,18 @@ export const CreateRequestSchema = z.object({
     .nullable()
     .optional()
     .transform((val: string | null | undefined) => val || null),
+  
+  preferences: z
+    .object({
+      dietary_restrictions: z.array(z.string()).optional(),
+      special_occasions: z.array(z.string()).optional(),
+      accommodation_type: z.string().optional(),
+      interests: z.array(z.string()).optional(),
+    })
+    .passthrough()
+    .nullable()
+    .optional()
+    .transform((val) => val || null),
 }).refine(
   (data: { returnDate: Date; departureDate: Date }) => data.returnDate > data.departureDate,
   { message: 'Return date must be after departure date', path: ['returnDate'] }
