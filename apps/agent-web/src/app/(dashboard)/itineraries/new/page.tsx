@@ -18,6 +18,22 @@ import {
   CheckCircle,
   AlertCircle,
   Info,
+  Sparkles,
+  Heart,
+  Utensils,
+  Star,
+  MessageSquare,
+  FileText,
+  Briefcase,
+  Plane,
+  Home,
+  Coffee,
+  Camera,
+  Mountain,
+  Sun,
+  ChevronRight,
+  Copy,
+  Eye,
 } from 'lucide-react';
 import {
   Button,
@@ -133,6 +149,282 @@ function calculateDays(startDate: string, endDate: string): number {
 // ============================================================================
 // COMPONENTS
 // ============================================================================
+
+function parsePreferences(prefs: any): { 
+  dietaryRestrictions: string[]; 
+  specialOccasions: string[]; 
+  accommodationType: string;
+  interests: string[];
+} {
+  if (!prefs) return { dietaryRestrictions: [], specialOccasions: [], accommodationType: '', interests: [] };
+  if (typeof prefs === 'string') {
+    try {
+      prefs = JSON.parse(prefs);
+    } catch {
+      return { dietaryRestrictions: [], specialOccasions: [], accommodationType: '', interests: [] };
+    }
+  }
+  return {
+    dietaryRestrictions: Array.isArray(prefs.dietary_restrictions) ? prefs.dietary_restrictions : [],
+    specialOccasions: Array.isArray(prefs.special_occasions) ? prefs.special_occasions : [],
+    accommodationType: prefs.accommodation_type || '',
+    interests: Array.isArray(prefs.interests) ? prefs.interests : [],
+  };
+}
+
+function titleize(str: string): string {
+  return str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function ClientRequestPanel({ request, isExpanded, onToggle }: { 
+  request: TravelRequestDetails; 
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const destinations = parseDestination(request.destination);
+  const travelers = parseTravelers(request.travelers);
+  const preferences = parsePreferences(request.preferences);
+  const totalTravelers = travelers.adults + travelers.children + travelers.infants;
+  const days = calculateDays(request.departureDate, request.returnDate);
+
+  const getTravelStyleIcon = (style: string) => {
+    switch (style?.toLowerCase()) {
+      case 'luxury': return <Star className="h-4 w-4" />;
+      case 'adventure': return <Mountain className="h-4 w-4" />;
+      case 'budget': return <Briefcase className="h-4 w-4" />;
+      case 'family': return <Heart className="h-4 w-4" />;
+      default: return <Sun className="h-4 w-4" />;
+    }
+  };
+
+  return (
+    <Card className="border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-purple-50 shadow-lg overflow-hidden">
+      {/* Gradient Header Bar */}
+      <div className="h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+      
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
+              <FileText className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-xl text-gray-900 flex items-center gap-2">
+                Client Request Details
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                  Reference
+                </Badge>
+              </CardTitle>
+              <CardDescription className="text-gray-600">
+                Use these details to create a personalized itinerary
+              </CardDescription>
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onToggle} className="text-indigo-600">
+            {isExpanded ? 'Collapse' : 'Expand'}
+            <ChevronRight className={cn("h-4 w-4 ml-1 transition-transform", isExpanded && "rotate-90")} />
+          </Button>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Quick Stats Row - Always Visible */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-white rounded-lg p-3 border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-2 text-indigo-600 mb-1">
+              <MapPin className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-wide">Destination</span>
+            </div>
+            <p className="font-semibold text-gray-900 truncate" title={destinations.join(', ')}>
+              {destinations.length > 0 ? destinations.join(', ') : 'Not specified'}
+            </p>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-2 text-purple-600 mb-1">
+              <Calendar className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-wide">Duration</span>
+            </div>
+            <p className="font-semibold text-gray-900">
+              {days > 0 ? `${days} days, ${Math.max(0, days - 1)} nights` : 'Flexible'}
+            </p>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-2 text-pink-600 mb-1">
+              <Users className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-wide">Travelers</span>
+            </div>
+            <p className="font-semibold text-gray-900">
+              {travelers.adults} adult{travelers.adults !== 1 ? 's' : ''}
+              {travelers.children > 0 && `, ${travelers.children} child${travelers.children !== 1 ? 'ren' : ''}`}
+              {travelers.infants > 0 && `, ${travelers.infants} infant${travelers.infants !== 1 ? 's' : ''}`}
+            </p>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-2 text-green-600 mb-1">
+              <DollarSign className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-wide">Budget</span>
+            </div>
+            <p className="font-semibold text-gray-900">
+              {request.budgetMin && request.budgetMax
+                ? `${formatCurrency(request.budgetMin)} - ${formatCurrency(request.budgetMax)}`
+                : request.budgetMax 
+                ? `Up to ${formatCurrency(request.budgetMax)}`
+                : 'Not specified'}
+            </p>
+          </div>
+        </div>
+
+        {/* Expanded Details */}
+        {isExpanded && (
+          <>
+            <Separator className="my-4" />
+            
+            {/* Travel Dates */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+              <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Travel Dates
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-blue-600 uppercase tracking-wide">Departure</p>
+                  <p className="font-medium text-gray-900">
+                    {request.departureDate 
+                      ? new Date(request.departureDate).toLocaleDateString('en-US', { 
+                          weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' 
+                        })
+                      : 'Flexible'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-blue-600 uppercase tracking-wide">Return</p>
+                  <p className="font-medium text-gray-900">
+                    {request.returnDate 
+                      ? new Date(request.returnDate).toLocaleDateString('en-US', { 
+                          weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' 
+                        })
+                      : 'Flexible'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Travel Style & Preferences */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {request.travelStyle && (
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-100">
+                  <h4 className="font-semibold text-purple-900 mb-2 flex items-center gap-2">
+                    {getTravelStyleIcon(request.travelStyle)}
+                    Travel Style
+                  </h4>
+                  <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-sm px-3 py-1">
+                    {titleize(request.travelStyle)}
+                  </Badge>
+                </div>
+              )}
+
+              {preferences.accommodationType && (
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-4 border border-amber-100">
+                  <h4 className="font-semibold text-amber-900 mb-2 flex items-center gap-2">
+                    <Home className="h-4 w-4" />
+                    Preferred Accommodation
+                  </h4>
+                  <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-sm px-3 py-1">
+                    {titleize(preferences.accommodationType)}
+                  </Badge>
+                </div>
+              )}
+            </div>
+
+            {/* Special Requirements */}
+            {(preferences.dietaryRestrictions.length > 0 || preferences.specialOccasions.length > 0) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {preferences.dietaryRestrictions.length > 0 && (
+                  <div className="bg-gradient-to-r from-red-50 to-rose-50 rounded-lg p-4 border border-red-100">
+                    <h4 className="font-semibold text-red-900 mb-2 flex items-center gap-2">
+                      <Utensils className="h-4 w-4" />
+                      Dietary Requirements
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {preferences.dietaryRestrictions.map((item, i) => (
+                        <Badge key={i} variant="outline" className="bg-white text-red-700 border-red-200">
+                          {titleize(item)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {preferences.specialOccasions.length > 0 && (
+                  <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-lg p-4 border border-pink-100">
+                    <h4 className="font-semibold text-pink-900 mb-2 flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      Special Occasions
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {preferences.specialOccasions.map((item, i) => (
+                        <Badge key={i} variant="outline" className="bg-white text-pink-700 border-pink-200">
+                          {titleize(item)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Client Notes */}
+            {request.description && (
+              <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-lg p-4 border border-gray-200">
+                <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Client's Notes & Special Requests
+                </h4>
+                <p className="text-gray-700 whitespace-pre-wrap bg-white p-3 rounded-md border border-gray-100">
+                  {request.description}
+                </p>
+              </div>
+            )}
+
+            {/* Client Info */}
+            {request.client && (
+              <div className="bg-white rounded-lg p-4 border border-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-semibold">
+                    {request.client.firstName?.[0]}{request.client.lastName?.[0]}
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {request.client.firstName} {request.client.lastName}
+                    </p>
+                    <p className="text-sm text-gray-500">Client</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-gray-600">
+                  Request #{request.id?.slice(-8)}
+                </Badge>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Quick Actions */}
+        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+          <p className="text-sm text-gray-500 flex items-center gap-1">
+            <Info className="h-4 w-4" />
+            Keep this panel open for easy reference while creating the itinerary
+          </p>
+          <Button variant="ghost" size="sm" className="text-indigo-600" onClick={() => {
+            navigator.clipboard.writeText(destinations.join(', '));
+          }}>
+            <Copy className="h-4 w-4 mr-1" />
+            Copy Destinations
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function RequestSummaryCard({ request }: { request: TravelRequestDetails }) {
   const destinations = parseDestination(request.destination);
@@ -292,6 +584,7 @@ function NewItineraryPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [request, setRequest] = useState<TravelRequestDetails | null>(null);
+  const [requestPanelExpanded, setRequestPanelExpanded] = useState(true);
 
   const [form, setForm] = useState<FormState>({
     title: '',
@@ -505,30 +798,44 @@ function NewItineraryPageContent() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/requests">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Create Itinerary</h1>
-            <p className="text-sm text-gray-500">Build a personalized travel plan for your client</p>
+    <div className="max-w-6xl mx-auto p-6 space-y-6">
+      {/* Header with Gradient Background */}
+      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 rounded-2xl p-6 text-white shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/requests">
+              <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-3">
+                <Sparkles className="h-8 w-8" />
+                Create Itinerary
+              </h1>
+              <p className="text-indigo-100 mt-1">Build a personalized travel plan for your client</p>
+            </div>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => handleSubmit(true)} disabled={saving}>
-            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-            Save Draft
-          </Button>
-          <Button onClick={() => handleSubmit(false)} disabled={saving}>
-            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-            Save & Send
-          </Button>
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => handleSubmit(true)} 
+              disabled={saving}
+              className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+            >
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Draft
+            </Button>
+            <Button 
+              onClick={() => handleSubmit(false)} 
+              disabled={saving}
+              className="bg-white text-indigo-600 hover:bg-indigo-50"
+            >
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+              Save & Send to Client
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -543,15 +850,25 @@ function NewItineraryPageContent() {
         </Card>
       )}
 
-      {/* Request Summary */}
-      {request && <RequestSummaryCard request={request} />}
+      {/* Client Request Details - PROMINENT */}
+      {request && (
+        <ClientRequestPanel 
+          request={request} 
+          isExpanded={requestPanelExpanded}
+          onToggle={() => setRequestPanelExpanded(!requestPanelExpanded)}
+        />
+      )}
 
       {/* Itinerary Details Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Itinerary Details</CardTitle>
+      <Card className="shadow-md">
+        <CardHeader className="bg-gradient-to-r from-gray-50 to-slate-50 border-b">
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-indigo-600" />
+            Itinerary Details
+          </CardTitle>
+          <CardDescription>Basic information about the trip</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <Label htmlFor="title">Itinerary Title *</Label>
@@ -618,11 +935,15 @@ function NewItineraryPageContent() {
       </Card>
 
       {/* Pricing */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pricing</CardTitle>
+      <Card className="shadow-md">
+        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-green-600" />
+            Pricing & Package
+          </CardTitle>
+          <CardDescription>Define the cost breakdown for this itinerary</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="totalPrice">Total Price *</Label>
@@ -739,17 +1060,23 @@ function NewItineraryPageContent() {
       </Card>
 
       {/* Day-by-Day Plans */}
-      <Card>
-        <CardHeader>
+      <Card className="shadow-md">
+        <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b">
           <div className="flex items-center justify-between">
-            <CardTitle>Day-by-Day Itinerary</CardTitle>
-            <Button variant="outline" size="sm" onClick={addDay}>
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-purple-600" />
+                Day-by-Day Itinerary
+              </CardTitle>
+              <CardDescription>Plan each day's activities and experiences</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={addDay} className="bg-white">
               <Plus className="h-4 w-4 mr-1" />
               Add Day
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-6">
           {form.days.map((day, idx) => (
             <DayPlanCard
               key={idx}
