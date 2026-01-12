@@ -208,8 +208,9 @@ export default function ProposalDetailPage() {
       const destinationCountry = destination.country || 'Unknown Country';
 
       // Calculate dates
-      const tripStartDate = request.departureDate || new Date().toISOString().split('T')[0];
-      const tripEndDate = request.returnDate || tripStartDate;
+      const defaultDate = new Date().toISOString().split('T')[0] as string;
+      const tripStartDate = (request.departureDate || defaultDate) as string;
+      const tripEndDate = (request.returnDate || tripStartDate) as string;
 
       // Get traveler count from travelers field
       let travelerCount = 1;
@@ -227,7 +228,7 @@ export default function ProposalDetailPage() {
 
       // Create booking
       const bookingResult = await bookingsApi.createBooking({
-        userId: user.id,
+        userId: user.userId,
         agentId: proposal.agentId,
         itineraryId: proposal.id, // Using proposal ID as itinerary ID
         tripStartDate,
@@ -236,7 +237,7 @@ export default function ProposalDetailPage() {
         destinationCountry,
         travelerCount,
         basePriceCents,
-      });
+      }) as { data?: { id?: string; bookingId?: string }; id?: string; bookingId?: string };
 
       const bookingData = bookingResult?.data || bookingResult;
       const bookingId = bookingData?.id || bookingData?.bookingId;
@@ -250,7 +251,7 @@ export default function ProposalDetailPage() {
         bookingId,
         successUrl: `${window.location.origin}/dashboard/bookings/${bookingId}/success`,
         cancelUrl: `${window.location.origin}/dashboard/requests/${requestId}/proposals/${proposalId}?cancelled=true`,
-      });
+      }) as { data?: { url?: string; checkoutUrl?: string }; url?: string; checkoutUrl?: string };
 
       const checkoutData = checkoutResult?.data || checkoutResult;
       const checkoutUrl = checkoutData?.url || checkoutData?.checkoutUrl;
