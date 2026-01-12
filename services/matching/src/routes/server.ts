@@ -417,7 +417,7 @@ async function createConversationForMatch(userId: string, agentId: string, reque
     });
 
     if (response.ok) {
-      const data = await response.json();
+      const data = await response.json() as { data?: { conversationId?: string } };
       logger.info({ userId, agentId, conversationId: data?.data?.conversationId }, 'Conversation created for match');
     } else {
       const errorText = await response.text().catch(() => 'unknown');
