@@ -905,8 +905,8 @@ async function requestHandler(
         [agentId, requestId]
       );
 
-      if (result.rows.length > 0) {
-        const match = result.rows[0];
+      const match = result.rows[0];
+      if (match) {
         sendJson(res, 200, { 
           success: true, 
           data: { 
