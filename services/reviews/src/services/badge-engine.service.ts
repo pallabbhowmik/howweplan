@@ -454,11 +454,12 @@ export const trustLevelEngine = {
       },
     };
 
-    if ('minRatingCount' in targetRules) {
+    const targetRulesObj = targetRules as any;
+    if ('minRatingCount' in targetRulesObj && typeof targetRulesObj.minRatingCount === 'number') {
       requirements.minRatingCount = {
-        required: targetRules.minRatingCount,
+        required: targetRulesObj.minRatingCount,
         actual: stats.ratingCount,
-        progress: Math.min(100, (stats.ratingCount / targetRules.minRatingCount) * 100),
+        progress: Math.min(100, (stats.ratingCount / targetRulesObj.minRatingCount) * 100),
       };
     }
 

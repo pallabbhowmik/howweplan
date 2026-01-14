@@ -9,9 +9,9 @@ import { Router, Request, Response, NextFunction } from 'express';
 import {
   bookingStateWebhookSchema,
   revealContactsWebhookSchema,
-} from '../schemas';
-import type { ConversationService } from '../../services/conversation.service';
-import type { AuthMiddleware } from '../../middleware/auth';
+} from '../schemas.js';
+import type { ConversationService } from '../../services/conversation.service.js';
+import type { AuthMiddleware } from '../../middleware/auth.js';
 
 export function createWebhookRoutes(
   conversationService: ConversationService,
@@ -121,7 +121,7 @@ export function createWebhookRoutes(
     authMiddleware.requireInternalAuth,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
-        const { userId, agentId, requestId, matchId } = req.body;
+        const { userId, agentId } = req.body;
 
         if (!userId || !agentId) {
           res.status(400).json({ error: 'Missing userId or agentId' });
@@ -142,11 +142,11 @@ export function createWebhookRoutes(
           }
         );
 
-        console.log(`[Webhook] Created conversation ${conversation.id} for match ${matchId} (user: ${userId}, agent: ${agentId})`);
+        console.log(`[Webhook] Created conversation ${conversation.id} for match (user: ${userId}, agent: ${agentId})`);
 
-        res.status(201).json({ 
-          success: true, 
-          data: { conversationId: conversation.id } 
+        res.status(201).json({
+          success: true,
+          data: { conversationId: conversation.id }
         });
       } catch (error) {
         next(error);

@@ -5,7 +5,7 @@
  * All events are typed and validated before publishing.
  */
 
-import { eventBusConfig } from '../config/env';
+import { eventBusConfig } from '../config/env.js';
 import type {
   ReviewSubmittedPayload,
   ReviewHiddenPayload,
@@ -23,6 +23,7 @@ import type {
 
 async function publishEvent(eventType: string, payload: unknown): Promise<void> {
   try {
+    const url = eventBusConfig.url || 'http://localhost:3000/events';
     const event = {
       eventId: crypto.randomUUID(),
       eventType,
@@ -32,7 +33,7 @@ async function publishEvent(eventType: string, payload: unknown): Promise<void> 
       payload,
     };
 
-    const response = await fetch(eventBusConfig.url, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

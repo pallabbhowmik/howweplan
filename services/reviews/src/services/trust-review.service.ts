@@ -19,10 +19,11 @@ import {
   calculateReviewWindow,
   DEFAULT_REVIEW_WINDOW_CONFIG,
 } from '@tripcomposer/contracts';
-import { trustReviewRepository } from '../repositories/trust-review.repository';
-import { bookingVerificationService } from './booking-verification.service';
-import { trustEventPublisher } from '../events/trust-event.publisher';
-import { auditRepository } from '../repositories';
+import { trustReviewRepository } from '../repositories/trust-review.repository.js';
+import { bookingVerificationService } from './booking-verification.service.js';
+import { trustEventPublisher } from '../events/trust-event.publisher.js';
+import { auditRepository } from '../repositories/index.js';
+import { AuditActorType, AuditEventType } from '../models/index.js';
 
 // =============================================================================
 // ERROR CODES
@@ -69,7 +70,7 @@ export const trustReviewService = {
   ): Promise<TrustReviewResult<ReviewEligibility>> {
     // 1. Verify booking exists and get details
     const bookingResult = await bookingVerificationService.getCompletedBooking(bookingId);
-    
+
     if (!bookingResult.success || !bookingResult.data) {
       return {
         success: false,
@@ -193,7 +194,7 @@ export const trustReviewService = {
   ): Promise<TrustReviewResult<TrustReview>> {
     // 1. Check eligibility first
     const eligibility = await this.checkEligibility(submission.bookingId, userId);
-    
+
     if (!eligibility.success || !eligibility.data) {
       return {
         success: false,
@@ -256,18 +257,25 @@ export const trustReviewService = {
 
     // 5. Record audit event
     await auditRepository.recordBatch([{
-      eventType: 'TRUST_REVIEW_SUBMITTED',
-      actorType: 'USER',
+      id: crypto.randomUUID(),
+      eventType: AuditEventType.REVIEW_SUBMITTED,
+      actorType: AuditActorType.USER,
       actorId: userId,
       targetType: 'REVIEW',
       targetId: review.reviewId,
-      details: {
-        bookingId: submission.bookingId,
-        agentId: eligibility.data.agentId,
-        rating: submission.rating,
+      reviewId: review.reviewId,
+      agentId: eligibility.data.agentId,
+      travelerId: userId,
+      bookingId: submission.bookingId,
+      previousState: null,
+      newState: { rating: submission.rating },
+      adminReason: null,
+      metadata: {
         isImmutable: true,
       },
-      timestamp: now,
+      ipAddress: null,
+      userAgent: null,
+      occurredAt: now,
     }]);
 
     // 6. Emit ReviewSubmitted event for downstream processing
@@ -379,18 +387,25 @@ export const trustReviewService = {
       reason
     );
 
-    // Record audit event
+    // 3. Record audit event
     await auditRepository.recordBatch([{
-      eventType: 'TRUST_REVIEW_HIDDEN',
-      actorType: 'ADMIN',
+      id: crypto.randomUUID(),
+      eventType: AuditEventType.REVIEW_HIDDEN,
+      actorType: AuditActorType.ADMIN,
       actorId: adminId,
       targetType: 'REVIEW',
       targetId: reviewId,
-      details: {
-        reason,
-        agentId: review.agentId,
-      },
-      timestamp: new Date(),
+      reviewId: reviewId,
+      agentId: review.agentId,
+      travelerId: review.userId,
+      bookingId: review.bookingId,
+      previousState: { isHidden: false },
+      newState: { isHidden: true },
+      adminReason: reason,
+      metadata: {},
+      ipAddress: null,
+      userAgent: null,
+      occurredAt: new Date(),
     }]);
 
     // Emit event

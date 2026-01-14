@@ -34,6 +34,7 @@ const envSchema = z.object({
     (val) => !val || val.trim() === '' || /^(amqp|redis|kafka|http|https):/.test(val),
     { message: 'EVENT_BUS_URL must be a valid broker URL if provided' }
   ),
+  EVENT_BUS_API_KEY: z.string().default('dev-event-bus-key'),
   EVENT_BUS_EXCHANGE: z.string().default('tripcomposer.events'),
   EVENT_BUS_REVIEWS_QUEUE: z.string().default('reviews.events'),
 
@@ -100,7 +101,7 @@ function validateEnv(): Env {
     console.error('❌ Environment validation failed:\n');
     console.error(errors.join('\n'));
     console.error('\nPlease check your .env file and ensure all required variables are set.');
-    
+
     process.exit(1);
   }
 
@@ -130,6 +131,7 @@ export const databaseConfig = {
 
 export const eventBusConfig = {
   url: env.EVENT_BUS_URL,
+  apiKey: env.EVENT_BUS_API_KEY,
   exchange: env.EVENT_BUS_EXCHANGE,
   queue: env.EVENT_BUS_REVIEWS_QUEUE,
 } as const;
