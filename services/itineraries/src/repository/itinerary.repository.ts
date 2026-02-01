@@ -19,22 +19,29 @@ export class ItineraryRepository {
    */
   async create(itinerary: Itinerary): Promise<void> {
     // Insert itinerary
+    const row = this.toItineraryRow(itinerary);
+    console.log('Inserting itinerary row:', JSON.stringify(row, null, 2));
+    
     const { error: itineraryError } = await this.client
       .from(this.tableName)
-      .insert(this.toItineraryRow(itinerary));
+      .insert(row);
 
     if (itineraryError) {
+      console.error('Supabase itinerary insert error:', itineraryError);
       throw new Error(`Failed to create itinerary: ${itineraryError.message}`);
     }
 
     // Insert items if any
     if (itinerary.items.length > 0) {
       const itemRows = itinerary.items.map(item => this.toItemRow(item));
+      console.log('Inserting item rows:', JSON.stringify(itemRows, null, 2));
+      
       const { error: itemsError } = await this.client
         .from(this.itemsTableName)
         .insert(itemRows);
 
       if (itemsError) {
+        console.error('Supabase items insert error:', itemsError);
         // Rollback itinerary
         await this.client.from(this.tableName).delete().eq('id', itinerary.id);
         throw new Error(`Failed to create itinerary items: ${itemsError.message}`);

@@ -46,6 +46,8 @@ export class ItineraryHandler {
         return;
       }
 
+      console.log('Creating itinerary with input:', JSON.stringify(input, null, 2));
+      
       const itinerary = await this.itineraryService.createItinerary(
         input,
         user.sub
@@ -60,6 +62,7 @@ export class ItineraryHandler {
       res.status(201).json(response);
     } catch (error) {
       console.error('Create itinerary error:', error);
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
       next(error);
     }
   };
