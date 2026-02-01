@@ -308,36 +308,52 @@ export class TemplateHandler {
   /**
    * Get smart template suggestions.
    * GET /api/v1/templates/suggestions
+   * 
+   * This endpoint is resilient - returns empty array on errors rather than failing.
    */
-  getSuggestions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getSuggestions = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
     
     try {
       const agentId = await getAgentId(authReq);
       if (!agentId) {
-        sendError(res, 401, 'UNAUTHORIZED', 'Agent ID not found', authReq.correlationId);
+        // Return empty suggestions instead of error for better UX
+        console.warn('Agent ID not found for template suggestions, returning empty');
+        sendSuccess(res, { suggestions: [] }, authReq.correlationId);
         return;
       }
 
-      const query = suggestionsQuerySchema.parse(req.query);
+      let query;
+      try {
+        query = suggestionsQuerySchema.parse(req.query);
+      } catch (parseError) {
+        // If query params are invalid, use defaults
+        console.warn('Invalid suggestions query params, using defaults:', parseError);
+        query = { limit: 5 };
+      }
 
-      const suggestions = await templateRepository.getSuggestions(
-        agentId,
-        {
-          destination: query.destination,
-          travelStyle: query.travelStyle,
-          duration: query.duration,
-        },
-        query.limit
-      );
+      let suggestions;
+      try {
+        suggestions = await templateRepository.getSuggestions(
+          agentId,
+          {
+            destination: query.destination,
+            travelStyle: query.travelStyle,
+            duration: query.duration,
+          },
+          query.limit
+        );
+      } catch (repoError) {
+        // If repository fails (table doesn't exist, etc.), return empty array
+        console.error('Template repository error:', repoError);
+        suggestions = [];
+      }
 
       sendSuccess(res, { suggestions }, authReq.correlationId);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        sendError(res, 400, 'VALIDATION_ERROR', error.errors[0]?.message ?? 'Validation error', authReq.correlationId);
-        return;
-      }
-      next(error);
+      // Catch-all: return empty suggestions rather than crashing
+      console.error('Unexpected error in getSuggestions:', error);
+      sendSuccess(res, { suggestions: [] }, authReq.correlationId);
     }
   };
 

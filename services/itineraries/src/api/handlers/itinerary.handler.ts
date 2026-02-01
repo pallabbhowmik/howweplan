@@ -30,7 +30,21 @@ export class ItineraryHandler {
   ): Promise<void> => {
     try {
       const user = (req as AuthenticatedRequest).user;
-      const input = createItineraryRequestSchema.parse(req.body);
+      
+      let input;
+      try {
+        input = createItineraryRequestSchema.parse(req.body);
+      } catch (parseError) {
+        console.error('Itinerary validation error:', parseError);
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: parseError instanceof Error ? parseError.message : 'Invalid input',
+          },
+        });
+        return;
+      }
 
       const itinerary = await this.itineraryService.createItinerary(
         input,
@@ -45,6 +59,7 @@ export class ItineraryHandler {
       });
       res.status(201).json(response);
     } catch (error) {
+      console.error('Create itinerary error:', error);
       next(error);
     }
   };
