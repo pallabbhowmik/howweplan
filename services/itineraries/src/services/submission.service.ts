@@ -8,12 +8,48 @@ import type {
 import { SubmissionStatus } from '../models/index.js';
 import type { SubmissionRepository } from '../repository/index.js';
 import { publishEvent } from '../events/index.js';
-import { createAuditEvent } from '../utils/index.js';
+import { createAuditEvent, logger } from '../utils/index.js';
 import { 
   SubmissionNotFoundError,
   DuplicateSubmissionError,
   InvalidSubmissionError,
 } from '../utils/index.js';
+
+// ============================================================================
+// REALTIME BROADCAST HELPER
+// ============================================================================
+
+const API_GATEWAY_URL = process.env.API_GATEWAY_INTERNAL_URL || 'http://localhost:3001';
+const INTERNAL_SERVICE_SECRET = process.env.INTERNAL_SERVICE_SECRET || 'dev-internal-secret';
+
+/**
+ * Broadcast event to connected WebSocket clients via API Gateway
+ */
+async function broadcastToClients(
+  eventType: 'request_update' | 'new_match' | 'match_expired' | 'proposal_received',
+  payload: Record<string, unknown>
+): Promise<void> {
+  try {
+    const response = await fetch(`${API_GATEWAY_URL}/internal/broadcast`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Secret': INTERNAL_SERVICE_SECRET,
+      },
+      body: JSON.stringify({ eventType, payload }),
+    });
+
+    if (!response.ok) {
+      logger.warn({
+        eventType,
+        status: response.status,
+      }, 'Failed to broadcast to API Gateway');
+    }
+  } catch (error) {
+    // Non-blocking - don't fail event publishing if broadcast fails
+    logger.warn({ error, eventType }, 'Error broadcasting to API Gateway');
+  }
+}
 
 /**
  * Service for handling agent submissions.
@@ -93,6 +129,21 @@ export class SubmissionService {
         correlationId: submission.requestId,
         source: 'itineraries-service',
       },
+    });
+
+    // Broadcast to user's WebSocket clients (proposal received)
+    broadcastToClients('proposal_received', {
+      requestId: submission.requestId,
+      submissionId: submission.id,
+      agentId: submission.agentId,
+      travelerId: submission.travelerId,
+    });
+
+    // Broadcast request update
+    broadcastToClients('request_update', {
+      requestId: submission.requestId,
+      status: 'proposal_submitted',
+      submissionId: submission.id,
     });
 
     return submission;

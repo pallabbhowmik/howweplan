@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import { createProxyMiddleware, Options } from 'http-proxy-middleware';
@@ -16,6 +17,7 @@ import { adaptiveRateLimiter, authRateLimiter, globalRateLimiter } from './middl
 import { sanitizeInput, requestSizeLimiter, requireJson } from './middleware/validation';
 import { circuitBreaker, circuitBreakerMiddleware, circuitBreakerResponseHandler } from './middleware/circuitBreaker';
 import { cacheMiddleware, getCacheStats, clearCache, invalidateCachePattern } from './middleware/cache';
+import { wsManager } from './websocket';
 
 // Extend Express Request type
 declare global {
@@ -27,6 +29,7 @@ declare global {
 }
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = config.port;
 
 // =============================================================================
@@ -283,6 +286,121 @@ app.get('/admin/circuit-status', authMiddleware, rbacMiddleware, (req: Request, 
 app.get('/admin/cache/stats', authMiddleware, rbacMiddleware, getCacheStats);
 app.post('/admin/cache/clear', authMiddleware, rbacMiddleware, clearCache);
 app.post('/admin/cache/invalidate', authMiddleware, rbacMiddleware, invalidateCachePattern);
+
+// WebSocket stats (admin only)
+app.get('/admin/ws/stats', authMiddleware, rbacMiddleware, (req: Request, res: Response) => {
+  if (req.user?.role !== 'admin' && req.user?.role !== 'system') {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+  res.json(wsManager.getStats());
+});
+
+// =============================================================================
+// INTERNAL WEBHOOKS (for service-to-service communication)
+// =============================================================================
+
+import { 
+  notifyRequestUpdate, 
+  notifyNewProposal, 
+  notifyNewMatch, 
+  notifyMatchExpired,
+  notifyUserResponse 
+} from './websocket';
+
+// Internal webhook to broadcast events to WebSocket clients
+// This should be called by backend services when events occur
+app.post('/internal/broadcast', (req: Request, res: Response) => {
+  // Verify internal service secret
+  const serviceSecret = req.headers['x-internal-secret'] as string;
+  const expectedSecret = config.internalAuth?.secret || process.env.INTERNAL_SERVICE_SECRET || 'internal-service-secret-change-in-production';
+  
+  if (!serviceSecret || serviceSecret !== expectedSecret) {
+    logger.warn({
+      timestamp: new Date().toISOString(),
+      event: 'broadcast_unauthorized',
+      ip: req.ip,
+    });
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const { eventType, payload = {}, ...restBody } = req.body;
+  // Merge payload from both styles (nested 'payload' object or flat body)
+  const eventPayload = { ...restBody, ...payload };
+
+  // Normalize event type to uppercase for comparison
+  const normalizedEventType = (eventType || '').toUpperCase().replace(/_/g, '_');
+
+  try {
+    switch (normalizedEventType) {
+      case 'REQUEST_UPDATE':
+        notifyRequestUpdate(eventPayload.requestId, {
+          state: eventPayload.state || eventPayload.status,
+          proposalCount: eventPayload.proposalCount,
+          message: eventPayload.message || eventPayload.reason,
+        });
+        break;
+
+      case 'NEW_PROPOSAL':
+      case 'PROPOSAL_RECEIVED':
+        notifyNewProposal(eventPayload.requestId, eventPayload.userId || eventPayload.travelerId, {
+          agentId: eventPayload.agentId,
+          agentName: eventPayload.agentName,
+          proposalId: eventPayload.proposalId || eventPayload.submissionId,
+        });
+        break;
+
+      case 'NEW_MATCH':
+        notifyNewMatch(eventPayload.agentId, {
+          matchId: eventPayload.matchId,
+          requestId: eventPayload.requestId,
+          matchScore: eventPayload.matchScore,
+          expiresAt: eventPayload.expiresAt,
+        });
+        break;
+
+      case 'MATCH_EXPIRED':
+        notifyMatchExpired(eventPayload.agentId, eventPayload.matchId, eventPayload.requestId);
+        break;
+
+      case 'USER_RESPONSE':
+        notifyUserResponse(eventPayload.agentId, {
+          requestId: eventPayload.requestId,
+          proposalId: eventPayload.proposalId,
+          action: eventPayload.action,
+          message: eventPayload.message,
+        });
+        break;
+
+      default:
+        logger.warn({
+          timestamp: new Date().toISOString(),
+          event: 'broadcast_unknown_event_type',
+          eventType,
+          normalizedEventType,
+        });
+        res.status(400).json({ error: 'Unknown event type' });
+        return;
+    }
+
+    logger.info({
+      timestamp: new Date().toISOString(),
+      event: 'broadcast_success',
+      eventType,
+    });
+
+    res.json({ success: true, eventType });
+  } catch (error) {
+    logger.error({
+      timestamp: new Date().toISOString(),
+      event: 'broadcast_error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      eventType,
+    });
+    res.status(500).json({ error: 'Failed to broadcast event' });
+  }
+});
 
 // JWT configuration status (public diagnostic - no secrets exposed)
 app.get('/debug/jwt-status', (_req: Request, res: Response) => {
@@ -611,7 +729,10 @@ async function start(): Promise<void> {
     scheduleKeyFetchRetry();
   }
 
-  app.listen(PORT, () => {
+  // Initialize WebSocket server
+  wsManager.initialize(httpServer);
+
+  httpServer.listen(PORT, () => {
   logger.info({
     timestamp: new Date().toISOString(),
     event: 'server_started',
@@ -632,6 +753,7 @@ async function start(): Promise<void> {
 ║    Health:    /health                                          ║
 ║    Ready:     /ready                                           ║
 ║    API:       /api/{service}/*                                 ║
+║    WebSocket: /ws/requests, /ws/agents                         ║
 ╠════════════════════════════════════════════════════════════════╣
 ║  Features:                                                     ║
 ║    ✅ JWT Authentication                                       ║
@@ -643,6 +765,7 @@ async function start(): Promise<void> {
 ║    ✅ Request Correlation IDs                                  ║
 ║    ✅ Structured Logging                                       ║
 ║    ✅ Service Keep-Alive (prevents cold starts)                ║
+║    ✅ WebSocket Real-time Updates                              ║
 ╚════════════════════════════════════════════════════════════════╝
   `);
 
@@ -650,6 +773,10 @@ async function start(): Promise<void> {
   Object.entries(config.services).forEach(([name, url]) => {
     console.log(`   /api/${name} → ${url}`);
   });
+
+  console.log('\n🔌 WebSocket Endpoints:');
+  console.log('   /ws/requests - User trip request updates');
+  console.log('   /ws/agents   - Agent match notifications');
 
   // Start keep-alive pings to prevent Render cold starts
   startServiceKeepAlive();

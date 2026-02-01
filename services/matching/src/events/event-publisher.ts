@@ -11,6 +11,42 @@ import { v4 as uuidv4 } from 'uuid';
 import { getEventBus, createEventMetadata } from './event-bus.js';
 import { auditLogger } from '../lib/audit-logger.js';
 import { logger } from '../lib/logger.js';
+
+// ============================================================================
+// REALTIME BROADCAST HELPER
+// ============================================================================
+
+const API_GATEWAY_URL = process.env.API_GATEWAY_INTERNAL_URL || 'http://localhost:3001';
+const INTERNAL_SERVICE_SECRET = process.env.INTERNAL_SERVICE_SECRET || 'dev-internal-secret';
+
+/**
+ * Broadcast event to connected WebSocket clients via API Gateway
+ */
+async function broadcastToClients(
+  eventType: 'request_update' | 'new_match' | 'match_expired' | 'proposal_received',
+  payload: Record<string, unknown>
+): Promise<void> {
+  try {
+    const response = await fetch(`${API_GATEWAY_URL}/internal/broadcast`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Secret': INTERNAL_SERVICE_SECRET,
+      },
+      body: JSON.stringify({ eventType, payload }),
+    });
+
+    if (!response.ok) {
+      logger.warn({
+        eventType,
+        status: response.status,
+      }, 'Failed to broadcast to API Gateway');
+    }
+  } catch (error) {
+    // Non-blocking - don't fail event publishing if broadcast fails
+    logger.warn({ error, eventType }, 'Error broadcasting to API Gateway');
+  }
+}
 import { 
   EVENT_CHANNELS, 
   MatchingAuditAction,
@@ -97,7 +133,23 @@ export class EventPublisher {
         },
         metadata,
       });
+
+      // Broadcast to agent's WebSocket clients
+      broadcastToClients('new_match', {
+        agentId: match.agentId,
+        requestId: params.requestId,
+        matchId: match.matchId,
+        matchScore: match.matchScore,
+        expiresAt: params.expiresAt,
+      });
     }
+
+    // Broadcast request update to user's WebSocket clients
+    broadcastToClients('request_update', {
+      requestId: params.requestId,
+      status: 'agents_matched',
+      matchCount: params.matches.length,
+    });
 
     logger.info({
       requestId: params.requestId,
@@ -243,6 +295,14 @@ export class EventPublisher {
         metadata,
       }
     );
+
+    // Broadcast status update to user's WebSocket clients
+    broadcastToClients('request_update', {
+      requestId: params.requestId,
+      status: params.newStatus,
+      previousStatus: params.previousStatus,
+      reason: params.reason,
+    });
 
     logger.info({
       requestId: params.requestId,

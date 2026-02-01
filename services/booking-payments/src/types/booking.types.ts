@@ -121,8 +121,8 @@ export interface BookingResponseDTO {
   readonly agentId: string;
   readonly itineraryId: string | null;
   readonly requestId?: string | null;
-  readonly state: BookingState | string; // Accept string for database status values
-  readonly paymentState: PaymentState | string; // Accept string for computed payment state
+  readonly state: string; // Accept string for database status values (includes BookingState)
+  readonly paymentState: string; // Accept string for computed payment state (includes PaymentState)
   readonly tripStartDate: string | null;
   readonly tripEndDate: string | null;
   readonly destinationCity?: string | null;
@@ -140,7 +140,7 @@ export interface BookingResponseDTO {
   readonly agentConfirmedAt?: string | null;
   readonly tripCompletedAt?: string | null;
   readonly cancelledAt?: string | null;
-  readonly cancellationReason?: CancellationReason | string | null;
+  readonly cancellationReason?: string | null; // Accepts CancellationReason values
 }
 
 /** Input DTO for cancellation request */

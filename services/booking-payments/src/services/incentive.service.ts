@@ -471,7 +471,7 @@ export class IncentiveService {
       throw new Error(`Failed to get incentives: ${error.message}`);
     }
 
-    return (data || []).map(this.mapToIncentive);
+    return (data || []).map((item) => this.mapToIncentive(item));
   }
 
   /**

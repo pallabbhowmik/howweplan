@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -20,6 +20,9 @@ import {
   SlidersHorizontal,
   Globe,
   Heart,
+  Wifi,
+  WifiOff,
+  RefreshCw,
 } from 'lucide-react';
 import {
   Button,
@@ -54,6 +57,7 @@ import {
   listMatchedRequests,
   type AgentRequestMatch,
 } from '@/lib/data/agent';
+import { useAgentUpdates } from '@/lib/realtime';
 
 type RequestVM = {
   matchId: string;
@@ -450,6 +454,7 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyMatchIds, setBusyMatchIds] = useState<Set<string>>(new Set());
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const [activeTab, setActiveTab] = useState('pending');
   const [searchQuery, setSearchQuery] = useState('');
@@ -457,24 +462,39 @@ export default function RequestsPage() {
   const [declineDialogOpen, setDeclineDialogOpen] = useState(false);
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
 
-  const loadRequests = async () => {
+  const loadRequests = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const matches = await listMatchedRequests(agent.agentId);
       setRequests(matches.map(toRequestVM));
+      setLastUpdated(new Date());
     } catch (e: any) {
       setError(e?.message ?? 'Failed to load matched requests');
       setRequests([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [agent.agentId]);
+
+  // Real-time updates hook
+  const {
+    isConnected: realtimeConnected,
+    isPolling: realtimePolling,
+  } = useAgentUpdates({
+    agentId: agent.agentId,
+    enabled: true,
+    onUpdate: (event) => {
+      console.log('[Requests] Realtime update received:', event);
+      // Refresh request data when we receive an update
+      loadRequests();
+    },
+    pollInterval: 20000, // Poll every 20 seconds as fallback
+  });
 
   useEffect(() => {
     loadRequests();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agent.agentId]);
+  }, [loadRequests]);
 
   const filteredRequests = useMemo(() => {
     return requests.filter((request) => {
@@ -568,6 +588,36 @@ export default function RequestsPage() {
           <p className="mt-1 text-gray-500">
             Browse and manage requests matched to your expertise
           </p>
+        </div>
+        {/* Real-time connection indicator */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-sm" title={realtimeConnected ? 'Live updates active' : realtimePolling ? 'Checking for updates...' : 'Updates paused'}>
+            {realtimeConnected ? (
+              <>
+                <Wifi className="h-4 w-4 text-green-500" />
+                <span className="text-green-600">Live</span>
+              </>
+            ) : realtimePolling ? (
+              <>
+                <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />
+                <span className="text-blue-600">Syncing</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="h-4 w-4 text-slate-400" />
+                <span className="text-slate-500">Offline</span>
+              </>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadRequests()}
+            disabled={loading}
+          >
+            <RefreshCw className={cn("h-4 w-4 mr-1", loading && "animate-spin")} />
+            Refresh
+          </Button>
         </div>
       </div>
 

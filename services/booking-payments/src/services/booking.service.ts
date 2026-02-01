@@ -616,7 +616,7 @@ class BookingService {
           basePriceCents: totalAmountCents, // Use total as base price since we don't have split amounts
           bookingFeeCents: 0, // Not tracked separately in this schema
           platformCommissionCents: 0, // Not tracked separately in this schema
-          totalAmountCents: totalAmountCents,
+          totalAmountCents,
           agentPayoutCents: null,
           cancellationReason: row.cancellation_reason,
           cancelledAt: row.cancelled_at?.toISOString?.() || row.cancelled_at,

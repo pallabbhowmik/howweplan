@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -29,12 +29,15 @@ import {
   Share2,
   Edit,
   RefreshCw,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUserSession } from '@/lib/user/session';
 import { fetchRequest, cancelTravelRequest, type TravelRequest } from '@/lib/data/api';
+import { useRequestUpdates } from '@/lib/realtime';
 
 const tripTypeIcons: Record<string, React.ElementType> = {
   leisure: Palmtree,
@@ -49,12 +52,42 @@ export default function RequestDetailPage() {
   const params = useParams();
   const router = useRouter();
   const requestId = params.id as string;
-  const { loading: userLoading } = useUserSession();
+  const { user, loading: userLoading } = useUserSession();
   const [request, setRequest] = useState<TravelRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  // Callback to refresh request data
+  const refreshRequest = useCallback(async () => {
+    try {
+      const data = await fetchRequest(requestId);
+      if (data) {
+        setRequest(data);
+        setLastUpdated(new Date());
+      }
+    } catch (error) {
+      console.error('Error refreshing request:', error);
+    }
+  }, [requestId]);
+
+  // Real-time updates hook
+  const {
+    isConnected: realtimeConnected,
+    isPolling: realtimePolling,
+    lastEvent,
+  } = useRequestUpdates({
+    requestId,
+    userId: user?.userId,
+    enabled: !!request && !['completed', 'cancelled', 'expired', 'COMPLETED', 'CANCELLED', 'EXPIRED'].includes(request?.state || ''),
+    onUpdate: (event) => {
+      console.log('[RequestDetail] Realtime update received:', event);
+      // Refresh request data when we receive an update
+      refreshRequest();
+    },
+    pollInterval: 15000, // Poll every 15 seconds as fallback
+  });
 
   // Initial load
   useEffect(() => {
@@ -74,42 +107,8 @@ export default function RequestDetailPage() {
     loadRequest();
   }, [requestId]);
 
-  // Real-time polling - refresh every 30 seconds for active requests
-  useEffect(() => {
-    if (!request) return;
-    
-    // Only poll for active requests (not completed, cancelled, or expired)
-    const isActiveRequest = !['completed', 'cancelled', 'expired', 'COMPLETED', 'CANCELLED', 'EXPIRED'].includes(request.state);
-    if (!isActiveRequest) return;
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const data = await fetchRequest(requestId);
-        if (data) {
-          // Only update if something changed
-          if (JSON.stringify(data) !== JSON.stringify(request)) {
-            setRequest(data);
-            setLastUpdated(new Date());
-          }
-        }
-      } catch (error) {
-        console.error('Error polling request:', error);
-      }
-    }, 30000); // Poll every 30 seconds
-
-    return () => clearInterval(pollInterval);
-  }, [requestId, request]);
-
-  // Manual refresh function
-  const refreshRequest = async () => {
-    try {
-      const data = await fetchRequest(requestId);
-      setRequest(data);
-      setLastUpdated(new Date());
-    } catch (error) {
-      console.error('Error refreshing request:', error);
-    }
-  };
+  // The old polling is now handled by useRequestUpdates hook with fallback polling
+  // Keeping manual refresh function for user-initiated refreshes
 
   const handleCancelRequest = async () => {
     if (!request) return;
@@ -331,7 +330,30 @@ export default function RequestDetailPage() {
           {/* Status Card */}
           <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-slate-50">
             <CardHeader className="border-b bg-slate-50/50">
-              <CardTitle className="text-lg">Request Status</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Request Status</CardTitle>
+                {/* Real-time connection indicator */}
+                {isActive && (
+                  <div className="flex items-center gap-1.5" title={realtimeConnected ? 'Live updates active' : realtimePolling ? 'Checking for updates...' : 'Updates paused'}>
+                    {realtimeConnected ? (
+                      <>
+                        <Wifi className="h-4 w-4 text-green-500" />
+                        <span className="text-xs text-green-600">Live</span>
+                      </>
+                    ) : realtimePolling ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />
+                        <span className="text-xs text-blue-600">Syncing</span>
+                      </>
+                    ) : (
+                      <>
+                        <WifiOff className="h-4 w-4 text-slate-400" />
+                        <span className="text-xs text-slate-500">Offline</span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center justify-between">
@@ -346,6 +368,12 @@ export default function RequestDetailPage() {
                 <span className="text-slate-500">Created</span>
                 <span className="font-medium">{formatDate(request.createdAt)}</span>
               </div>
+              {lastUpdated && (
+                <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t">
+                  <span>Last updated</span>
+                  <span>{formatRelativeTime(lastUpdated)}</span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -721,6 +749,24 @@ function formatDate(dateString: string): string {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  
+  if (diffSec < 5) return 'just now';
+  if (diffSec < 60) return `${diffSec}s ago`;
+  
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
 }
 
 function getTravelersCount(travelers: { adults?: number; children?: number; infants?: number; total?: number }): number {
