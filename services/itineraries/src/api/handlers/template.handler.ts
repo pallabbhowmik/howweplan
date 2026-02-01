@@ -6,6 +6,7 @@ import {
   type CreateTemplateInput,
   type UpdateTemplateInput,
   type TemplateFilter,
+  type TemplateSuggestion,
 } from '../../repository/template.repository.js';
 import {
   createTemplateRequestSchema,
@@ -323,7 +324,7 @@ export class TemplateHandler {
         return;
       }
 
-      let query;
+      let query: { destination?: string; travelStyle?: string; duration?: number; limit?: number };
       try {
         query = suggestionsQuerySchema.parse(req.query);
       } catch (parseError) {
@@ -332,7 +333,7 @@ export class TemplateHandler {
         query = { limit: 5 };
       }
 
-      let suggestions;
+      let suggestions: TemplateSuggestion[] = [];
       try {
         suggestions = await templateRepository.getSuggestions(
           agentId,
