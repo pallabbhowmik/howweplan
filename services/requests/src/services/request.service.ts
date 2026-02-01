@@ -150,6 +150,31 @@ export function createRequestService(
         },
       });
 
+      // Since requests are now created in 'submitted' state, trigger matching immediately
+      if (matchingService) {
+        matchingService.triggerMatching({
+          requestId: saved.id,
+          request: {
+            requestId: saved.id,
+            userId: saved.userId,
+            title: saved.destination,
+            description: saved.notes,
+            destination: saved.destination,
+            departureDate: saved.departureDate.toISOString(),
+            returnDate: saved.returnDate.toISOString(),
+            budgetMin: saved.budgetRange.minAmount,
+            budgetMax: saved.budgetRange.maxAmount,
+            budgetCurrency: saved.budgetRange.currency,
+            travelers: saved.travelers,
+            travelStyle: saved.travelStyle,
+            preferences: null,
+          },
+          correlationId: context.correlationId,
+        }).catch((err) => {
+          logger.warn('Failed to trigger matching on create', { requestId: saved.id, error: err });
+        });
+      }
+
       logger.info('Request created', { requestId: saved.id, userId });
       return saved;
     },
