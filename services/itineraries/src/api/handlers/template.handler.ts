@@ -20,7 +20,7 @@ import {
 // ============================================================================
 
 interface AuthenticatedRequest extends Request {
-  identity?: {
+  user?: {
     sub: string;
     role: string;
     agentId?: string;
@@ -58,14 +58,14 @@ function sendError(
 
 async function getAgentId(req: AuthenticatedRequest): Promise<string | null> {
   // If agentId is already in the token
-  if (req.identity?.agentId) {
-    return req.identity.agentId;
+  if (req.user?.agentId) {
+    return req.user.agentId;
   }
   
   // For agents, we need to look up their agent ID from user ID
   // This would typically come from the identity service or be in the JWT
   // For now, we'll use the user's sub as a proxy (since agents table references user_id)
-  return req.identity?.sub ?? null;
+  return req.user?.sub ?? null;
 }
 
 // ============================================================================
