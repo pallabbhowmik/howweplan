@@ -494,6 +494,7 @@ function createProxyOptions(serviceName: string, serviceUrl: string): Options {
         // Debug log for Messaging service auth issues
         if (serviceName === 'messaging') {
           logger.debug({
+            timestamp: new Date().toISOString(),
             event: 'proxy_headers_set',
             service: serviceName,
             userId: req.user.userId,
@@ -503,6 +504,7 @@ function createProxyOptions(serviceName: string, serviceUrl: string): Options {
       } else {
         if (serviceName === 'messaging') {
           logger.warn({
+            timestamp: new Date().toISOString(),
             event: 'proxy_no_user',
             service: serviceName,
             message: 'Appropriate auth headers not set - req.user is missing'
