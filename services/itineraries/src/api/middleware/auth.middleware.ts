@@ -79,9 +79,16 @@ function verifyToken(token: string): JwtPayload {
       throw new UnauthorizedError('Invalid token payload');
     }
 
+    // Normalize role to uppercase to match expected values
+    const normalizedRole = String(payload.role).toUpperCase();
+    const mappedRole: JwtPayload['role'] =
+      normalizedRole === 'AGENT' ? 'AGENT' :
+      normalizedRole === 'ADMIN' ? 'ADMIN' :
+      normalizedRole === 'SYSTEM' ? 'SYSTEM' : 'TRAVELER';
+
     return {
       sub: payload.sub,
-      role: payload.role,
+      role: mappedRole,
       email: payload.email,
       iss: payload.iss,
       aud: typeof payload.aud === 'string' ? payload.aud : payload.aud?.[0],
