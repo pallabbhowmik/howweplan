@@ -75,6 +75,10 @@ const WS_RECONNECT_MAX_DELAY = 30000; // 30 seconds
 const WS_HEARTBEAT_INTERVAL = 30000; // 30 seconds
 const DEFAULT_POLL_INTERVAL = 15000; // 15 seconds
 
+// WebSocket is disabled on Render.com (free tier doesn't support it)
+// Set to true to enable WebSocket attempts (for local dev or upgraded hosting)
+const WEBSOCKET_ENABLED = false;
+
 // ============================================================================
 // Hook Implementation
 // ============================================================================
@@ -286,7 +290,7 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions): UseAgentUpdate
 
   // Manual refresh
   const refresh = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    if (WEBSOCKET_ENABLED && wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'refresh',
         channel: `agent:${agentId}`,
@@ -303,6 +307,13 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions): UseAgentUpdate
     mountedRef.current = true;
 
     if (enabled && agentId) {
+      // Skip WebSocket if disabled (e.g., Render.com free tier doesn't support it)
+      if (!WEBSOCKET_ENABLED) {
+        console.log('[AgentUpdates] WebSocket disabled, using polling');
+        startPolling();
+        return;
+      }
+
       // Try WebSocket first
       connectWebSocket();
 
