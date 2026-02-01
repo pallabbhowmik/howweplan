@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import { createClient } from '@supabase/supabase-js';
 import {
   templateRepository,
   type CreateTemplateInput,
@@ -14,6 +15,7 @@ import {
   duplicateTemplateRequestSchema,
   recordUsageRequestSchema,
 } from '../dto/template.dto.js';
+import { env } from '../../env.js';
 
 // ============================================================================
 // Types
@@ -63,9 +65,30 @@ async function getAgentId(req: AuthenticatedRequest): Promise<string | null> {
   }
   
   // For agents, we need to look up their agent ID from user ID
-  // This would typically come from the identity service or be in the JWT
-  // For now, we'll use the user's sub as a proxy (since agents table references user_id)
-  return req.user?.sub ?? null;
+  const userId = req.user?.sub;
+  if (!userId) {
+    return null;
+  }
+
+  // Look up the agent record by user_id
+  try {
+    const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const { data, error } = await supabase
+      .from('agents')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !data) {
+      console.warn(`Agent lookup failed for user ${userId}:`, error?.message);
+      return null;
+    }
+
+    return data.id;
+  } catch (err) {
+    console.error('Error looking up agent:', err);
+    return null;
+  }
 }
 
 // ============================================================================
