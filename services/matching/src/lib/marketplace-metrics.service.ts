@@ -390,7 +390,7 @@ export class MarketplaceMetricsService {
             .select('current_active_requests, max_active_requests');
 
         const atCapacity = (workloadData || []).filter(
-            w => w.current_active_requests >= w.max_active_requests
+            (w: { current_active_requests: number; max_active_requests: number }) => w.current_active_requests >= w.max_active_requests
         ).length;
 
         const available = Math.max(0, (total || 0) - (onVacation || 0) - atCapacity);
@@ -478,10 +478,10 @@ export class MarketplaceMetricsService {
             return { avgQualityScore: null, belowThresholdCount: 0 };
         }
 
-        const scores = data.map(d => d.total_score as number);
-        const avgQualityScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+        const scores = data.map((d: { total_score: number }) => d.total_score as number);
+        const avgQualityScore = scores.reduce((a: number, b: number) => a + b, 0) / scores.length;
         const belowThresholdCount = scores.filter(
-            s => s < HEALTH_THRESHOLDS.MIN_QUALITY_SCORE
+            (s: number) => s < HEALTH_THRESHOLDS.MIN_QUALITY_SCORE
         ).length;
 
         return { avgQualityScore, belowThresholdCount };

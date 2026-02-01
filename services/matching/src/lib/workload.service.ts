@@ -535,13 +535,13 @@ export class WorkloadService {
             };
         }
 
-        const onVacation = limits.filter((l) => l.vacation_mode).length;
+        const onVacation = limits.filter((l: { vacation_mode: boolean }) => l.vacation_mode).length;
         const atCapacity = limits.filter(
-            (l) => l.current_active_requests >= l.max_active_requests
+            (l: { current_active_requests: number; max_active_requests: number }) => l.current_active_requests >= l.max_active_requests
         ).length;
-        const autoPaused = limits.filter((l) => l.is_auto_paused).length;
+        const autoPaused = limits.filter((l: { is_auto_paused: boolean }) => l.is_auto_paused).length;
 
-        const totalUtilization = limits.reduce((sum, l) => {
+        const totalUtilization = limits.reduce((sum: number, l: { current_active_requests: number; max_active_requests: number }) => {
             return sum + (l.current_active_requests / l.max_active_requests);
         }, 0);
         const avgUtilization = limits.length > 0 ? totalUtilization / limits.length : 0;
