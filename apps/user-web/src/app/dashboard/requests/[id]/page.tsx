@@ -31,12 +31,14 @@ import {
   RefreshCw,
   Wifi,
   WifiOff,
+  Send,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUserSession } from '@/lib/user/session';
-import { fetchRequest, cancelTravelRequest, type TravelRequest } from '@/lib/data/api';
+import { fetchRequest, cancelTravelRequest, submitTravelRequest, type TravelRequest } from '@/lib/data/api';
 import { useRequestUpdates } from '@/lib/realtime';
 
 const tripTypeIcons: Record<string, React.ElementType> = {
@@ -56,6 +58,7 @@ export default function RequestDetailPage() {
   const [request, setRequest] = useState<TravelRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
@@ -109,6 +112,22 @@ export default function RequestDetailPage() {
 
   // The old polling is now handled by useRequestUpdates hook with fallback polling
   // Keeping manual refresh function for user-initiated refreshes
+
+  const handleSubmitRequest = async () => {
+    if (!request) return;
+    
+    setSubmitting(true);
+    try {
+      const updatedRequest = await submitTravelRequest(requestId);
+      setRequest(updatedRequest);
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error('Error submitting request:', error);
+      alert('Failed to submit request. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleCancelRequest = async () => {
     if (!request) return;
@@ -209,6 +228,27 @@ export default function RequestDetailPage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
+              {/* Submit button for draft requests */}
+              {['draft', 'DRAFT'].includes(request.state) && (
+                <Button 
+                  size="lg" 
+                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-xl font-semibold"
+                  onClick={handleSubmitRequest}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-5 w-5 mr-2" />
+                      Submit Request
+                    </>
+                  )}
+                </Button>
+              )}
               {hasProposals && (
                 <Link href={`/dashboard/requests/${request.id}/proposals`}>
                   <Button size="lg" variant="secondary" className="shadow-xl group font-semibold">

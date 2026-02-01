@@ -589,6 +589,20 @@ export async function updateTravelRequest(_requestId: string, _input: UpdateTrav
   throw new Error('Request updates are not currently supported. Please cancel and create a new request.');
 }
 
+export async function submitTravelRequest(requestId: string): Promise<TravelRequest> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('Not authenticated. Please log in to submit a request.');
+  }
+
+  const result = await gatewayRequest<any>(`/api/requests/api/v1/requests/${requestId}/submit`, {
+    method: 'POST',
+  });
+
+  const data = result.data || result;
+  return mapRequestFromApi(data);
+}
+
 export async function cancelTravelRequest(requestId: string): Promise<void> {
   const token = getAccessToken();
   if (!token) {
