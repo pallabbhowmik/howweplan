@@ -242,13 +242,17 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions): UseAgentUpdate
       if (!mountedRef.current) return;
 
       try {
-        // Fetch latest matches via API
-        const url = requestId 
-          ? `${env.NEXT_PUBLIC_API_BASE_URL}/api/matching/agents/${agentId}/matches?requestId=${requestId}`
-          : `${env.NEXT_PUBLIC_API_BASE_URL}/api/matching/agents/${agentId}/matches?status=pending`;
+        // Fetch latest matches via the correct API endpoint
+        // The matching service uses /api/v1/matches and derives agent from JWT
+        const url = `${env.NEXT_PUBLIC_API_BASE_URL}/api/matching/api/v1/matches`;
+        
+        const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
         
         const response = await fetch(url, {
           credentials: 'include',
+          headers: token ? {
+            'Authorization': `Bearer ${token}`,
+          } : {},
         });
 
         if (!response.ok) {
