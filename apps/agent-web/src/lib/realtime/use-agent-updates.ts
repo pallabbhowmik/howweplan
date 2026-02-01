@@ -246,7 +246,7 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions): UseAgentUpdate
         // The matching service uses /api/v1/matches and derives agent from JWT
         const url = `${env.NEXT_PUBLIC_API_BASE_URL}/api/matching/api/v1/matches`;
         
-        const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+        const token = typeof window !== 'undefined' ? localStorage.getItem('tc_access_token') : null;
         
         const response = await fetch(url, {
           credentials: 'include',
