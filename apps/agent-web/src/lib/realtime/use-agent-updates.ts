@@ -255,7 +255,8 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions): UseAgentUpdate
           throw new Error(`HTTP ${response.status}`);
         }
 
-        const data = await response.json();
+        // Parse response (data used for validation)
+        await response.json();
         
         // Create synthetic update event
         const event: AgentUpdateEvent = {

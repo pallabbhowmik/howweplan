@@ -85,7 +85,7 @@ export function createTravelRequest(params: {
   return {
     id: params.id,
     userId: params.userId,
-    state: 'draft',
+    state: 'submitted',
     destination: params.destination,
     departureLocation: params.departureLocation,
     departureDate: params.departureDate,

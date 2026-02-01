@@ -256,7 +256,7 @@ export async function getTemplateSuggestions(
 
 
   // Defensive: ensure apiUrl is called with a string, not a function
-  let basePath = TEMPLATES_BASE;
+  const basePath = TEMPLATES_BASE;
   if (typeof basePath !== 'string') {
     throw new Error('TEMPLATES_BASE is not a string');
   }
