@@ -343,6 +343,8 @@ export class ItineraryHandler {
 
       res.json(response);
     } catch (error) {
+      console.error('[LIST] Error:', error);
+      console.error('[LIST] Error stack:', error instanceof Error ? error.stack : 'No stack');
       next(error);
     }
   };
@@ -351,6 +353,19 @@ export class ItineraryHandler {
    * Convert itinerary to response DTO.
    */
   private toResponse(itinerary: ItineraryWithMeta): ItineraryResponse {
+    // Add null safety for overview
+    const overview = itinerary.overview || {
+      title: 'Untitled Itinerary',
+      summary: '',
+      startDate: '',
+      endDate: '',
+      numberOfDays: 0,
+      numberOfNights: 0,
+      destinations: [],
+      travelersCount: 1,
+      tripType: 'LEISURE',
+    };
+
     return {
       id: itinerary.id,
       requestId: itinerary.requestId,
@@ -360,15 +375,15 @@ export class ItineraryHandler {
       disclosureState: itinerary.disclosureState,
       isRevealed: itinerary.isRevealed,
       overview: {
-        title: itinerary.overview.title,
-        summary: itinerary.overview.summary,
-        startDate: itinerary.overview.startDate,
-        endDate: itinerary.overview.endDate,
-        numberOfDays: itinerary.overview.numberOfDays,
-        numberOfNights: itinerary.overview.numberOfNights,
-        destinations: itinerary.overview.destinations,
-        travelersCount: itinerary.overview.travelersCount,
-        tripType: itinerary.overview.tripType,
+        title: overview.title,
+        summary: overview.summary,
+        startDate: overview.startDate,
+        endDate: overview.endDate,
+        numberOfDays: overview.numberOfDays,
+        numberOfNights: overview.numberOfNights,
+        destinations: overview.destinations || [],
+        travelersCount: overview.travelersCount,
+        tripType: overview.tripType,
       },
       pricing: itinerary.pricing ? {
         currency: itinerary.pricing.currency,
@@ -378,8 +393,8 @@ export class ItineraryHandler {
         inclusions: itinerary.pricing.inclusions,
         exclusions: itinerary.pricing.exclusions,
       } : undefined,
-      items: itinerary.items.map(item => this.itemToResponse(item)),
-      itemCount: itinerary.itemCount,
+      items: (itinerary.items || []).map(item => this.itemToResponse(item)),
+      itemCount: itinerary.itemCount ?? 0,
       version: itinerary.version,
       isLatestVersion: itinerary.isLatestVersion,
       termsAndConditions: itinerary.termsAndConditions,
