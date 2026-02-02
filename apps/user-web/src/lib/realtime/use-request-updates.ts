@@ -72,7 +72,7 @@ export interface UseRequestUpdatesReturn {
 const WS_RECONNECT_DELAY_BASE = 1000; // 1 second
 const WS_RECONNECT_MAX_DELAY = 30000; // 30 seconds
 const WS_HEARTBEAT_INTERVAL = 30000; // 30 seconds
-const DEFAULT_POLL_INTERVAL = 15000; // 15 seconds
+const DEFAULT_POLL_INTERVAL = 10000; // 10 seconds (reduced from 15s for better UX)
 
 // WebSocket is disabled on Render.com (free tier doesn't support it)
 // Set to true to enable WebSocket attempts (for local dev or upgraded hosting)

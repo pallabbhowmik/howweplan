@@ -570,8 +570,33 @@ export async function changeUserPassword(
 export async function fetchUserRequests(userId: string): Promise<TravelRequest[]> {
   try {
     const result = await gatewayRequest<any>(`/api/requests/api/v1/requests`);
-    const requests = unwrapList<any>(result, 'requests');
-    return requests.map(mapRequestFromApi);
+    const requests = unwrapList<any>(result, 'requests').map(mapRequestFromApi);
+    
+    // Fetch itinerary counts for all requests to populate agentsResponded
+    // This is done in parallel for efficiency
+    if (requests.length > 0) {
+      await Promise.all(requests.map(async (request) => {
+        try {
+          // Use the request-specific endpoint for itineraries
+          const itinerariesResult = await gatewayRequest<any>(
+            `/api/itineraries/api/v1/itineraries/request/${request.id}`
+          );
+          const itineraries = itinerariesResult?.items || itinerariesResult || [];
+          if (Array.isArray(itineraries) && itineraries.length > 0) {
+            // Count unique agents who submitted itineraries
+            const uniqueAgents = new Set(
+              itineraries.map((i: any) => i.agentId || i.agent_id).filter(Boolean)
+            );
+            request.agentsResponded = uniqueAgents.size;
+          }
+        } catch (itinError) {
+          // Keep default 0 if itinerary fetch fails
+          console.debug(`Could not fetch itineraries for request ${request.id}`);
+        }
+      }));
+    }
+    
+    return requests;
   } catch (error) {
     console.error('Error fetching requests:', error);
     return [];
@@ -587,9 +612,10 @@ export async function fetchRequest(requestId: string): Promise<TravelRequest | n
     
     // Fetch itinerary count for this request (to show agents responded)
     try {
-      const itinerariesResult = await gatewayRequest<any>(`/api/itineraries/api/v1/itineraries?requestId=${requestId}`);
+      // Use the request-specific endpoint for itineraries
+      const itinerariesResult = await gatewayRequest<any>(`/api/itineraries/api/v1/itineraries/request/${requestId}`);
       const itineraries = itinerariesResult?.items || itinerariesResult || [];
-      if (Array.isArray(itineraries)) {
+      if (Array.isArray(itineraries) && itineraries.length > 0) {
         // Count unique agents who submitted itineraries
         const uniqueAgents = new Set(itineraries.map((i: any) => i.agentId || i.agent_id).filter(Boolean));
         request.agentsResponded = uniqueAgents.size;

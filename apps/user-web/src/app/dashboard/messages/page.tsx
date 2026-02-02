@@ -445,10 +445,19 @@ export default function MessagesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConversationId]);
 
-  // Real-time updates via polling (WebSocket support can be added through Gateway)
-  // The polling interval checks for new messages every few seconds
+  // Real-time updates via faster polling
+  // Using 2-second polling for better real-time feel
+  // Adapts: slows to 10s if page is hidden, speeds up to 1s after sending
+  const [pollSpeed, setPollSpeed] = useState(2000); // Default 2 seconds
+
   useEffect(() => {
     if (!selectedConversationId) return;
+
+    // Adaptive polling - slow down when tab is hidden
+    const handleVisibilityChange = () => {
+      setPollSpeed(document.hidden ? 10000 : 2000);
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Polling fallback - only updates when data actually changes
     const id = setInterval(async () => {
@@ -456,7 +465,17 @@ export default function MessagesPage() {
         const msgs = await listMessages(selectedConversationId);
         // Only update if there are new messages (compare by length and last message id)
         setMessages((prev) => {
-          if (msgs.length !== prev.length) return msgs;
+          if (msgs.length !== prev.length) {
+            // Play sound notification for new messages from agent
+            const newMsgs = msgs.filter(m => !prev.find(p => p.id === m.id));
+            const hasAgentMessage = newMsgs.some(m => m.senderType === 'agent');
+            if (hasAgentMessage && typeof window !== 'undefined') {
+              // Visual notification - update title
+              document.title = '💬 New message - HowWePlan';
+              setTimeout(() => { document.title = 'Messages - HowWePlan'; }, 3000);
+            }
+            return msgs;
+          }
           const lastNew = msgs[msgs.length - 1];
           const lastPrev = prev[prev.length - 1];
           if (lastNew?.id !== lastPrev?.id) return msgs;
@@ -468,11 +487,20 @@ export default function MessagesPage() {
       } catch {
         // ignore - polling is best-effort
       }
-    }, 5000);
+    }, pollSpeed);
 
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedConversationId]);
+  }, [selectedConversationId, pollSpeed]);
+
+  // Speed up polling briefly after sending a message
+  const speedUpPolling = () => {
+    setPollSpeed(1000); // 1 second
+    setTimeout(() => setPollSpeed(2000), 5000); // Back to normal after 5s
+  };
 
   // Typing indicator is controlled by real events, not simulated
   // In production, this would be triggered by realtime presence events
@@ -496,6 +524,9 @@ export default function MessagesPage() {
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, optimisticMsg]);
+    
+    // Speed up polling to catch quick responses
+    speedUpPolling();
 
     try {
       await sendUserMessage(selectedConversationId, currentUserId, content);
