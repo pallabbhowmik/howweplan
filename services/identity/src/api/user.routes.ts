@@ -170,7 +170,11 @@ router.patch(
 
 /**
  * GET /users/:userId
- * Get a user by ID. Accessible to the user themselves, admins, or agents (for viewing client info).
+ * Get a user by ID. Accessible to:
+ * - The user themselves (owner)
+ * - Admins
+ * - Agents (can view client profiles for matched requests)
+ * - Users (can view agent profiles for proposals/bookings)
  */
 router.get(
   '/:userId',
@@ -184,8 +188,10 @@ router.get(
     const isOwner = authReq.identity.sub === userId;
     const isAdmin = authReq.identity.role === 'admin';
     const isAgent = authReq.identity.role === 'agent';
+    const isUser = authReq.identity.role === 'user';
 
-    if (!isOwner && !isAdmin && !isAgent) {
+    // First check basic permissions
+    if (!isOwner && !isAdmin && !isAgent && !isUser) {
       res.status(403).json({
         success: false,
         error: {
@@ -203,6 +209,20 @@ router.get(
 
       if (!user) {
         throw new UserNotFoundError(userId);
+      }
+
+      // Users can only view agent profiles, not other users
+      if (isUser && !isOwner && user.role !== 'agent') {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: 'IDENTITY_INSUFFICIENT_PERMISSIONS',
+            message: 'Users can only view agent profiles',
+          },
+          requestId: authReq.correlationId,
+          timestamp: new Date().toISOString(),
+        });
+        return;
       }
 
       sendSuccess(
