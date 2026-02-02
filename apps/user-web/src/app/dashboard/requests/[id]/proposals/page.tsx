@@ -255,7 +255,7 @@ export default function ProposalsPage() {
 
                   {/* Price Tag */}
                   <div className="text-right bg-white rounded-xl p-3 shadow-sm border">
-                    <p className="text-2xl font-bold text-slate-900">₹{proposal.totalPrice.toLocaleString('en-IN')}</p>
+                    <p className="text-2xl font-bold text-slate-900">₹{(proposal.pricing?.totalPrice || proposal.totalPrice || 0).toLocaleString('en-IN')}</p>
                     <p className="text-xs text-muted-foreground">Total Price</p>
                   </div>
                 </div>
@@ -317,9 +317,9 @@ export default function ProposalsPage() {
                   {/* Proposal Details */}
                   <div className="flex-1 space-y-4">
                     <div>
-                      <h4 className="font-semibold text-lg">{proposal.title}</h4>
-                      {proposal.description && (
-                        <p className="text-muted-foreground text-sm mt-1 line-clamp-2">{proposal.description}</p>
+                      <h4 className="font-semibold text-lg">{proposal.overview?.title || proposal.title}</h4>
+                      {(proposal.overview?.summary || proposal.description) && (
+                        <p className="text-muted-foreground text-sm mt-1 line-clamp-2">{proposal.overview?.summary || proposal.description}</p>
                       )}
                     </div>
 
@@ -327,7 +327,7 @@ export default function ProposalsPage() {
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center gap-4 text-sm">
                         <div className="flex items-center gap-1">
-                          <span className="font-semibold text-lg">₹{proposal.totalPrice.toLocaleString('en-IN')}</span>
+                          <span className="font-semibold text-lg">₹{(proposal.pricing?.totalPrice || proposal.totalPrice || 0).toLocaleString('en-IN')}</span>
                           <span className="text-muted-foreground">total</span>
                         </div>
                         {proposal.validUntil && (
@@ -341,7 +341,7 @@ export default function ProposalsPage() {
                       {/* Visual Budget Comparison */}
                       {request.budgetMin != null && request.budgetMax != null && (
                         <PriceBudgetComparison
-                          price={proposal.totalPrice}
+                          price={proposal.pricing?.totalPrice || proposal.totalPrice || 0}
                           budget={{
                             min: request.budgetMin,
                             max: request.budgetMax,

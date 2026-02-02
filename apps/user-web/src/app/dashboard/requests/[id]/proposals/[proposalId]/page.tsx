@@ -290,10 +290,10 @@ export default function ProposalDetailPage() {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-3xl font-bold mb-2">
-                {request.destination?.label || request.destination?.city || request.title}
+                {proposal.overview?.title || proposal.title || request.destination?.label || request.destination?.city || request.title}
               </h1>
               <p className="text-muted-foreground">
-                {proposal.itinerary?.length || 0} Days / {(proposal.itinerary?.length || 1) - 1} Nights
+                {proposal.overview?.numberOfDays || proposal.itinerary?.length || 0} Days / {proposal.overview?.numberOfNights ?? ((proposal.itinerary?.length || 1) - 1)} Nights
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -356,10 +356,10 @@ export default function ProposalDetailPage() {
             <div className="text-center mb-4">
               <p className="text-sm text-muted-foreground mb-1">Total Price</p>
               <p className="text-4xl font-bold text-green-600">
-                ₹{proposal.totalPrice.toLocaleString('en-IN')}
+                ₹{(proposal.pricing?.totalPrice || proposal.totalPrice || 0).toLocaleString('en-IN')}
               </p>
               <p className="text-sm text-muted-foreground">
-                ₹{Math.round(proposal.totalPrice / (proposal.itinerary?.length || 1)).toLocaleString('en-IN')} per day
+                ₹{Math.round((proposal.pricing?.totalPrice || proposal.totalPrice || 0) / (proposal.overview?.numberOfDays || proposal.itinerary?.length || 1)).toLocaleString('en-IN')} per day
               </p>
             </div>
 
@@ -367,7 +367,7 @@ export default function ProposalDetailPage() {
             {request.budgetMin != null && request.budgetMax != null && (
               <div className="mb-4">
                 <PriceBudgetComparison
-                  price={proposal.totalPrice}
+                  price={proposal.pricing?.totalPrice || proposal.totalPrice || 0}
                   budget={{
                     min: request.budgetMin,
                     max: request.budgetMax,
@@ -631,10 +631,10 @@ export default function ProposalDetailPage() {
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div>
             <p className="text-2xl font-bold text-green-600">
-              ₹{proposal.totalPrice.toLocaleString('en-IN')}
+              ₹{(proposal.pricing?.totalPrice || proposal.totalPrice || 0).toLocaleString('en-IN')}
             </p>
             <p className="text-sm text-muted-foreground">
-              {proposal.itinerary?.length || 0} Days
+              {proposal.overview?.numberOfDays || proposal.itinerary?.length || 0} Days
             </p>
           </div>
           <Button onClick={handleBookNow} size="lg">

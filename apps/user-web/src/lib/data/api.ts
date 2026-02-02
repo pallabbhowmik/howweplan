@@ -205,12 +205,50 @@ export interface Proposal {
   id: string;
   requestId: string;
   agentId: string;
+  travelerId?: string;
   status: string;
   title: string;
   description: string;
   totalPrice: number;
   currency: string;
   validUntil: string;
+  // Overview data from backend
+  overview?: {
+    title: string;
+    summary?: string;
+    startDate: string;
+    endDate: string;
+    numberOfDays: number;
+    numberOfNights: number;
+    destinations: string[];
+    travelersCount: number;
+    tripType?: string;
+  };
+  // Pricing data from backend
+  pricing?: {
+    currency: string;
+    totalPrice: number;
+    pricePerPerson?: number;
+    depositAmount?: number;
+    inclusions?: string[];
+    exclusions?: string[];
+    paymentTerms?: string;
+  };
+  // Items from backend (day-by-day activities)
+  items?: Array<{
+    id: string;
+    dayNumber: number;
+    type: string;
+    title: string;
+    description?: string;
+    startTime?: string;
+    endTime?: string;
+    location?: string;
+    priceCents?: number;
+    notes?: string;
+    confirmed: boolean;
+  }>;
+  // Legacy itinerary format for backward compatibility
   itinerary: Array<{
     day: number;
     title: string;
@@ -827,21 +865,101 @@ export async function fetchRequestProposals(requestId: string): Promise<Proposal
       return [];
     }
     
-    return proposals.map((p: any) => ({
-      id: p.id,
-      requestId: p.requestId || p.request_id,
-      agentId: p.agentId || p.agent_id,
-      status: p.status,
-      title: p.title || 'Travel Proposal',
-      description: p.description || '',
-      totalPrice: p.totalPrice || p.total_price || 0,
-      currency: p.currency || 'USD',
-      validUntil: p.validUntil || p.valid_until,
-      itinerary: p.itinerary || [],
-      inclusions: p.inclusions || [],
-      exclusions: p.exclusions || [],
-      createdAt: p.createdAt || p.created_at,
-      agent: p.agent,
+    // Map proposals with basic data first
+    const mappedProposals = proposals.map((p: any) => {
+      // Extract from overview (backend structure)
+      const overview = p.overview || {};
+      const pricing = p.pricing || {};
+      
+      // Build legacy itinerary format from items for backward compatibility
+      const items = p.items || [];
+      const groupedByDay: Record<number, any> = {};
+      items.forEach((item: any) => {
+        const day = item.dayNumber || 1;
+        if (!groupedByDay[day]) {
+          groupedByDay[day] = {
+            day,
+            title: `Day ${day}`,
+            description: '',
+            activities: [],
+          };
+        }
+        if (item.title) {
+          groupedByDay[day].activities.push(item.title);
+        }
+        if (item.description && !groupedByDay[day].description) {
+          groupedByDay[day].description = item.description;
+        }
+      });
+      
+      // Create itinerary array from overview data or items
+      const numberOfDays = overview.numberOfDays || Object.keys(groupedByDay).length || 0;
+      const itinerary = numberOfDays > 0 
+        ? Array.from({ length: numberOfDays }, (_, i) => 
+            groupedByDay[i + 1] || { day: i + 1, title: `Day ${i + 1}`, description: '', activities: [] }
+          )
+        : [];
+      
+      return {
+        id: p.id,
+        requestId: p.requestId || p.request_id,
+        agentId: p.agentId || p.agent_id,
+        travelerId: p.travelerId || p.traveler_id,
+        status: p.status,
+        title: overview.title || p.title || 'Travel Proposal',
+        description: overview.summary || p.description || '',
+        // Get totalPrice from pricing object (backend structure)
+        totalPrice: pricing.totalPrice || p.totalPrice || p.total_price || 0,
+        currency: pricing.currency || p.currency || 'INR',
+        validUntil: p.validUntil || p.valid_until,
+        // Include full structures from backend
+        overview: p.overview,
+        pricing: p.pricing,
+        items: p.items,
+        // Legacy format for backward compatibility
+        itinerary,
+        inclusions: pricing.inclusions || p.inclusions || [],
+        exclusions: pricing.exclusions || p.exclusions || [],
+        createdAt: p.createdAt || p.created_at,
+        agent: p.agent,
+      };
+    });
+    
+    // Fetch agent details for each proposal
+    const agentIds = [...new Set(mappedProposals.map(p => p.agentId).filter(Boolean))];
+    const agentDetails: Record<string, any> = {};
+    
+    await Promise.all(
+      agentIds.map(async (agentId) => {
+        try {
+          const agentResult = await gatewayRequest<any>(`/api/identity/api/v1/users/${agentId}`);
+          const agent = agentResult.data || agentResult;
+          if (agent) {
+            agentDetails[agentId] = {
+              id: agent.id,
+              fullName: agent.fullName || `${agent.firstName || ''} ${agent.lastName || ''}`.trim() || 'Travel Agent',
+              businessName: agent.businessName || agent.agencyName || null,
+              rating: agent.rating || 0,
+              avatarUrl: agent.avatarUrl || agent.avatar_url || null,
+              specializations: agent.specializations || [],
+              yearsOfExperience: agent.yearsOfExperience || 0,
+              tier: agent.tier || 'standard',
+              isVerified: agent.isVerified || false,
+              totalReviews: agent.totalReviews || 0,
+              responseTimeMinutes: agent.responseTimeMinutes || 0,
+              completedBookings: agent.completedBookings || 0,
+            };
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch agent ${agentId}:`, err);
+        }
+      })
+    );
+    
+    // Attach agent details to proposals
+    return mappedProposals.map(p => ({
+      ...p,
+      agent: agentDetails[p.agentId] || p.agent,
     }));
   } catch (error) {
     console.error('Error fetching proposals:', error);
