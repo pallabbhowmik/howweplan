@@ -244,16 +244,20 @@ export function useRequestUpdates(options: UseRequestUpdatesOptions): UseRequest
       if (!mountedRef.current) return;
 
       try {
-        // Fetch latest request state via API
-        const response = await fetch(`${apiConfig.baseUrl}/api/requests/${requestId}/status`, {
+        // Fetch latest request state via API (use GET request endpoint, not /status)
+        const response = await fetch(`${apiConfig.baseUrl}/api/requests/api/v1/requests/${requestId}`, {
           credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('tc_access_token') || ''}`,
+          },
         });
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
 
-        const data = await response.json();
+        const result = await response.json();
+        const data = result.data || result;
         
         // Create synthetic update event
         const event: RequestUpdateEvent = {
@@ -261,7 +265,7 @@ export function useRequestUpdates(options: UseRequestUpdatesOptions): UseRequest
           requestId,
           data: {
             state: data.state,
-            proposalCount: data.proposalCount,
+            proposalCount: data.proposalCount || 0,
             timestamp: new Date().toISOString(),
           },
         };

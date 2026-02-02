@@ -263,9 +263,10 @@ export const requestsApi = {
   /**
    * Cancel travel request
    */
-  cancelRequest: (requestId: string) =>
+  cancelRequest: (requestId: string, reason: string = 'Cancelled by user') =>
     apiRequest(`/api/requests/api/v1/requests/${requestId}/cancel`, {
       method: 'POST',
+      body: JSON.stringify({ reason }),
     }),
 };
 
