@@ -443,13 +443,13 @@ export const itinerariesApi = {
    * Get itinerary details
    */
   getItinerary: (itineraryId: string) =>
-    apiRequest(`/api/itineraries/${itineraryId}`),
+    apiRequest(`/api/itineraries/api/v1/itineraries/${itineraryId}`),
   
   /**
    * List itineraries for request
    */
   listForRequest: (requestId: string) =>
-    apiRequest(`/api/itineraries/request/${requestId}`),
+    apiRequest(`/api/itineraries/api/v1/itineraries/request/${requestId}`),
 };
 
 // ============================================================================

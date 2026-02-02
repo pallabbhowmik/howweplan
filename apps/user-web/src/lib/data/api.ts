@@ -819,7 +819,7 @@ export async function fetchAgents(filters?: {
 
 export async function fetchRequestProposals(requestId: string): Promise<Proposal[]> {
   try {
-    const result = await gatewayRequest<any>(`/api/itineraries/request/${requestId}`);
+    const result = await gatewayRequest<any>(`/api/itineraries/api/v1/itineraries/request/${requestId}`);
     const proposals = result.data || result || [];
     
     if (!Array.isArray(proposals)) {
