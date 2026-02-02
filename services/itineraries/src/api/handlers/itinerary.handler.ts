@@ -295,6 +295,9 @@ export class ItineraryHandler {
       console.log('[LIST] User:', { sub: user.sub, role: user.role });
       console.log('[LIST] Query:', query);
 
+      // Normalize role to uppercase for comparison
+      const normalizedRole = user.role?.toUpperCase();
+
       let itineraries: (Itinerary | ItineraryWithMeta)[];
       if (query.requestId) {
         console.log('[LIST] Fetching by requestId:', query.requestId);
@@ -305,15 +308,16 @@ export class ItineraryHandler {
       } else if (query.travelerId) {
         console.log('[LIST] Fetching by travelerId:', query.travelerId);
         itineraries = await this.itineraryService.getItinerariesForTraveler(query.travelerId);
-      } else if (user.role === 'AGENT') {
+      } else if (normalizedRole === 'AGENT') {
         // For agents, get their own itineraries by default
         console.log('[LIST] Fetching for agent user.sub:', user.sub);
         itineraries = await this.itineraryService.getItinerariesByAgent(user.sub);
-      } else if (user.role === 'TRAVELER') {
+      } else if (normalizedRole === 'TRAVELER' || normalizedRole === 'USER') {
+        // For travelers/users, get itineraries for them
         console.log('[LIST] Fetching for traveler user.sub:', user.sub);
         itineraries = await this.itineraryService.getItinerariesForTraveler(user.sub);
       } else {
-        console.log('[LIST] No filter matched, returning empty');
+        console.log('[LIST] No filter matched, role:', user.role, 'returning empty');
         itineraries = [];
       }
 
