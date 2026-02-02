@@ -49,12 +49,14 @@ import { getAgentItineraryById, type AgentItinerary } from '@/lib/data/agent';
 // UTILITY FUNCTIONS
 // ============================================================================
 
-function formatCurrency(cents: number, currency = 'INR'): string {
+function formatCurrency(amount: number, currency = 'INR'): string {
+  // Amount is stored as whole currency units (not cents/paise)
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency,
     minimumFractionDigits: 0,
-  }).format(cents / 100);
+    maximumFractionDigits: 0,
+  }).format(amount);
 }
 
 function formatDate(dateStr: string): string {

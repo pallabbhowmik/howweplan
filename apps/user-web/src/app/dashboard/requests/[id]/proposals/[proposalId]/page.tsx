@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   ArrowLeft,
   Star,
@@ -17,100 +16,61 @@ import {
   Award,
   MapPin,
   Users,
-  Phone,
-  Mail,
-  Globe,
-  Heart,
   Share2,
-  Bookmark,
-  ChevronDown,
-  ChevronUp,
   Info,
   AlertCircle,
   CreditCard,
+  Plane,
+  Hotel,
+  Camera,
+  Utensils,
+  Sparkles,
+  BadgeCheck,
+  TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 import { useUserSession } from '@/lib/user/session';
 import { fetchRequest, fetchRequestProposals, type TravelRequest, type Proposal } from '@/lib/data/api';
 import { bookingsApi } from '@/lib/api/client';
-import { PriceBudgetComparison } from '@/components/trust/PriceBudgetComparison';
-import { ItineraryTemplateEnhanced, type ItineraryDay, type ItineraryItem, type TimeOfDay, type ItemCategory } from '@/components/trust/ItineraryTemplateEnhanced';
-import { ResponseTimeIndicator } from '@/components/trust/ResponseTimeIndicator';
 import { WishlistButton } from '@/components/trust/WishlistButton';
 
 // =============================================================================
-// HELPER: Transform proposal itinerary to enhanced format
+// UTILITY FUNCTIONS
 // =============================================================================
 
-function transformItinerary(proposal: Proposal): ItineraryDay[] {
-  if (!proposal.itinerary || proposal.itinerary.length === 0) {
-    return [];
-  }
+function formatCurrency(amount: number, currency = 'INR'): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
 
-  return proposal.itinerary.map((day, index) => {
-    // Parse activities from the day data
-    const items: ItineraryItem[] = [];
-    
-    // Parse activities from the activities array
-    const activities = day.activities || [];
-    activities.forEach((activity: string, actIndex: number) => {
-      const timeSlots: TimeOfDay[] = ['morning', 'afternoon', 'evening'];
-      const categories: ItemCategory[] = [
-        'activity', 'sightseeing', 'cultural', 'adventure', 'leisure'
-      ];
-      
-      items.push({
-        id: `${index}-act-${actIndex}`,
-        timeOfDay: timeSlots[actIndex % timeSlots.length] || 'morning',
-        category: categories[actIndex % categories.length] || 'activity',
-        title: activity,
-        description: `Exciting activity planned for your journey`,
-        locationArea: day.title || `Day ${index + 1}`,
-        durationMinutes: 120,
-        starRating: null,
-        included: true,
-      });
-    });
-
-    // If no activities were parsed, add placeholder items based on description
-    if (items.length === 0) {
-      items.push(
-        {
-          id: `${index}-morning`,
-          timeOfDay: 'morning',
-          category: 'sightseeing',
-          title: 'Morning Exploration',
-          description: day.description || 'Discover local attractions and hidden gems',
-          locationArea: day.title || `Day ${index + 1}`,
-          durationMinutes: 180,
-          starRating: null,
-          included: true,
-        },
-        {
-          id: `${index}-afternoon`,
-          timeOfDay: 'afternoon',
-          category: 'activity',
-          title: 'Afternoon Adventure',
-          description: 'Engaging activities planned for the afternoon',
-          locationArea: day.title || `Day ${index + 1}`,
-          durationMinutes: 180,
-          starRating: null,
-          included: true,
-        }
-      );
-    }
-
-    return {
-      dayNumber: index + 1,
-      title: day.title || `Day ${index + 1}`,
-      subtitle: day.description?.substring(0, 60),
-      description: day.description,
-      items,
-    };
+function formatDate(dateStr: string): string {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
   });
+}
+
+function getActivityIcon(type: string) {
+  const icons: Record<string, React.ReactNode> = {
+    flight: <Plane className="h-4 w-4" />,
+    hotel: <Hotel className="h-4 w-4" />,
+    sightseeing: <Camera className="h-4 w-4" />,
+    meal: <Utensils className="h-4 w-4" />,
+    activity: <Sparkles className="h-4 w-4" />,
+    transfer: <Plane className="h-4 w-4" />,
+  };
+  return icons[type?.toLowerCase()] || <Sparkles className="h-4 w-4" />;
 }
 
 // =============================================================================
@@ -129,9 +89,7 @@ export default function ProposalDetailPage() {
   const [loading, setLoading] = useState(true);
   const [bookingInProgress, setBookingInProgress] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('itinerary');
-  const [showAllInclusions, setShowAllInclusions] = useState(false);
-  const [showAllExclusions, setShowAllExclusions] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     const loadData = async () => {
@@ -144,6 +102,7 @@ export default function ProposalDetailPage() {
         setRequest(requestData);
         
         const foundProposal = proposalsData.find(p => p.id === proposalId);
+        console.log('Loaded proposal data:', JSON.stringify(foundProposal, null, 2));
         setProposal(foundProposal || null);
       } catch (error) {
         console.error('Error loading proposal:', error);
@@ -155,42 +114,37 @@ export default function ProposalDetailPage() {
     loadData();
   }, [requestId, proposalId]);
 
-  // Transform itinerary data
-  const enhancedDays = useMemo(() => {
-    if (!proposal) return [];
-    return transformItinerary(proposal);
-  }, [proposal]);
+  // Extract data safely from backend structure
+  const overview = proposal?.overview || {};
+  const pricing = proposal?.pricing || {};
+  const items = proposal?.items || [];
+  
+  // Calculate values - prices are stored as whole currency (not cents)
+  const totalPrice = pricing.totalPrice || proposal?.totalPrice || 0;
+  const numberOfDays = overview.numberOfDays || proposal?.itinerary?.length || 0;
+  const numberOfNights = overview.numberOfNights ?? (numberOfDays > 0 ? numberOfDays - 1 : 0);
+  const pricePerDay = numberOfDays > 0 ? Math.round(totalPrice / numberOfDays) : 0;
+  const pricePerPerson = pricing.pricePerPerson || 0;
+  const depositAmount = pricing.depositAmount || Math.round(totalPrice * 0.2);
+  const currency = pricing.currency || 'INR';
+  const destinations = overview.destinations || [];
+  const travelersCount = overview.travelersCount || 2;
+  const tripType = overview.tripType || 'Leisure';
+  
+  // Budget comparison
+  const budgetMin = request?.budgetMin || 0;
+  const budgetMax = request?.budgetMax || totalPrice;
+  const budgetProgress = budgetMax > 0 ? Math.min((totalPrice / budgetMax) * 100, 100) : 0;
+  const isUnderBudget = totalPrice <= budgetMax;
+  const savingsAmount = budgetMax - totalPrice;
 
-  // Check if price is within budget
-  const isWithinBudget = useMemo(() => {
-    if (!request || !proposal) return true;
-    if (request.budgetMin == null || request.budgetMax == null) return true;
-    return proposal.totalPrice >= request.budgetMin && proposal.totalPrice <= request.budgetMax;
-  }, [request, proposal]);
-
-  if (userLoading || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
-    );
-  }
-
-  if (!request || !proposal) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Proposal Not Found</h2>
-        <p className="text-muted-foreground mb-4">The proposal you&apos;re looking for doesn&apos;t exist.</p>
-        <Link href={`/dashboard/requests/${requestId}/proposals`}>
-          <Button>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Proposals
-          </Button>
-        </Link>
-      </div>
-    );
-  }
+  // Group items by day
+  const itemsByDay: Record<number, typeof items> = {};
+  items.forEach((item) => {
+    const day = item.dayNumber || 1;
+    if (!itemsByDay[day]) itemsByDay[day] = [];
+    itemsByDay[day].push(item);
+  });
 
   const handleBookNow = async () => {
     if (!user || !request || !proposal) {
@@ -202,42 +156,27 @@ export default function ProposalDetailPage() {
     setBookingError(null);
 
     try {
-      // Get destination info from request
       const destination = request.destination || {};
       const destinationCity = destination.city || destination.label || 'Unknown City';
       const destinationCountry = destination.country || 'Unknown Country';
-
-      // Calculate dates
       const defaultDate = new Date().toISOString().split('T')[0] as string;
-      const tripStartDate = (request.departureDate || defaultDate) as string;
-      const tripEndDate = (request.returnDate || tripStartDate) as string;
+      const tripStartDate = overview.startDate || request.departureDate || defaultDate;
+      const tripEndDate = overview.endDate || request.returnDate || tripStartDate;
 
-      // Get traveler count from travelers field
-      let travelerCount = 1;
-      if (request.travelers) {
-        if (typeof request.travelers === 'number') {
-          travelerCount = request.travelers;
-        } else if (typeof request.travelers === 'object') {
-          const t = request.travelers as any;
-          travelerCount = (t.adults || 0) + (t.children || 0) + (t.infants || 0) || 1;
-        }
-      }
+      // Convert to cents for API (price stored as whole currency)
+      const basePriceCents = Math.round(totalPrice * 100);
 
-      // Convert price to cents (API expects cents)
-      const basePriceCents = Math.round(proposal.totalPrice * 100);
-
-      // Create booking
       const bookingResult = await bookingsApi.createBooking({
         userId: user.userId,
         agentId: proposal.agentId,
-        itineraryId: proposal.id, // Using proposal ID as itinerary ID
+        itineraryId: proposal.id,
         tripStartDate,
         tripEndDate,
         destinationCity,
         destinationCountry,
-        travelerCount,
+        travelerCount: travelersCount,
         basePriceCents,
-      }) as { data?: { id?: string; bookingId?: string }; id?: string; bookingId?: string };
+      }) as any;
 
       const bookingData = bookingResult?.data || bookingResult;
       const bookingId = bookingData?.id || bookingData?.bookingId;
@@ -246,21 +185,18 @@ export default function ProposalDetailPage() {
         throw new Error('Failed to create booking - no booking ID returned');
       }
 
-      // Create checkout session
       const checkoutResult = await bookingsApi.createCheckout({
         bookingId,
         successUrl: `${window.location.origin}/dashboard/bookings/${bookingId}/success`,
         cancelUrl: `${window.location.origin}/dashboard/requests/${requestId}/proposals/${proposalId}?cancelled=true`,
-      }) as { data?: { url?: string; checkoutUrl?: string }; url?: string; checkoutUrl?: string };
+      }) as any;
 
       const checkoutData = checkoutResult?.data || checkoutResult;
       const checkoutUrl = checkoutData?.url || checkoutData?.checkoutUrl;
 
       if (checkoutUrl) {
-        // Redirect to payment page
         window.location.href = checkoutUrl;
       } else {
-        // If no checkout URL, redirect to booking details
         router.push(`/dashboard/bookings/${bookingId}`);
       }
     } catch (error: any) {
@@ -271,374 +207,573 @@ export default function ProposalDetailPage() {
     }
   };
 
+  if (userLoading || loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading your proposal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!request || !proposal) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <AlertCircle className="h-16 w-16 text-gray-300 mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Proposal Not Found</h2>
+        <p className="text-muted-foreground mb-6">The proposal you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+        <Link href={`/dashboard/requests/${requestId}/proposals`}>
+          <Button>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Proposals
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 pb-24">
-      {/* Back Button */}
-      <Link 
-        href={`/dashboard/requests/${requestId}/proposals`} 
-        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4 mr-1" />
-        Back to All Proposals
-      </Link>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-32">
+      {/* Hero Section */}
+      <div className="relative bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white">
+        <div className="absolute inset-0 bg-black/20" />
+        <div className="relative max-w-6xl mx-auto px-4 py-8">
+          {/* Back Button */}
+          <Link 
+            href={`/dashboard/requests/${requestId}/proposals`} 
+            className="inline-flex items-center text-white/80 hover:text-white mb-6 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to All Proposals
+          </Link>
 
-
-      {/* Header Section */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Main Info */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">
-                {proposal.overview?.title || proposal.title || request.destination?.label || request.destination?.city || request.title}
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Left: Trip Info */}
+            <div className="lg:col-span-2 space-y-4">
+              <div className="flex flex-wrap gap-2 mb-3">
+                <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm">
+                  {tripType}
+                </Badge>
+                {proposal.agent?.tier === 'star' && (
+                  <Badge className="bg-amber-400/90 text-amber-900 border-none">
+                    <Star className="h-3 w-3 mr-1 fill-current" />
+                    Star Agent
+                  </Badge>
+                )}
+              </div>
+              
+              <h1 className="text-4xl lg:text-5xl font-bold tracking-tight">
+                {overview.title || proposal.title || 'Your Dream Trip'}
               </h1>
-              <p className="text-muted-foreground">
-                {proposal.overview?.numberOfDays || proposal.itinerary?.length || 0} Days / {proposal.overview?.numberOfNights ?? ((proposal.itinerary?.length || 1) - 1)} Nights
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <WishlistButton
-                itemType="proposal"
-                itemId={proposal.id}
-                itemName={`${request.destination?.label || 'Trip'} by ${proposal.agent?.fullName || 'Agent'}`}
-                variant="heart"
-              />
-              <Button variant="outline" size="icon">
-                <Share2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+              
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-white/90 text-lg">
+                <span className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  {destinations.length > 0 ? destinations.join(' → ') : (request.destination?.label || 'Multiple Destinations')}
+                </span>
+                <span className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  {numberOfDays} Days, {numberOfNights} Nights
+                </span>
+                <span className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  {travelersCount} Travelers
+                </span>
+              </div>
 
-          {/* Agent Card */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold">
-                  {proposal.agent?.fullName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'AG'}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-lg">{proposal.agent?.fullName || 'Travel Agent'}</h3>
-                    {proposal.agent?.yearsOfExperience && proposal.agent.yearsOfExperience >= 5 && (
-                      <Badge variant="secondary" className="gap-1">
-                        <Shield className="h-3 w-3" />
-                        Experienced
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                    {proposal.agent?.rating && (
-                      <span className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        {proposal.agent.rating.toFixed(1)}
-                      </span>
-                    )}
-                    {proposal.agent?.yearsOfExperience && (
-                      <span>{proposal.agent.yearsOfExperience} years experience</span>
-                    )}
-                    {proposal.agent?.businessName && (
-                      <span>{proposal.agent.businessName}</span>
-                    )}
-                  </div>
-                </div>
-                <Button variant="outline" size="sm">
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Message
+              {overview.summary && (
+                <p className="text-white/80 text-lg max-w-2xl mt-4">
+                  {overview.summary}
+                </p>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-3 mt-6">
+                <WishlistButton
+                  itemType="proposal"
+                  itemId={proposal.id}
+                  itemName={overview.title || 'Trip'}
+                  variant="heart"
+                />
+                <Button variant="secondary" size="sm" className="gap-2">
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </Button>
+                <Button variant="secondary" size="sm" className="gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Contact Agent
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Price Card */}
-        <Card className="lg:row-span-1">
-          <CardContent className="p-6">
-            <div className="text-center mb-4">
-              <p className="text-sm text-muted-foreground mb-1">Total Price</p>
-              <p className="text-4xl font-bold text-green-600">
-                ₹{(proposal.pricing?.totalPrice || proposal.totalPrice || 0).toLocaleString('en-IN')}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                ₹{Math.round((proposal.pricing?.totalPrice || proposal.totalPrice || 0) / (proposal.overview?.numberOfDays || proposal.itinerary?.length || 1)).toLocaleString('en-IN')} per day
-              </p>
             </div>
 
-            {/* Budget Comparison */}
-            {request.budgetMin != null && request.budgetMax != null && (
-              <div className="mb-4">
-                <PriceBudgetComparison
-                  price={proposal.pricing?.totalPrice || proposal.totalPrice || 0}
-                  budget={{
-                    min: request.budgetMin,
-                    max: request.budgetMax,
-                    currency: request.budgetCurrency || 'INR',
-                  }}
-                  variant="default"
-                  showProgressBar={true}
-                />
-              </div>
-            )}
+            {/* Right: Price Card */}
+            <div className="lg:col-span-1">
+              <Card className="shadow-2xl border-0 overflow-hidden">
+                <div className="bg-gradient-to-br from-emerald-500 to-green-600 p-6 text-white">
+                  <p className="text-sm font-medium opacity-90 mb-1">Total Package Price</p>
+                  <p className="text-5xl font-bold tracking-tight">
+                    {formatCurrency(totalPrice, currency)}
+                  </p>
+                  <p className="text-sm opacity-90 mt-1">
+                    {formatCurrency(pricePerDay, currency)}/day • {formatCurrency(Math.round(totalPrice / travelersCount), currency)}/person
+                  </p>
+                </div>
+                
+                <CardContent className="p-6 space-y-4">
+                  {/* Budget Comparison */}
+                  {budgetMax > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Budget Usage</span>
+                        <span className={isUnderBudget ? 'text-green-600 font-medium' : 'text-amber-600 font-medium'}>
+                          {Math.round(budgetProgress)}% of max budget
+                        </span>
+                      </div>
+                      <Progress value={budgetProgress} className="h-2" />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{formatCurrency(budgetMin, currency)}</span>
+                        <span>{formatCurrency(budgetMax, currency)}</span>
+                      </div>
+                      {isUnderBudget && savingsAmount > 0 && (
+                        <div className="flex items-center gap-2 text-green-600 text-sm bg-green-50 rounded-lg p-2">
+                          <TrendingUp className="h-4 w-4" />
+                          <span className="font-medium">{formatCurrency(savingsAmount, currency)} under budget!</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-            {proposal.validUntil && (
-              <div className="flex items-center justify-center gap-2 text-sm text-amber-600 bg-amber-50 rounded-lg p-2 mb-4">
-                <Clock className="h-4 w-4" />
-                Valid until {new Date(proposal.validUntil).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </div>
-            )}
+                  {/* Price Breakdown */}
+                  <div className="border-t pt-4 space-y-2">
+                    {pricePerPerson > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Per Person</span>
+                        <span className="font-medium">{formatCurrency(pricePerPerson, currency)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Deposit Required</span>
+                      <span className="font-medium">{formatCurrency(depositAmount, currency)}</span>
+                    </div>
+                  </div>
 
-            {bookingError && (
-              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-lg p-2 mb-4">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                {bookingError}
-              </div>
-            )}
+                  {bookingError && (
+                    <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-lg p-3">
+                      <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                      {bookingError}
+                    </div>
+                  )}
 
-            <Button 
-              onClick={handleBookNow} 
-              className="w-full" 
-              size="lg"
-              disabled={bookingInProgress}
-            >
-              {bookingInProgress ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Book This Trip
-                </>
-              )}
-            </Button>
-            
-            <p className="text-xs text-center text-muted-foreground mt-3">
-              Secure payment • Free cancellation available
-            </p>
+                  <Button 
+                    onClick={handleBookNow} 
+                    className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    disabled={bookingInProgress}
+                  >
+                    {bookingInProgress ? (
+                      <>
+                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="h-5 w-5 mr-2" />
+                        Book This Trip
+                      </>
+                    )}
+                  </Button>
+                  
+                  <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-2">
+                    <Shield className="h-3 w-3" />
+                    Secure payment • Free cancellation available
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Agent Card */}
+      <div className="max-w-6xl mx-auto px-4 -mt-4 relative z-10">
+        <Card className="shadow-lg border-0">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold shadow-lg">
+                {proposal.agent?.fullName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'AG'}
+              </div>
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <h3 className="font-bold text-xl">{proposal.agent?.fullName || 'Travel Expert'}</h3>
+                  {proposal.agent?.isVerified && (
+                    <BadgeCheck className="h-5 w-5 text-blue-500" />
+                  )}
+                  {proposal.agent?.tier === 'star' && (
+                    <Badge className="bg-amber-100 text-amber-700 border-amber-200">
+                      <Star className="h-3 w-3 mr-1 fill-amber-500 text-amber-500" />
+                      Star Agent
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                  {proposal.agent?.rating && proposal.agent.rating > 0 && (
+                    <span className="flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="font-medium text-foreground">{proposal.agent.rating.toFixed(1)}</span>
+                      {proposal.agent.totalReviews && (
+                        <span>({proposal.agent.totalReviews} reviews)</span>
+                      )}
+                    </span>
+                  )}
+                  {proposal.agent?.yearsOfExperience && proposal.agent.yearsOfExperience > 0 && (
+                    <span className="flex items-center gap-1">
+                      <Award className="h-4 w-4 text-blue-500" />
+                      {proposal.agent.yearsOfExperience} years experience
+                    </span>
+                  )}
+                  {proposal.agent?.completedBookings && proposal.agent.completedBookings > 0 && (
+                    <span className="flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      {proposal.agent.completedBookings} trips completed
+                    </span>
+                  )}
+                </div>
+                {proposal.agent?.businessName && (
+                  <p className="text-sm text-muted-foreground mt-1">{proposal.agent.businessName}</p>
+                )}
+              </div>
+              <Button variant="outline" className="gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Message Agent
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs Section */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
-          <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
-          <TabsTrigger value="inclusions">What&apos;s Included</TabsTrigger>
-          <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="reviews">Reviews</TabsTrigger>
-        </TabsList>
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-4 mt-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex h-auto p-1 bg-slate-100 rounded-xl">
+            <TabsTrigger value="overview" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm py-2.5">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="itinerary" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm py-2.5">
+              Day-by-Day
+            </TabsTrigger>
+            <TabsTrigger value="inclusions" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm py-2.5">
+              Inclusions
+            </TabsTrigger>
+            <TabsTrigger value="reviews" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm py-2.5">
+              Reviews
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Itinerary Tab */}
-        <TabsContent value="itinerary" className="space-y-4">
-          {enhancedDays.length > 0 ? (
-            <ItineraryTemplateEnhanced
-              title={`${request.destination?.label || 'Your Trip'} Itinerary`}
-              subtitle={`Curated by ${proposal.agent?.fullName || 'our expert agent'}`}
-              heroImage="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1200"
-              totalDays={enhancedDays.length}
-              days={enhancedDays}
-              highlights={proposal.inclusions?.slice(0, 5)}
-              includedItems={proposal.inclusions}
-              excludedItems={proposal.exclusions}
-              isRevealed={false}
-              variant="default"
-              onSave={() => console.log('Save itinerary')}
-              onShare={() => console.log('Share itinerary')}
-            />
-          ) : (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="text-lg font-semibold mb-2">Itinerary Preview</h3>
-                <p className="text-muted-foreground">
-                  Detailed day-by-day itinerary will be shared after booking.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100">
+                <CardContent className="p-4">
+                  <Calendar className="h-8 w-8 text-blue-600 mb-2" />
+                  <p className="text-sm text-blue-600 font-medium">Duration</p>
+                  <p className="text-2xl font-bold text-blue-900">{numberOfDays}D / {numberOfNights}N</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-100">
+                <CardContent className="p-4">
+                  <CreditCard className="h-8 w-8 text-green-600 mb-2" />
+                  <p className="text-sm text-green-600 font-medium">Total Price</p>
+                  <p className="text-2xl font-bold text-green-900">{formatCurrency(totalPrice, currency)}</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-purple-50 to-violet-50 border-purple-100">
+                <CardContent className="p-4">
+                  <Users className="h-8 w-8 text-purple-600 mb-2" />
+                  <p className="text-sm text-purple-600 font-medium">Travelers</p>
+                  <p className="text-2xl font-bold text-purple-900">{travelersCount} person(s)</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-100">
+                <CardContent className="p-4">
+                  <MapPin className="h-8 w-8 text-amber-600 mb-2" />
+                  <p className="text-sm text-amber-600 font-medium">Destinations</p>
+                  <p className="text-2xl font-bold text-amber-900">{destinations.length || 1} place(s)</p>
+                </CardContent>
+              </Card>
+            </div>
 
-        {/* Inclusions Tab */}
-        <TabsContent value="inclusions" className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Included */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-green-700">
-                  <CheckCircle className="h-5 w-5" />
-                  What&apos;s Included
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  {(showAllInclusions 
-                    ? proposal.inclusions 
-                    : proposal.inclusions?.slice(0, 6)
-                  )?.map((item, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
-                      <span className="text-sm">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                {proposal.inclusions && proposal.inclusions.length > 6 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="mt-3 w-full"
-                    onClick={() => setShowAllInclusions(!showAllInclusions)}
-                  >
-                    {showAllInclusions ? (
-                      <>Show Less <ChevronUp className="h-4 w-4 ml-1" /></>
-                    ) : (
-                      <>Show All ({proposal.inclusions.length}) <ChevronDown className="h-4 w-4 ml-1" /></>
-                    )}
-                  </Button>
-                )}
-                {(!proposal.inclusions || proposal.inclusions.length === 0) && (
-                  <p className="text-muted-foreground text-sm">Details will be shared after booking</p>
-                )}
-              </CardContent>
-            </Card>
+            {/* Trip Summary */}
+            {overview.summary && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Info className="h-5 w-5 text-blue-600" />
+                    Trip Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground leading-relaxed">{overview.summary}</p>
+                </CardContent>
+              </Card>
+            )}
 
-            {/* Excluded */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-red-700">
-                  <XCircle className="h-5 w-5" />
-                  Not Included
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  {(showAllExclusions 
-                    ? proposal.exclusions 
-                    : proposal.exclusions?.slice(0, 6)
-                  )?.map((item, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <XCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-                      <span className="text-sm">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                {proposal.exclusions && proposal.exclusions.length > 6 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="mt-3 w-full"
-                    onClick={() => setShowAllExclusions(!showAllExclusions)}
-                  >
-                    {showAllExclusions ? (
-                      <>Show Less <ChevronUp className="h-4 w-4 ml-1" /></>
-                    ) : (
-                      <>Show All ({proposal.exclusions.length}) <ChevronDown className="h-4 w-4 ml-1" /></>
-                    )}
-                  </Button>
-                )}
-                {(!proposal.exclusions || proposal.exclusions.length === 0) && (
-                  <p className="text-muted-foreground text-sm">All standard items included</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Details Tab */}
-        <TabsContent value="details" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Trip Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <Calendar className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Duration</p>
-                    <p className="font-medium">{proposal.itinerary?.length || 0} Days</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <Users className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Travelers</p>
-                    <p className="font-medium">{request.travelers?.adults || 2} Adults, {request.travelers?.children || 0} Children</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <MapPin className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Destination</p>
-                    <p className="font-medium">{request.destination?.label || request.destination?.city || 'To be confirmed'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <Award className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Agent Specialization</p>
-                    <p className="font-medium capitalize">
-                      {proposal.agent?.specializations?.[0] || 'Custom Travel'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {proposal.description && (
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <Info className="h-5 w-5 text-blue-600 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-blue-900 mb-1">About This Proposal</p>
-                      <p className="text-sm text-blue-800">{proposal.description}</p>
+            {/* Travel Dates */}
+            {(overview.startDate || overview.endDate) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-blue-600" />
+                    Travel Dates
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex-1 min-w-[200px]">
+                      <p className="text-sm text-muted-foreground mb-1">Departure</p>
+                      <p className="text-lg font-semibold">{formatDate(overview.startDate || '')}</p>
+                    </div>
+                    <div className="hidden sm:block text-2xl text-muted-foreground">→</div>
+                    <div className="flex-1 min-w-[200px]">
+                      <p className="text-sm text-muted-foreground mb-1">Return</p>
+                      <p className="text-lg font-semibold">{formatDate(overview.endDate || '')}</p>
                     </div>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                </CardContent>
+              </Card>
+            )}
 
-        {/* Reviews Tab */}
-        <TabsContent value="reviews" className="space-y-6">
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Star className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-              <h3 className="text-lg font-semibold mb-2">Agent Reviews</h3>
-              <p className="text-muted-foreground mb-4">
-                {proposal.agent?.yearsOfExperience 
-                  ? `${proposal.agent.yearsOfExperience} years of experience`
-                  : 'New agent on the platform'
-                }
-              </p>
-              {proposal.agent?.rating && (
-                <div className="flex items-center justify-center gap-2">
-                  <Star className="h-6 w-6 fill-yellow-400 text-yellow-400" />
-                  <span className="text-2xl font-bold">{proposal.agent.rating.toFixed(1)}</span>
-                  <span className="text-muted-foreground">/ 5.0</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            {/* Itinerary Highlights */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-amber-500" />
+                  Itinerary Highlights
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {items.length > 0 ? (
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {items.slice(0, 6).map((item, index) => (
+                      <div key={item.id || index} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                          {getActivityIcon(item.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{item.title}</p>
+                          <p className="text-xs text-muted-foreground">Day {item.dayNumber}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-4">
+                    Detailed itinerary highlights will be shared after booking confirmation.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-      {/* Sticky Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 lg:hidden z-50">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          {/* Itinerary Tab */}
+          <TabsContent value="itinerary" className="space-y-6">
+            {Object.keys(itemsByDay).length > 0 ? (
+              Object.entries(itemsByDay).map(([dayNum, dayItems]) => (
+                <Card key={dayNum} className="overflow-hidden">
+                  <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b">
+                    <CardTitle className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
+                        {dayNum}
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold">Day {dayNum}</p>
+                        <p className="text-sm text-muted-foreground font-normal">
+                          {dayItems.length} activities planned
+                        </p>
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y">
+                      {dayItems.map((item, index) => (
+                        <div key={item.id || index} className="p-4 hover:bg-slate-50 transition-colors">
+                          <div className="flex items-start gap-4">
+                            <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                              {getActivityIcon(item.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-semibold">{item.title}</h4>
+                                {item.confirmed && (
+                                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                                    Confirmed
+                                  </Badge>
+                                )}
+                              </div>
+                              {item.description && (
+                                <p className="text-sm text-muted-foreground mb-2">{item.description}</p>
+                              )}
+                              <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                                {item.startTime && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {item.startTime}
+                                    {item.endTime && ` - ${item.endTime}`}
+                                  </span>
+                                )}
+                                {item.location && (
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    {item.location}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <Card>
+                <CardContent className="py-16 text-center">
+                  <Calendar className="h-16 w-16 mx-auto mb-4 text-slate-200" />
+                  <h3 className="text-xl font-semibold mb-2">Day-by-Day Itinerary</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Your detailed daily itinerary with activities, timings, and locations will be shared after you confirm your booking.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Inclusions Tab */}
+          <TabsContent value="inclusions" className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card className="border-green-200">
+                <CardHeader className="bg-green-50 border-b border-green-100">
+                  <CardTitle className="flex items-center gap-2 text-green-700">
+                    <CheckCircle className="h-5 w-5" />
+                    What&apos;s Included
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {(pricing.inclusions || proposal.inclusions || []).length > 0 ? (
+                    <ul className="space-y-3">
+                      {(pricing.inclusions || proposal.inclusions || []).map((item, index) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <CheckCircle className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-4">
+                      Inclusion details will be shared after booking.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-red-200">
+                <CardHeader className="bg-red-50 border-b border-red-100">
+                  <CardTitle className="flex items-center gap-2 text-red-700">
+                    <XCircle className="h-5 w-5" />
+                    Not Included
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {(pricing.exclusions || proposal.exclusions || []).length > 0 ? (
+                    <ul className="space-y-3">
+                      {(pricing.exclusions || proposal.exclusions || []).map((item, index) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <XCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-4">
+                      All standard items are included in this package.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {pricing.paymentTerms && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-blue-600" />
+                    Payment Terms
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">{pricing.paymentTerms}</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Reviews Tab */}
+          <TabsContent value="reviews" className="space-y-6">
+            <Card>
+              <CardContent className="py-16 text-center">
+                <div className="h-20 w-20 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                  <Star className="h-10 w-10 text-amber-500" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Agent Reviews</h3>
+                {proposal.agent?.rating && proposal.agent.rating > 0 ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-center gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star 
+                          key={star}
+                          className={`h-8 w-8 ${
+                            star <= Math.round(proposal.agent?.rating || 0)
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'fill-gray-200 text-gray-200'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-3xl font-bold">{proposal.agent.rating.toFixed(1)}</p>
+                    <p className="text-muted-foreground">
+                      Based on {proposal.agent.totalReviews || 0} reviews
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">
+                    This agent is new to our platform. Be among the first to book!
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Sticky Bottom Bar (Mobile) */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t shadow-lg p-4 lg:hidden z-50">
+        <div className="flex items-center justify-between max-w-xl mx-auto gap-4">
           <div>
             <p className="text-2xl font-bold text-green-600">
-              ₹{(proposal.pricing?.totalPrice || proposal.totalPrice || 0).toLocaleString('en-IN')}
+              {formatCurrency(totalPrice, currency)}
             </p>
             <p className="text-sm text-muted-foreground">
-              {proposal.overview?.numberOfDays || proposal.itinerary?.length || 0} Days
+              {numberOfDays} Days • {travelersCount} travelers
             </p>
           </div>
-          <Button onClick={handleBookNow} size="lg">
-            Book This Trip
+          <Button 
+            onClick={handleBookNow} 
+            size="lg" 
+            className="px-8 bg-gradient-to-r from-blue-600 to-indigo-600"
+            disabled={bookingInProgress}
+          >
+            {bookingInProgress ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Book Now'}
           </Button>
         </div>
       </div>
