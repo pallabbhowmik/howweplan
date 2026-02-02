@@ -530,9 +530,26 @@ export async function fetchUserRequests(userId: string): Promise<TravelRequest[]
 
 export async function fetchRequest(requestId: string): Promise<TravelRequest | null> {
   try {
+    // Fetch request details
     const result = await gatewayRequest<any>(`/api/requests/api/v1/requests/${requestId}`);
     const data = result.data || result;
-    return mapRequestFromApi(data);
+    const request = mapRequestFromApi(data);
+    
+    // Fetch itinerary count for this request (to show agents responded)
+    try {
+      const itinerariesResult = await gatewayRequest<any>(`/api/itineraries/api/v1/itineraries?requestId=${requestId}`);
+      const itineraries = itinerariesResult?.items || itinerariesResult || [];
+      if (Array.isArray(itineraries)) {
+        // Count unique agents who submitted itineraries
+        const uniqueAgents = new Set(itineraries.map((i: any) => i.agentId || i.agent_id).filter(Boolean));
+        request.agentsResponded = uniqueAgents.size;
+      }
+    } catch (itinError) {
+      console.warn('Could not fetch itineraries count:', itinError);
+      // Keep the original agentsResponded value (0 by default)
+    }
+    
+    return request;
   } catch (error) {
     console.error('Error fetching request:', error);
     return null;
