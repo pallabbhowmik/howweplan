@@ -292,21 +292,32 @@ export class ItineraryHandler {
       const user = (req as AuthenticatedRequest).user;
       const query = listItinerariesQuerySchema.parse(req.query);
 
+      console.log('[LIST] User:', { sub: user.sub, role: user.role });
+      console.log('[LIST] Query:', query);
+
       let itineraries: (Itinerary | ItineraryWithMeta)[];
       if (query.requestId) {
+        console.log('[LIST] Fetching by requestId:', query.requestId);
         itineraries = await this.itineraryService.getItinerariesForRequest(query.requestId);
       } else if (query.agentId) {
+        console.log('[LIST] Fetching by agentId:', query.agentId);
         itineraries = await this.itineraryService.getItinerariesByAgent(query.agentId);
       } else if (query.travelerId) {
+        console.log('[LIST] Fetching by travelerId:', query.travelerId);
         itineraries = await this.itineraryService.getItinerariesForTraveler(query.travelerId);
       } else if (user.role === 'AGENT') {
         // For agents, get their own itineraries by default
+        console.log('[LIST] Fetching for agent user.sub:', user.sub);
         itineraries = await this.itineraryService.getItinerariesByAgent(user.sub);
       } else if (user.role === 'TRAVELER') {
+        console.log('[LIST] Fetching for traveler user.sub:', user.sub);
         itineraries = await this.itineraryService.getItinerariesForTraveler(user.sub);
       } else {
+        console.log('[LIST] No filter matched, returning empty');
         itineraries = [];
       }
+
+      console.log('[LIST] Found itineraries:', itineraries.length);
 
       // Filter by status if provided
       if (query.status) {
