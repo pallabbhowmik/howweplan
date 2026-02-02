@@ -39,6 +39,45 @@ import { bookingsApi } from '@/lib/api/client';
 import { WishlistButton } from '@/components/trust/WishlistButton';
 
 // =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
+
+interface ItineraryOverview {
+  title?: string;
+  numberOfDays?: number;
+  numberOfNights?: number;
+  destinations?: string[];
+  travelersCount?: number;
+  tripType?: string;
+  summary?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+interface ItineraryPricing {
+  totalPrice?: number;
+  currency?: string;
+  pricePerPerson?: number;
+  depositAmount?: number;
+  inclusions?: string[];
+  exclusions?: string[];
+  paymentTerms?: string;
+}
+
+interface ItineraryItem {
+  id?: string;
+  dayNumber: number;
+  type: string;
+  title: string;
+  description?: string;
+  startTime?: string;
+  endTime?: string;
+  location?: string;
+  cost?: number;
+  confirmed?: boolean;
+}
+
+// =============================================================================
 // UTILITY FUNCTIONS
 // =============================================================================
 
@@ -114,10 +153,10 @@ export default function ProposalDetailPage() {
     loadData();
   }, [requestId, proposalId]);
 
-  // Extract data safely from backend structure
-  const overview = proposal?.overview || {};
-  const pricing = proposal?.pricing || {};
-  const items = proposal?.items || [];
+  // Extract data safely from backend structure with proper types
+  const overview: ItineraryOverview = (proposal?.overview as ItineraryOverview) || {};
+  const pricing: ItineraryPricing = (proposal?.pricing as ItineraryPricing) || {};
+  const items: ItineraryItem[] = (proposal?.items as ItineraryItem[]) || [];
   
   // Calculate values - prices are stored as whole currency (not cents)
   const totalPrice = pricing.totalPrice || proposal?.totalPrice || 0;
