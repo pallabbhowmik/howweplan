@@ -299,6 +299,9 @@ export class ItineraryHandler {
         itineraries = await this.itineraryService.getItinerariesByAgent(query.agentId);
       } else if (query.travelerId) {
         itineraries = await this.itineraryService.getItinerariesForTraveler(query.travelerId);
+      } else if (user.role === 'AGENT') {
+        // For agents, get their own itineraries by default
+        itineraries = await this.itineraryService.getItinerariesByAgent(user.sub);
       } else if (user.role === 'TRAVELER') {
         itineraries = await this.itineraryService.getItinerariesForTraveler(user.sub);
       } else {
