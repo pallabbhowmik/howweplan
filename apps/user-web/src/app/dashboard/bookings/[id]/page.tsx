@@ -1,18 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Calendar, Users, MessageSquare, FileText, Phone, AlertTriangle, CheckCircle, Star, Loader2, Award } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Users, MessageSquare, FileText, Phone, AlertTriangle, CheckCircle, Star, Loader2, Award, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUserSession } from '@/lib/user/session';
-import { fetchBooking, type Booking, submitReview } from '@/lib/data/api';
+import { fetchBooking, type Booking, submitReview, cancelBooking, createCheckoutSession } from '@/lib/data/api';
 import { ReviewExperience, type ReviewData } from '@/components/reviews/ReviewExperience';
 
 export default function BookingDetailPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const bookingId = params.id as string;
   const { loading: userLoading } = useUserSession();
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -20,7 +21,22 @@ export default function BookingDetailPage() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState('');
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Handle payment redirect results
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    if (paymentStatus === 'success') {
+      setActionMessage({ type: 'success', text: '🎉 Payment successful! Your booking is confirmed.' });
+      // Clear the query parameter
+      window.history.replaceState({}, '', `/dashboard/bookings/${bookingId}`);
+    } else if (paymentStatus === 'cancelled') {
+      setActionMessage({ type: 'error', text: 'Payment was cancelled. Please try again when ready.' });
+      window.history.replaceState({}, '', `/dashboard/bookings/${bookingId}`);
+    }
+  }, [searchParams, bookingId]);
 
   useEffect(() => {
     const loadBooking = async () => {
@@ -68,12 +84,52 @@ export default function BookingDetailPage() {
   const needsPayment = ['partial', 'pending', 'pending_payment', 'awaiting_payment'].includes(normalizedStatus);
 
   const handleCancel = async () => {
+    if (!cancellationReason.trim()) {
+      setActionMessage({ type: 'error', text: 'Please provide a reason for cancellation.' });
+      return;
+    }
+    
     setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
+    try {
+      await cancelBooking(bookingId, cancellationReason.trim());
       setShowCancelModal(false);
-      setActionMessage({ type: 'success', text: 'Cancellation request submitted.' });
-    }, 2000);
+      setCancellationReason('');
+      setActionMessage({ type: 'success', text: 'Cancellation request submitted successfully. You will receive a confirmation email shortly.' });
+      // Refresh booking data
+      const updatedBooking = await fetchBooking(bookingId);
+      setBooking(updatedBooking);
+    } catch (error) {
+      console.error('Cancel booking error:', error);
+      setActionMessage({ 
+        type: 'error', 
+        text: error instanceof Error ? error.message : 'Failed to cancel booking. Please try again or contact support.' 
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePayment = async () => {
+    setIsPaymentProcessing(true);
+    setActionMessage(null);
+    
+    try {
+      const { checkoutUrl } = await createCheckoutSession({
+        bookingId,
+        successUrl: `${window.location.origin}/dashboard/bookings/${bookingId}?payment=success`,
+        cancelUrl: `${window.location.origin}/dashboard/bookings/${bookingId}?payment=cancelled`,
+      });
+      
+      // Redirect to payment provider
+      window.location.href = checkoutUrl;
+    } catch (error) {
+      console.error('Payment error:', error);
+      setIsPaymentProcessing(false);
+      setActionMessage({ 
+        type: 'error', 
+        text: error instanceof Error ? error.message : 'Failed to initiate payment. Please try again.' 
+      });
+    }
   };
 
   return (
@@ -121,8 +177,13 @@ export default function BookingDetailPage() {
             </Button>
           </Link>
           {needsPayment && (
-            <Button>
-              Complete Payment
+            <Button onClick={handlePayment} disabled={isPaymentProcessing}>
+              {isPaymentProcessing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CreditCard className="h-4 w-4 mr-2" />
+              )}
+              {isPaymentProcessing ? 'Processing...' : 'Complete Payment'}
             </Button>
           )}
         </div>
@@ -255,9 +316,24 @@ export default function BookingDetailPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCancelModal(false)}>
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-2">Request Cancellation</h3>
-            <p className="text-muted-foreground mb-4">Are you sure? Cancellation fees may apply.</p>
+            <p className="text-muted-foreground mb-4">Are you sure? Cancellation fees may apply based on our refund policy.</p>
+            <div className="mb-4">
+              <label htmlFor="cancellation-reason" className="block text-sm font-medium mb-2">
+                Reason for cancellation <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="cancellation-reason"
+                value={cancellationReason}
+                onChange={(e) => setCancellationReason(e.target.value)}
+                placeholder="Please tell us why you're cancelling..."
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px]"
+                disabled={isProcessing}
+              />
+            </div>
             <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => setShowCancelModal(false)} disabled={isProcessing}>Keep Booking</Button>
+              <Button variant="outline" onClick={() => { setShowCancelModal(false); setCancellationReason(''); }} disabled={isProcessing}>
+                Keep Booking
+              </Button>
               <Button variant="destructive" onClick={handleCancel} disabled={isProcessing}>
                 {isProcessing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <AlertTriangle className="h-4 w-4 mr-2" />}
                 Request Cancellation

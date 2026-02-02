@@ -708,6 +708,61 @@ export async function fetchBooking(bookingId: string): Promise<Booking | null> {
   }
 }
 
+export async function cancelBooking(bookingId: string, reason: string): Promise<void> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('Not authenticated. Please log in to cancel a booking.');
+  }
+
+  await gatewayRequest(`/api/booking-payments/api/v1/bookings/${bookingId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export async function createCheckoutSession(params: {
+  bookingId: string;
+  successUrl: string;
+  cancelUrl: string;
+}): Promise<{ checkoutUrl: string; sessionId: string }> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('Not authenticated. Please log in to complete payment.');
+  }
+
+  const result = await gatewayRequest<any>(`/api/booking-payments/api/v1/checkout`, {
+    method: 'POST',
+    body: JSON.stringify({
+      bookingId: params.bookingId,
+      successUrl: params.successUrl,
+      cancelUrl: params.cancelUrl,
+    }),
+  });
+
+  return {
+    checkoutUrl: result.checkoutUrl || result.checkout_url || result.url,
+    sessionId: result.sessionId || result.session_id || result.id,
+  };
+}
+
+export async function createBookingFromProposal(proposalId: string, requestId: string): Promise<Booking> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('Not authenticated. Please log in to create a booking.');
+  }
+
+  const result = await gatewayRequest<any>(`/api/booking-payments/api/v1/bookings`, {
+    method: 'POST',
+    body: JSON.stringify({
+      itineraryId: proposalId,
+      requestId: requestId,
+    }),
+  });
+
+  const data = result.data || result;
+  return mapBookingFromApi(data);
+}
+
 // ============================================================================
 // Notifications API - via Notifications Service
 // ============================================================================

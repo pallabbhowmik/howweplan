@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Star, Clock, CheckCircle, Calendar, MessageSquare, Loader2, Lock, Eye, ExternalLink, Shield, Award, Zap, Users, MapPin, ThumbsUp, TrendingUp, BadgeCheck, Quote } from 'lucide-react';
+import { ArrowLeft, Star, Clock, CheckCircle, Calendar, MessageSquare, Loader2, Lock, Eye, ExternalLink, Shield, Award, Zap, Users, MapPin, ThumbsUp, TrendingUp, BadgeCheck, Quote, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUserSession } from '@/lib/user/session';
-import { fetchRequest, fetchRequestProposals, type TravelRequest, type Proposal } from '@/lib/data/api';
+import { fetchRequest, fetchRequestProposals, createBookingFromProposal, type TravelRequest, type Proposal } from '@/lib/data/api';
 import { PriceBudgetComparison, SavingsHighlight } from '@/components/trust/PriceBudgetComparison';
 import { ItineraryTemplateCompact } from '@/components/trust/ItineraryTemplate';
 import { cn } from '@/lib/utils';
@@ -51,12 +51,15 @@ function formatTimeAgo(dateString: string): string {
 
 export default function ProposalsPage() {
   const params = useParams();
+  const router = useRouter();
   const requestId = params.id as string;
   const { loading: userLoading } = useUserSession();
   const [request, setRequest] = useState<TravelRequest | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [, setSelectedProposal] = useState<string | null>(null);
+  const [bookingInProgress, setBookingInProgress] = useState<string | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -101,10 +104,24 @@ export default function ProposalsPage() {
     );
   }
 
-  const handleSelectProposal = (proposalId: string) => {
-    setSelectedProposal(proposalId);
-    // TODO: Implement booking flow
-    alert('Booking flow coming soon! You selected proposal: ' + proposalId);
+  const handleSelectProposal = async (proposalId: string) => {
+    setShowConfirmModal(proposalId);
+  };
+
+  const confirmBooking = async (proposalId: string) => {
+    setBookingInProgress(proposalId);
+    setBookingError(null);
+    setShowConfirmModal(null);
+    
+    try {
+      const booking = await createBookingFromProposal(proposalId, requestId);
+      // Redirect to the new booking page
+      router.push(`/dashboard/bookings/${booking.id}`);
+    } catch (error) {
+      console.error('Booking error:', error);
+      setBookingError(error instanceof Error ? error.message : 'Failed to create booking. Please try again.');
+      setBookingInProgress(null);
+    }
   };
 
   // Get agent badges based on their stats
@@ -140,6 +157,20 @@ export default function ProposalsPage() {
           <span>All agents are verified. Compare profiles, ratings & reviews to find your perfect match.</span>
         </div>
       </div>
+
+      {/* Error Message */}
+      {bookingError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium text-red-800">Booking Error</p>
+            <p className="text-sm text-red-600">{bookingError}</p>
+          </div>
+          <button onClick={() => setBookingError(null)} className="ml-auto text-red-500 hover:text-red-700">
+            ×
+          </button>
+        </div>
+      )}
 
       {proposals.length === 0 ? (
         <Card>
@@ -391,8 +422,20 @@ export default function ProposalsPage() {
                         View Itinerary
                       </Button>
                     </Link>
-                    <Button onClick={() => handleSelectProposal(proposal.id)} variant="default" className="bg-green-600 hover:bg-green-700">
-                      Select & Book
+                    <Button 
+                      onClick={() => handleSelectProposal(proposal.id)} 
+                      variant="default" 
+                      className="bg-green-600 hover:bg-green-700"
+                      disabled={bookingInProgress === proposal.id}
+                    >
+                      {bookingInProgress === proposal.id ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        'Select & Book'
+                      )}
                     </Button>
                     <Button variant="outline">
                       <MessageSquare className="h-4 w-4 mr-2" />
@@ -404,6 +447,49 @@ export default function ProposalsPage() {
             </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* Booking Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowConfirmModal(null)}>
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="text-center mb-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-xl font-bold">Confirm Your Selection</h3>
+            </div>
+            
+            {(() => {
+              const selectedProposal = proposals.find(p => p.id === showConfirmModal);
+              return selectedProposal ? (
+                <div className="bg-slate-50 rounded-lg p-4 mb-4">
+                  <p className="font-medium">{selectedProposal.agent?.fullName || 'Travel Agent'}</p>
+                  <p className="text-sm text-muted-foreground">{selectedProposal.overview?.title || selectedProposal.title}</p>
+                  <p className="text-lg font-bold text-green-600 mt-2">
+                    ₹{(selectedProposal.pricing?.totalPrice || selectedProposal.totalPrice || 0).toLocaleString('en-IN')}
+                  </p>
+                </div>
+              ) : null;
+            })()}
+            
+            <p className="text-sm text-muted-foreground mb-6">
+              By proceeding, you agree to create a booking with this agent. You&apos;ll be able to review details and complete payment on the next screen.
+            </p>
+            
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setShowConfirmModal(null)}>
+                Cancel
+              </Button>
+              <Button 
+                className="flex-1 bg-green-600 hover:bg-green-700" 
+                onClick={() => confirmBooking(showConfirmModal)}
+              >
+                Confirm Booking
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
