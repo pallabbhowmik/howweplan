@@ -154,12 +154,15 @@ export function errorToResponse(error: unknown): {
   }
 
   if (error instanceof Error) {
+    console.error('Unexpected error:', error.message, error.stack);
     return {
       statusCode: 500,
       body: {
         error: {
           code: 'INTERNAL_ERROR',
           message: 'An unexpected error occurred',
+          // Include details for debugging
+          details: error.message,
         },
       },
     };
