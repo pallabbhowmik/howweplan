@@ -94,27 +94,35 @@ export class ItineraryService {
     // Persist itinerary
     await this.repository.create(itinerary);
 
-    // Create initial version
+    // Create initial version (non-blocking)
     if (env.ENABLE_VERSION_HISTORY) {
-      await this.versionService.createVersion(itinerary, actorId, 'AGENT', 'Initial creation');
+      try {
+        await this.versionService.createVersion(itinerary, actorId, 'AGENT', 'Initial creation');
+      } catch (versionError) {
+        console.warn('Failed to create initial version (non-blocking):', versionError);
+      }
     }
 
-    // Emit audit event
-    await publishEvent(createAuditEvent({
-      eventType: 'itinerary.created',
-      entityType: 'itinerary',
-      entityId: itinerary.id,
-      actorId,
-      actorRole: 'AGENT',
-      changes: {
-        status: { from: null, to: ItineraryStatus.DRAFT },
-        disclosureState: { from: null, to: DisclosureState.OBFUSCATED },
-      },
-      metadata: {
-        requestId: input.requestId,
-        itemCount: items.length,
-      },
-    }));
+    // Emit audit event (non-blocking)
+    try {
+      await publishEvent(createAuditEvent({
+        eventType: 'itinerary.created',
+        entityType: 'itinerary',
+        entityId: itinerary.id,
+        actorId,
+        actorRole: 'AGENT',
+        changes: {
+          status: { from: null, to: ItineraryStatus.DRAFT },
+          disclosureState: { from: null, to: DisclosureState.OBFUSCATED },
+        },
+        metadata: {
+          requestId: input.requestId,
+          itemCount: items.length,
+        },
+      }));
+    } catch (auditError) {
+      console.warn('Failed to emit audit event (non-blocking):', auditError);
+    }
 
     return itinerary;
   }
