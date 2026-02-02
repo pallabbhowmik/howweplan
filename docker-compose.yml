@@ -434,8 +434,8 @@ services:
 
   reviews:
     build:
-      context: ./services/reviews
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/reviews/Dockerfile
     container_name: tripcomposer-reviews
     restart: unless-stopped
     environment:

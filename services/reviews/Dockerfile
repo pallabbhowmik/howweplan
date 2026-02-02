@@ -2,20 +2,40 @@
 # Reviews Service - Dockerfile
 # Multi-stage build for optimized production image
 # ============================================================================
+# BUILD CONTEXT: Must be repository root
+# Render: Set "Root Directory" to "/" and "Dockerfile Path" to "services/reviews/Dockerfile"
+# Docker Compose: context: . and dockerfile: services/reviews/Dockerfile
+# ============================================================================
 
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files for dependency caching
-COPY package*.json ./
+# Copy and build the contracts package first
+COPY packages/contracts/package*.json ./packages/contracts/
+COPY packages/contracts/tsconfig.json ./packages/contracts/
+COPY packages/contracts/tsup.config.ts ./packages/contracts/
+COPY packages/contracts/*.ts ./packages/contracts/
+COPY packages/contracts/dtos ./packages/contracts/dtos
+COPY packages/contracts/entities ./packages/contracts/entities
+COPY packages/contracts/events ./packages/contracts/events
+COPY packages/contracts/states ./packages/contracts/states
 
-# Install all dependencies (including dev for build)
+WORKDIR /app/packages/contracts
+RUN npm install --legacy-peer-deps && npm run build
+
+# Now build the reviews service
+WORKDIR /app/services/reviews
+
+# Copy package files for dependency caching
+COPY services/reviews/package*.json ./
+
+# Link the local contracts package
 RUN npm install --legacy-peer-deps
 
 # Copy source code
-COPY tsconfig.json ./
-COPY src ./src
+COPY services/reviews/tsconfig.json ./
+COPY services/reviews/src ./src
 
 # Build TypeScript
 RUN npm run build
@@ -32,14 +52,18 @@ RUN apk add --no-cache wget && \
     addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy package files
-COPY package*.json ./
+# Copy contracts package (built)
+COPY --from=builder /app/packages/contracts/package.json ./node_modules/@tripcomposer/contracts/
+COPY --from=builder /app/packages/contracts/dist ./node_modules/@tripcomposer/contracts/dist
 
-# Install production dependencies only
-RUN npm install --omit=dev --legacy-peer-deps && npm cache clean --force
+# Copy package files
+COPY services/reviews/package*.json ./
+
+# Install production dependencies only (skip local package resolution)
+RUN npm install --omit=dev --legacy-peer-deps --ignore-scripts && npm cache clean --force
 
 # Copy built application from builder
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/services/reviews/dist ./dist
 
 # Copy database folder if it exists (optional)
 RUN mkdir -p ./database || true
