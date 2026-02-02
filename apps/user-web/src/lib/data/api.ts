@@ -620,7 +620,7 @@ export async function submitTravelRequest(requestId: string): Promise<TravelRequ
   return mapRequestFromApi(data);
 }
 
-export async function cancelTravelRequest(requestId: string): Promise<void> {
+export async function cancelTravelRequest(requestId: string, reason: string = 'Cancelled by user'): Promise<void> {
   const token = getAccessToken();
   if (!token) {
     throw new Error('Not authenticated. Please log in to cancel a request.');
@@ -628,6 +628,7 @@ export async function cancelTravelRequest(requestId: string): Promise<void> {
 
   await gatewayRequest(`/api/requests/api/v1/requests/${requestId}/cancel`, {
     method: 'POST',
+    body: JSON.stringify({ reason }),
   });
 }
 
