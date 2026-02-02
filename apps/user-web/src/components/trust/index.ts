@@ -81,3 +81,11 @@ export type {
   WishlistCardProps,
   WishlistEmptyProps,
 } from './WishlistCard';
+export {
+  AgentProfileCard,
+  AgentProfileCardSkeleton,
+} from './AgentProfileCard';
+export type {
+  AgentProfile,
+  AgentProfileCardProps,
+} from './AgentProfileCard';

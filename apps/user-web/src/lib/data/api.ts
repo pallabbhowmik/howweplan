@@ -228,6 +228,18 @@ export interface Proposal {
     avatarUrl: string | null;
     specializations: string[];
     yearsOfExperience: number;
+    // Enhanced profile fields
+    tier?: 'standard' | 'verified' | 'star';
+    isVerified?: boolean;
+    totalReviews?: number;
+    responseTimeMinutes?: number;
+    completedBookings?: number;
+    destinations?: string[];
+    highlightedReview?: {
+      content: string;
+      rating: number;
+      travelerName?: string;
+    };
   };
 }
 
@@ -837,3 +849,97 @@ export async function fetchRequestProposals(requestId: string): Promise<Proposal
   }
 }
 
+// Reviews API
+// ============================================================================
+
+export interface ReviewSubmission {
+  bookingId: string;
+  agentId: string;
+  rating: number;
+  comment?: string;
+  categories?: {
+    communication: number;
+    expertise: number;
+    value: number;
+    responsiveness: number;
+  };
+  reactions?: string[];
+  isAnonymous?: boolean;
+}
+
+export async function submitReview(review: ReviewSubmission): Promise<{ success: boolean; reviewId?: string }> {
+  try {
+    const result = await gatewayRequest<any>('/api/reviews', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        booking_id: review.bookingId,
+        agent_id: review.agentId,
+        rating: review.rating,
+        comment: review.comment,
+        category_ratings: review.categories,
+        reactions: review.reactions,
+        is_anonymous: review.isAnonymous || false,
+      }),
+    });
+    
+    return { success: true, reviewId: result.id || result.review_id };
+  } catch (error) {
+    console.error('Error submitting review:', error);
+    throw error;
+  }
+}
+
+export async function fetchAgentReviews(agentId: string): Promise<{
+  reviews: Array<{
+    id: string;
+    rating: number;
+    comment?: string;
+    categories?: { communication: number; expertise: number; value: number; responsiveness: number };
+    reactions?: string[];
+    userName: string;
+    tripDestination?: string;
+    createdAt: string;
+    isAnonymous: boolean;
+  }>;
+  summary: {
+    averageRating: number;
+    totalReviews: number;
+    categoryAverages: { communication: number; expertise: number; value: number; responsiveness: number };
+    reactionCounts: Record<string, number>;
+  };
+}> {
+  try {
+    const result = await gatewayRequest<any>(`/api/reviews/agent/${agentId}`);
+    return {
+      reviews: (result.reviews || []).map((r: any) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+        categories: r.category_ratings,
+        reactions: r.reactions || [],
+        userName: r.is_anonymous ? 'Anonymous Traveler' : (r.user_name || r.userName || 'Traveler'),
+        tripDestination: r.trip_destination || r.tripDestination,
+        createdAt: r.created_at || r.createdAt,
+        isAnonymous: r.is_anonymous || false,
+      })),
+      summary: result.summary || {
+        averageRating: 0,
+        totalReviews: 0,
+        categoryAverages: { communication: 0, expertise: 0, value: 0, responsiveness: 0 },
+        reactionCounts: {},
+      },
+    };
+  } catch (error) {
+    console.error('Error fetching agent reviews:', error);
+    return {
+      reviews: [],
+      summary: {
+        averageRating: 0,
+        totalReviews: 0,
+        categoryAverages: { communication: 0, expertise: 0, value: 0, responsiveness: 0 },
+        reactionCounts: {},
+      },
+    };
+  }
+}

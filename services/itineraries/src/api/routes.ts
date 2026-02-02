@@ -132,6 +132,14 @@ export function createRoutes(
     itineraryHandler.list
   );
 
+  // Get itineraries by request ID (must be before /:id to avoid conflict)
+  itinerariesRouter.get(
+    '/request/:requestId',
+    authenticate,
+    requireAuthenticated,
+    itineraryHandler.getByRequestId
+  );
+
   // Get itinerary by ID
   itinerariesRouter.get(
     '/:id',

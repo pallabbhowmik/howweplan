@@ -3,14 +3,51 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Star, Clock, CheckCircle, Calendar, MessageSquare, Loader2, Lock, Eye, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Star, Clock, CheckCircle, Calendar, MessageSquare, Loader2, Lock, Eye, ExternalLink, Shield, Award, Zap, Users, MapPin, ThumbsUp, TrendingUp, BadgeCheck, Quote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUserSession } from '@/lib/user/session';
 import { fetchRequest, fetchRequestProposals, type TravelRequest, type Proposal } from '@/lib/data/api';
 import { PriceBudgetComparison, SavingsHighlight } from '@/components/trust/PriceBudgetComparison';
 import { ItineraryTemplateCompact } from '@/components/trust/ItineraryTemplate';
+import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+// =============================================================================
+// Badge Configuration
+// =============================================================================
+
+const BADGE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bgColor: string; description: string }> = {
+  'VERIFIED': { label: 'Verified', icon: BadgeCheck, color: 'text-emerald-600', bgColor: 'bg-emerald-50', description: 'Identity verified' },
+  'TOP_RATED': { label: 'Top Rated', icon: Star, color: 'text-amber-500', bgColor: 'bg-amber-50', description: '4.8+ stars' },
+  'FAST_RESPONDER': { label: 'Fast', icon: Zap, color: 'text-purple-600', bgColor: 'bg-purple-50', description: 'Responds quickly' },
+  'EXPERT_PLANNER': { label: 'Expert', icon: Award, color: 'text-blue-600', bgColor: 'bg-blue-50', description: '50+ trips' },
+  'PLATFORM_TRUSTED': { label: 'Trusted', icon: Shield, color: 'text-indigo-600', bgColor: 'bg-indigo-50', description: 'Zero violations' },
+};
+
+function getResponseTimeLabel(minutes: number): { label: string; color: string } {
+  if (minutes <= 30) return { label: '< 30 min', color: 'text-emerald-600' };
+  if (minutes <= 60) return { label: '< 1 hour', color: 'text-blue-600' };
+  if (minutes <= 180) return { label: '< 3 hours', color: 'text-amber-600' };
+  return { label: 'Varies', color: 'text-slate-500' };
+}
+
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  return `${Math.floor(diffDays / 30)}mo ago`;
+}
 
 export default function ProposalsPage() {
   const params = useParams();
@@ -70,6 +107,17 @@ export default function ProposalsPage() {
     alert('Booking flow coming soon! You selected proposal: ' + proposalId);
   };
 
+  // Get agent badges based on their stats
+  const getAgentBadges = (agent: any): string[] => {
+    const badges: string[] = [];
+    if (agent?.isVerified) badges.push('VERIFIED');
+    if (agent?.rating && agent.rating >= 4.8) badges.push('TOP_RATED');
+    if (agent?.responseTimeMinutes && agent.responseTimeMinutes <= 30) badges.push('FAST_RESPONDER');
+    if (agent?.completedBookings && agent.completedBookings >= 50) badges.push('EXPERT_PLANNER');
+    if (agent?.totalReviews && agent.totalReviews >= 10 && agent.rating >= 4.5) badges.push('PLATFORM_TRUSTED');
+    return badges;
+  };
+
   return (
     <div className="space-y-6">
       {/* Back Button */}
@@ -79,14 +127,18 @@ export default function ProposalsPage() {
       </Link>
 
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Compare Proposals</h1>
-        <p className="text-muted-foreground">
-          {proposals.length} travel agent{proposals.length !== 1 ? 's' : ''} responded to your request for{' '}
-          <span className="font-medium text-foreground">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 text-white">
+        <h1 className="text-3xl font-bold mb-2">Compare Agent Proposals</h1>
+        <p className="text-blue-100">
+          {proposals.length} travel advisor{proposals.length !== 1 ? 's' : ''} responded to your request for{' '}
+          <span className="font-semibold text-white">
             {request.destination?.label || request.destination?.city || request.title}
           </span>
         </p>
+        <div className="mt-4 flex items-center gap-2 text-sm text-blue-100">
+          <Shield className="h-4 w-4" />
+          <span>All agents are verified. Compare profiles, ratings & reviews to find your perfect match.</span>
+        </div>
       </div>
 
       {proposals.length === 0 ? (
@@ -104,34 +156,162 @@ export default function ProposalsPage() {
         </Card>
       ) : (
         <div className="grid gap-6">
-          {proposals.map((proposal) => (
-            <Card key={proposal.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-                  {/* Agent Info */}
-                  <div className="flex items-start gap-4 lg:w-64 shrink-0">
-                    <div className="w-14 h-14 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-semibold">
+          {proposals.map((proposal) => {
+            const agentBadges = getAgentBadges(proposal.agent);
+            const responseTime = proposal.agent?.responseTimeMinutes 
+              ? getResponseTimeLabel(proposal.agent.responseTimeMinutes) 
+              : null;
+            
+            return (
+            <Card key={proposal.id} className="hover:shadow-lg transition-all duration-300 overflow-hidden border-2 hover:border-blue-200">
+              {/* Agent Profile Header */}
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50/50 border-b pb-4">
+                <div className="flex items-start gap-4">
+                  {/* Avatar with verification badge */}
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 text-white flex items-center justify-center text-xl font-bold shadow-lg">
                       {proposal.agent ? getInitials(proposal.agent.fullName) : '??'}
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{proposal.agent?.fullName || 'Unknown Agent'}</h3>
-                      {proposal.agent?.businessName && (
-                        <p className="text-sm text-muted-foreground">{proposal.agent.businessName}</p>
+                    {proposal.agent?.isVerified && (
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center shadow-md">
+                        <BadgeCheck className="h-4 w-4 text-white" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Agent Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-lg text-slate-900">{proposal.agent?.fullName || 'Travel Advisor'}</h3>
+                      {proposal.agent?.tier && (
+                        <Badge variant="outline" className={cn(
+                          'text-xs',
+                          proposal.agent.tier === 'star' ? 'text-amber-600 border-amber-300 bg-amber-50' : 'text-slate-600'
+                        )}>
+                          {proposal.agent.tier === 'star' && <Star className="h-3 w-3 mr-1 fill-amber-400" />}
+                          {proposal.agent.tier === 'star' ? 'Star Agent' : 'Verified Agent'}
+                        </Badge>
                       )}
+                    </div>
+                    
+                    {proposal.agent?.businessName && (
+                      <p className="text-sm text-muted-foreground">{proposal.agent.businessName}</p>
+                    )}
+
+                    {/* Rating & Stats Row */}
+                    <div className="flex items-center gap-4 mt-2 flex-wrap">
                       {proposal.agent?.rating && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm font-medium">{proposal.agent.rating.toFixed(1)}</span>
+                        <div className="flex items-center gap-1">
+                          <div className="flex">
+                            {[1,2,3,4,5].map(i => (
+                              <Star key={i} className={cn('h-4 w-4', i <= Math.round(proposal.agent?.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-slate-200')} />
+                            ))}
+                          </div>
+                          <span className="font-semibold text-sm">{proposal.agent.rating.toFixed(1)}</span>
+                          <span className="text-xs text-muted-foreground">({proposal.agent.totalReviews || 0} reviews)</span>
                         </div>
                       )}
-                      {proposal.agent?.specializations && proposal.agent.specializations.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {proposal.agent.specializations.slice(0, 2).map((spec) => (
+                      {responseTime && (
+                        <div className="flex items-center gap-1 text-sm">
+                          <Clock className="h-4 w-4 text-slate-400" />
+                          <span className={responseTime.color}>{responseTime.label}</span>
+                        </div>
+                      )}
+                      {proposal.agent?.completedBookings && (
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Users className="h-4 w-4" />
+                          <span>{proposal.agent.completedBookings} trips</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Badges Row */}
+                    {agentBadges.length > 0 && (
+                      <TooltipProvider>
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {agentBadges.map((badgeKey) => {
+                            const badge = BADGE_CONFIG[badgeKey];
+                            if (!badge) return null;
+                            const Icon = badge.icon;
+                            return (
+                              <Tooltip key={badgeKey}>
+                                <TooltipTrigger asChild>
+                                  <div className={cn(
+                                    'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-help',
+                                    badge.bgColor, badge.color
+                                  )}>
+                                    <Icon className="h-3 w-3" />
+                                    {badge.label}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent><p>{badge.description}</p></TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
+                        </div>
+                      </TooltipProvider>
+                    )}
+                  </div>
+
+                  {/* Price Tag */}
+                  <div className="text-right bg-white rounded-xl p-3 shadow-sm border">
+                    <p className="text-2xl font-bold text-slate-900">₹{proposal.totalPrice.toLocaleString('en-IN')}</p>
+                    <p className="text-xs text-muted-foreground">Total Price</p>
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="p-6">
+                <div className="flex flex-col lg:flex-row lg:items-start gap-6">
+                  {/* Specializations & Destinations */}
+                  <div className="lg:w-56 shrink-0 space-y-4">
+                    {proposal.agent?.specializations && proposal.agent.specializations.length > 0 && (
+                      <div>
+                        <h5 className="text-xs font-semibold text-slate-500 uppercase mb-2">Specializes In</h5>
+                        <div className="flex flex-wrap gap-1">
+                          {proposal.agent.specializations.slice(0, 4).map((spec) => (
                             <Badge key={spec} variant="secondary" className="text-xs">{spec}</Badge>
                           ))}
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
+                    
+                    {proposal.agent?.destinations && proposal.agent.destinations.length > 0 && (
+                      <div>
+                        <h5 className="text-xs font-semibold text-slate-500 uppercase mb-2">Expert Destinations</h5>
+                        <div className="flex flex-wrap gap-1">
+                          {proposal.agent.destinations.slice(0, 3).map((dest) => (
+                            <Badge key={dest} variant="outline" className="text-xs">
+                              <MapPin className="h-3 w-3 mr-1" />{dest}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Highlighted Review Snippet */}
+                    {proposal.agent?.highlightedReview && (
+                      <div className="bg-slate-50 rounded-lg p-3 border">
+                        <div className="flex items-start gap-2">
+                          <Quote className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs text-slate-600 italic line-clamp-3">
+                              "{proposal.agent.highlightedReview.content}"
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="flex">
+                                {[1,2,3,4,5].map(i => (
+                                  <Star key={i} className={cn('h-3 w-3', i <= (proposal.agent?.highlightedReview?.rating || 5) ? 'fill-amber-400 text-amber-400' : 'text-slate-200')} />
+                                ))}
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {proposal.agent.highlightedReview.travelerName || 'Traveler'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Proposal Details */}
@@ -222,7 +402,8 @@ export default function ProposalsPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

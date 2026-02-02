@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Calendar, Users, MessageSquare, FileText, Phone, AlertTriangle, CheckCircle, Star, Loader2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Users, MessageSquare, FileText, Phone, AlertTriangle, CheckCircle, Star, Loader2, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUserSession } from '@/lib/user/session';
-import { fetchBooking, type Booking } from '@/lib/data/api';
+import { fetchBooking, type Booking, submitReview } from '@/lib/data/api';
+import { ReviewExperience, type ReviewData } from '@/components/reviews/ReviewExperience';
 
 export default function BookingDetailPage() {
   const params = useParams();
@@ -266,20 +267,33 @@ export default function BookingDetailPage() {
         </div>
       )}
 
-      {showReviewModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowReviewModal(false)}>
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-4">Leave a Review</h3>
-            <div className="flex justify-center gap-2 mb-4">
-              {[1, 2, 3, 4, 5].map((star) => (<button key={star} className="text-2xl text-gray-300 hover:text-yellow-400">★</button>))}
-            </div>
-            <textarea className="w-full border rounded-lg p-3 mb-4" rows={4} placeholder="Share your experience..." />
-            <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => setShowReviewModal(false)}>Cancel</Button>
-              <Button onClick={() => { setShowReviewModal(false); setActionMessage({ type: 'success', text: 'Thank you for your review!' }); }}>Submit Review</Button>
-            </div>
-          </div>
-        </div>
+      {showReviewModal && booking && (
+        <ReviewExperience
+          agentId={booking.agent?.id || booking.agentId || ''}
+          agentName={booking.agent?.fullName || 'Your Agent'}
+          tripDestination={getDestinationLabel(booking)}
+          tripDates={formatDateRange(booking.startDate, booking.endDate)}
+          bookingId={bookingId}
+          onSubmit={async (reviewData: ReviewData) => {
+            try {
+              await submitReview({
+                bookingId,
+                agentId: booking.agent?.id || booking.agentId || '',
+                rating: reviewData.overallRating,
+                comment: reviewData.review || undefined,
+                categories: reviewData.categoryRatings,
+                reactions: reviewData.reactions,
+                isAnonymous: reviewData.isAnonymous,
+              });
+              setShowReviewModal(false);
+              setActionMessage({ type: 'success', text: '🎉 Thank you for your review! You earned trust points!' });
+            } catch (error) {
+              console.error('Failed to submit review:', error);
+              setActionMessage({ type: 'error', text: 'Failed to submit review. Please try again.' });
+            }
+          }}
+          onClose={() => setShowReviewModal(false)}
+        />
       )}
     </div>
   );

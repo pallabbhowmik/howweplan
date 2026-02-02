@@ -350,6 +350,40 @@ export class ItineraryHandler {
   };
 
   /**
+   * Get itineraries for a specific travel request.
+   * GET /request/:requestId
+   */
+  getByRequestId = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const user = (req as AuthenticatedRequest).user;
+      const { requestId } = req.params;
+      
+      if (!requestId) {
+        res.status(400).json({ error: 'Request ID required' });
+        return;
+      }
+
+      console.log('[BY_REQUEST] Fetching itineraries for requestId:', requestId);
+
+      const itineraries = await this.itineraryService.getItinerariesForRequest(requestId);
+
+      console.log('[BY_REQUEST] Found itineraries:', itineraries.length);
+
+      // Return as array for frontend compatibility
+      const response = itineraries.map(i => this.toResponse(i as ItineraryWithMeta));
+
+      res.json(response);
+    } catch (error) {
+      console.error('[BY_REQUEST] Error:', error);
+      next(error);
+    }
+  };
+
+  /**
    * Convert itinerary to response DTO.
    */
   private toResponse(itinerary: ItineraryWithMeta): ItineraryResponse {

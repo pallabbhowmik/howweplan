@@ -486,7 +486,33 @@ adminRoutes.get(
 // EXPORT COMBINED ROUTER
 // =============================================================================
 
-export const reviewsApi = new Hono()
-  .route('/public', publicRoutes)
-  .route('/user', userRoutes)
-  .route('/admin', adminRoutes);
+const combinedRoutes = new Hono();
+
+// Mount direct /my endpoint at root level (for frontend compatibility)
+// This allows /api/v1/reviews/my to work directly
+combinedRoutes.get('/my', requireAuth, async (c) => {
+  const auth = getAuthContext(c)!;
+
+  const [given, received] = await Promise.all([
+    reviewRepository.findMany(
+      { reviewerId: auth.userId },
+      { page: 1, limit: 50, sortBy: 'createdAt', sortOrder: 'desc' }
+    ),
+    reviewRepository.findMany(
+      { subjectId: auth.userId },
+      { page: 1, limit: 50, sortBy: 'createdAt', sortOrder: 'desc' }
+    ),
+  ]);
+
+  return c.json({
+    given: given.items,
+    received: received.items,
+  });
+});
+
+// Mount subrouters
+combinedRoutes.route('/public', publicRoutes);
+combinedRoutes.route('/user', userRoutes);
+combinedRoutes.route('/admin', adminRoutes);
+
+export const reviewsApi = combinedRoutes;

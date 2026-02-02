@@ -17,6 +17,8 @@ import {
   MoreVertical,
   Loader2,
   AlertCircle,
+  User,
+  ArrowLeftRight,
 } from 'lucide-react';
 import {
   Button,
@@ -40,7 +42,7 @@ import {
   Skeleton,
 } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { listAgentReviews, type AgentReview } from '@/lib/data/agent';
+import { listAgentReviews, listGivenReviews, type AgentReview, type GivenReview } from '@/lib/data/agent';
 
 // ============================================================================
 // TYPES
@@ -343,14 +345,116 @@ function ReviewCardSkeleton() {
 }
 
 // ============================================================================
+// GIVEN REVIEW CARD (Reviews the agent gave to travelers)
+// ============================================================================
+
+function GivenReviewCard({ review }: { review: GivenReview }) {
+  return (
+    <Card className="transition-all duration-200 hover:shadow-lg border-l-4 border-l-blue-500">
+      <CardContent className="p-6">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-start gap-3">
+            <Avatar size="md" className="bg-blue-100">
+              <AvatarFallback className="bg-blue-100 text-blue-700">
+                <User className="h-5 w-5" />
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-semibold text-gray-900">
+                  {review.subjectDisplayName || 'Traveler'}
+                </h4>
+                <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700">
+                  Your Review
+                </Badge>
+              </div>
+              <p className="text-sm text-gray-500">
+                {review.destination || 'Trip'} • {formatDate(review.createdAt)}
+              </p>
+            </div>
+          </div>
+          <RatingStars rating={review.rating} />
+        </div>
+
+        {/* Review Content */}
+        {review.content && (
+          <p className="text-gray-600 mb-4 leading-relaxed">{review.content}</p>
+        )}
+
+        {/* Aspect Ratings */}
+        {review.aspects && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 p-3 bg-blue-50 rounded-lg">
+            {review.aspects.communication !== undefined && (
+              <div className="text-center">
+                <p className="text-xs text-gray-500 mb-1">Communication</p>
+                <RatingStars rating={review.aspects.communication} size="sm" />
+              </div>
+            )}
+            {review.aspects.cooperation !== undefined && (
+              <div className="text-center">
+                <p className="text-xs text-gray-500 mb-1">Cooperation</p>
+                <RatingStars rating={review.aspects.cooperation} size="sm" />
+              </div>
+            )}
+            {review.aspects.punctuality !== undefined && (
+              <div className="text-center">
+                <p className="text-xs text-gray-500 mb-1">Punctuality</p>
+                <RatingStars rating={review.aspects.punctuality} size="sm" />
+              </div>
+            )}
+            {review.aspects.respectfulness !== undefined && (
+              <div className="text-center">
+                <p className="text-xs text-gray-500 mb-1">Respectfulness</p>
+                <RatingStars rating={review.aspects.respectfulness} size="sm" />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Would Work Again */}
+        {review.wouldWorkAgain !== undefined && (
+          <div className={cn(
+            'flex items-center gap-2 p-3 rounded-lg',
+            review.wouldWorkAgain ? 'bg-emerald-50' : 'bg-orange-50'
+          )}>
+            {review.wouldWorkAgain ? (
+              <>
+                <ThumbsUp className="h-4 w-4 text-emerald-600" />
+                <span className="text-sm text-emerald-700 font-medium">Would work with again</span>
+              </>
+            ) : (
+              <>
+                <ThumbsDown className="h-4 w-4 text-orange-600" />
+                <span className="text-sm text-orange-700 font-medium">Might not work with again</span>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+          <span className="text-sm text-gray-500">{getRelativeTime(review.createdAt)}</span>
+          <Badge variant="outline" className="text-xs">
+            {review.status === 'published' ? 'Published' : review.status}
+          </Badge>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================================
 // MAIN PAGE
 // ============================================================================
 
 export default function ReviewsPage() {
   const router = useRouter();
+  const [viewMode, setViewMode] = useState<'received' | 'given'>('received');
   const [activeTab, setActiveTab] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
   const [reviews, setReviews] = useState<ReviewCardData[]>([]);
+  const [givenReviews, setGivenReviews] = useState<GivenReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -360,8 +464,12 @@ export default function ReviewsPage() {
       try {
         setIsLoading(true);
         setError(null);
-        const apiReviews = await listAgentReviews();
-        setReviews(apiReviews.map(transformReviewToCard));
+        const [receivedReviews, given] = await Promise.all([
+          listAgentReviews(),
+          listGivenReviews(),
+        ]);
+        setReviews(receivedReviews.map(transformReviewToCard));
+        setGivenReviews(given);
       } catch (err) {
         console.error('Failed to load reviews:', err);
         setError('Failed to load reviews. Please try again.');
@@ -465,77 +573,161 @@ export default function ReviewsPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Reviews</h1>
-        <p className="mt-1 text-gray-500">
-          See what your clients are saying about their trips
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Reviews</h1>
+          <p className="mt-1 text-gray-500">
+            {viewMode === 'received' 
+              ? 'See what your clients are saying about their trips'
+              : 'Reviews you\'ve written about travelers'}
+          </p>
+        </div>
+        
+        {/* View Mode Toggle */}
+        <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
+          <button
+            onClick={() => setViewMode('received')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all',
+              viewMode === 'received'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            )}
+          >
+            <Star className="h-4 w-4" />
+            Received ({reviews.length})
+          </button>
+          <button
+            onClick={() => setViewMode('given')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all',
+              viewMode === 'given'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            )}
+          >
+            <User className="h-4 w-4" />
+            Given ({givenReviews.length})
+          </button>
+        </div>
       </div>
 
-      {/* Rating Overview */}
-      <RatingOverview reviews={reviews} ratingDistribution={ratingDistribution} />
+      {/* Received Reviews View */}
+      {viewMode === 'received' && (
+        <>
+          {/* Rating Overview */}
+          <RatingOverview reviews={reviews} ratingDistribution={ratingDistribution} />
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                <TabsTrigger value="all">All Reviews</TabsTrigger>
-                <TabsTrigger value="pending">
-                  Pending Response
-                  {pendingCount > 0 && (
-                    <Badge variant="warning" className="ml-2">{pendingCount}</Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="responded">Responded</TabsTrigger>
-                <TabsTrigger value="5star">5 Star</TabsTrigger>
-              </TabsList>
-            </Tabs>
+          {/* Filters */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList>
+                    <TabsTrigger value="all">All Reviews</TabsTrigger>
+                    <TabsTrigger value="pending">
+                      Pending Response
+                      {pendingCount > 0 && (
+                        <Badge variant="warning" className="ml-2">{pendingCount}</Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="responded">Responded</TabsTrigger>
+                    <TabsTrigger value="5star">5 Star</TabsTrigger>
+                  </TabsList>
+                </Tabs>
 
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-40">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="recent">Most Recent</SelectItem>
-                <SelectItem value="highest">Highest Rated</SelectItem>
-                <SelectItem value="lowest">Lowest Rated</SelectItem>
-                <SelectItem value="helpful">Most Helpful</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-40">
+                    <Filter className="mr-2 h-4 w-4" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="recent">Most Recent</SelectItem>
+                    <SelectItem value="highest">Highest Rated</SelectItem>
+                    <SelectItem value="lowest">Lowest Rated</SelectItem>
+                    <SelectItem value="helpful">Most Helpful</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Reviews List */}
-      {sortedReviews.length > 0 ? (
-        <div className="space-y-4">
-          {sortedReviews.map((review) => (
-            <ReviewCard
-              key={review.id}
-              review={review}
-              onRespond={() => {
-                router.push('/messages');
-              }}
-            />
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="py-16 text-center">
-            <div className="mx-auto w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-              <Star className="h-8 w-8 text-gray-400" />
+          {/* Received Reviews List */}
+          {sortedReviews.length > 0 ? (
+            <div className="space-y-4">
+              {sortedReviews.map((review) => (
+                <ReviewCard
+                  key={review.id}
+                  review={review}
+                  onRespond={() => {
+                    router.push('/messages');
+                  }}
+                />
+              ))}
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No reviews found</h3>
-            <p className="text-gray-500">
-              {activeTab === 'pending'
-                ? 'All reviews have been responded to!'
-                : 'Reviews from your clients will appear here'}
-            </p>
-          </CardContent>
-        </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-16 text-center">
+                <div className="mx-auto w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                  <Star className="h-8 w-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-1">No reviews found</h3>
+                <p className="text-gray-500">
+                  {activeTab === 'pending'
+                    ? 'All reviews have been responded to!'
+                    : 'Reviews from your clients will appear here'}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* Given Reviews View */}
+      {viewMode === 'given' && (
+        <>
+          {/* Given Reviews Stats */}
+          <Card className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div className="flex items-center gap-6">
+              <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+                <ArrowLeftRight className="h-8 w-8 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">{givenReviews.length}</h3>
+                <p className="text-gray-600">Reviews you&apos;ve written about travelers</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Rating travelers helps improve the community for everyone
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Given Reviews List */}
+          {givenReviews.length > 0 ? (
+            <div className="space-y-4">
+              {givenReviews
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                .map((review) => (
+                  <GivenReviewCard key={review.id} review={review} />
+                ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="py-16 text-center">
+                <div className="mx-auto w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-4">
+                  <User className="h-8 w-8 text-blue-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-1">No reviews given yet</h3>
+                <p className="text-gray-500 mb-4">
+                  After completing a booking, you can rate your experience with the traveler
+                </p>
+                <Button variant="outline" onClick={() => router.push('/bookings')}>
+                  View Completed Bookings
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
     </div>
   );

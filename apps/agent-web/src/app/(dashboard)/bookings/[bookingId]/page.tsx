@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Calendar, Mail, MapPin, MessageSquare, Users, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Mail, MapPin, MessageSquare, Users, AlertCircle, Star, CheckCircle } from 'lucide-react';
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Skeleton } from '@/components/ui';
-import { getAgentBookingById, type AgentBooking } from '@/lib/data/agent';
+import { getAgentBookingById, submitUserReview, hasReviewedBooking, type AgentBooking } from '@/lib/data/agent';
+import { UserReviewExperience, type UserReviewData } from '@/components/reviews';
 
 function formatCurrency(cents: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -31,6 +32,9 @@ export default function BookingDetailsPage() {
   const [booking, setBooking] = useState<AgentBooking | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   useEffect(() => {
     async function loadBooking() {
@@ -42,8 +46,12 @@ export default function BookingDetailsPage() {
       try {
         setIsLoading(true);
         setError(null);
-        const data = await getAgentBookingById(bookingId);
+        const [data, reviewed] = await Promise.all([
+          getAgentBookingById(bookingId),
+          hasReviewedBooking(bookingId),
+        ]);
         setBooking(data);
+        setHasReviewed(reviewed);
       } catch (err) {
         console.error('Failed to load booking:', err);
         setError('Failed to load booking details. Please try again.');
@@ -54,6 +62,30 @@ export default function BookingDetailsPage() {
 
     loadBooking();
   }, [bookingId]);
+
+  const handleSubmitReview = async (data: UserReviewData) => {
+    if (!booking?.client?.id || !bookingId) return;
+    
+    setIsSubmittingReview(true);
+    try {
+      const result = await submitUserReview({
+        userId: booking.client.id,
+        bookingId: bookingId,
+        rating: data.rating,
+        comment: data.comment || undefined,
+        categories: data.categories,
+        wouldWorkAgain: data.wouldWorkAgain ?? undefined,
+      });
+      
+      if (result.success) {
+        setHasReviewed(true);
+      }
+    } catch (err) {
+      console.error('Failed to submit review:', err);
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   // Loading state
   if (isLoading) {
@@ -222,25 +254,79 @@ export default function BookingDetailsPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Financials</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Trip value</span>
-              <span className="font-semibold">{formatCurrency(booking.totalAmountCents)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Commission</span>
-              <span className="font-semibold text-emerald-700">{formatCurrency(commission)}</span>
-            </div>
-            <div className="pt-2 text-sm text-gray-500">
-              Created {new Date(booking.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Financials</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Trip value</span>
+                <span className="font-semibold">{formatCurrency(booking.totalAmountCents)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Commission</span>
+                <span className="font-semibold text-emerald-700">{formatCurrency(commission)}</span>
+              </div>
+              <div className="pt-2 text-sm text-gray-500">
+                Created {new Date(booking.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Rate Traveler Card - Show for completed bookings */}
+          {(booking.state === 'completed' || booking.state === 'COMPLETED') && (
+            <Card className={hasReviewed ? 'border-emerald-200 bg-emerald-50/50' : 'border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50'}>
+              <CardContent className="p-4">
+                {hasReviewed ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-emerald-900">Review Submitted</p>
+                      <p className="text-sm text-emerald-700">Thank you for your feedback!</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <Star className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Rate this traveler</p>
+                        <p className="text-sm text-gray-500">Share your experience working with them</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => setShowReviewModal(true)}
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    >
+                      <Star className="mr-2 h-4 w-4" />
+                      Write Review
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
+
+      {/* Review Modal */}
+      {showReviewModal && booking?.client && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <UserReviewExperience
+            travelerName={`${booking.client.firstName} ${booking.client.lastName}`}
+            destination={destination}
+            tripDates={formatDateRange(booking.tripStartDate, booking.tripEndDate)}
+            onSubmit={handleSubmitReview}
+            onCancel={() => setShowReviewModal(false)}
+            isSubmitting={isSubmittingReview}
+          />
+        </div>
+      )}
     </div>
   );
 }

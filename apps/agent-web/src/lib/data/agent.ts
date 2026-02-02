@@ -777,6 +777,7 @@ export type AgentBooking = {
   updatedAt: string;
   // Client details (fetched via join or populated separately)
   client?: {
+    id: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -1022,6 +1023,136 @@ export async function respondToReview(reviewId: string, content: string): Promis
 }
 
 // ============================================================================
+// USER REVIEWS (Agent rating users)
+// ============================================================================
+
+export type UserReviewSubmission = {
+  userId: string;
+  bookingId: string;
+  rating: number;
+  comment?: string;
+  categories?: {
+    communication: number;
+    cooperation: number;
+    punctuality: number;
+    respectfulness: number;
+  };
+  wouldWorkAgain?: boolean;
+  isAnonymous?: boolean;
+};
+
+export type GivenReview = {
+  id: string;
+  subjectId: string;
+  subjectType: string;
+  subjectDisplayName: string | null;
+  bookingId: string | null;
+  rating: number;
+  title: string | null;
+  content: string | null;
+  aspects: {
+    communication?: number;
+    cooperation?: number;
+    punctuality?: number;
+    respectfulness?: number;
+  } | null;
+  wouldWorkAgain?: boolean;
+  status: string;
+  destination: string | null;
+  createdAt: string;
+  publishedAt: string | null;
+};
+
+/**
+ * Submit a review for a user after a completed booking.
+ * Agent rates the traveler based on their experience working with them.
+ */
+export async function submitUserReview(review: UserReviewSubmission): Promise<{ success: boolean; reviewId?: string }> {
+  if (!getAccessToken()) {
+    throw new ApiError('Not authenticated. Please log in.', 401, 'NOT_AUTHENTICATED');
+  }
+
+  try {
+    const result = await tryFetchJson<{ id: string; status: string }>('/api/reviews/api/v1/reviews', {
+      method: 'POST',
+      body: JSON.stringify({
+        subjectId: review.userId,
+        subjectType: 'traveler',
+        bookingId: review.bookingId,
+        rating: review.rating,
+        content: review.comment,
+        aspects: review.categories,
+        wouldWorkAgain: review.wouldWorkAgain,
+        isAnonymous: review.isAnonymous ?? false,
+      }),
+    });
+
+    return { success: true, reviewId: result?.id };
+  } catch (error) {
+    console.error('Failed to submit user review:', error);
+    return { success: false };
+  }
+}
+
+/**
+ * List reviews given by the agent (reviews of users/travelers).
+ */
+export async function listGivenReviews(): Promise<GivenReview[]> {
+  if (!getAccessToken()) {
+    throw new ApiError('Not authenticated. Please log in.', 401, 'NOT_AUTHENTICATED');
+  }
+
+  const result = await tryFetchJson<{
+    given: Array<{
+      id: string;
+      subjectId: string;
+      subjectType: string;
+      bookingId: string | null;
+      rating: number;
+      title: string | null;
+      content: string | null;
+      aspects: any;
+      wouldWorkAgain?: boolean;
+      status: string;
+      createdAt: string;
+      publishedAt: string | null;
+    }>;
+    received: any[];
+  }>('/api/reviews/api/v1/reviews/my');
+
+  const given = result?.given ?? [];
+
+  return given.map((r) => ({
+    id: r.id,
+    subjectId: r.subjectId,
+    subjectType: r.subjectType?.toLowerCase?.() ?? 'traveler',
+    subjectDisplayName: null, // Would need to fetch from identity service
+    bookingId: r.bookingId,
+    rating: r.rating ?? 5,
+    title: r.title,
+    content: r.content,
+    aspects: r.aspects ?? null,
+    wouldWorkAgain: r.wouldWorkAgain,
+    status: r.status?.toLowerCase?.() ?? 'published',
+    destination: null, // Would need to fetch from booking data
+    createdAt: r.createdAt,
+    publishedAt: r.publishedAt,
+  }));
+}
+
+/**
+ * Check if a review has already been submitted for a booking.
+ */
+export async function hasReviewedBooking(bookingId: string): Promise<boolean> {
+  try {
+    const givenReviews = await listGivenReviews();
+    return givenReviews.some(r => r.bookingId === bookingId);
+  } catch {
+    return false;
+  }
+}
+
+// ============================================================================
 // ITINERARY DATA
 // ============================================================================
 
@@ -1115,7 +1246,36 @@ export async function listAgentItineraries(options: ListItinerariesOptions = {})
     totalPages: number;
   }>(url);
 
-  return result?.items ?? [];
+  const items = result?.items ?? [];
+
+  // Fetch traveler details for each itinerary
+  const itinerariesWithClient = await Promise.all(
+    items.map(async (itinerary) => {
+      const travelerId = itinerary.travelerId;
+      if (travelerId && !itinerary.client?.firstName) {
+        try {
+          const user = await tryFetchJson<any>(`/api/identity/api/v1/users/${travelerId}`);
+          if (user) {
+            return {
+              ...itinerary,
+              client: {
+                firstName: user.first_name ?? user.firstName ?? 'Client',
+                lastName: user.last_name ?? user.lastName ?? '',
+              },
+            };
+          }
+        } catch {
+          // User info not available, use defaults
+        }
+      }
+      return {
+        ...itinerary,
+        client: itinerary.client ?? { firstName: 'Client', lastName: '' },
+      };
+    })
+  );
+
+  return itinerariesWithClient;
 }
 
 /**
@@ -1126,10 +1286,35 @@ export async function getAgentItineraryById(itineraryId: string): Promise<AgentI
     throw new ApiError('Not authenticated. Please log in.', 401, 'NOT_AUTHENTICATED');
   }
 
-  const result = await tryFetchJson<AgentItinerary>(
+  const itinerary = await tryFetchJson<AgentItinerary>(
     `/api/itineraries/api/v1/itineraries/${encodeURIComponent(itineraryId)}`
   );
-  return result ?? null;
+  
+  if (!itinerary) return null;
+
+  // Fetch traveler details
+  const travelerId = itinerary.travelerId;
+  if (travelerId && !itinerary.client?.firstName) {
+    try {
+      const user = await tryFetchJson<any>(`/api/identity/api/v1/users/${travelerId}`);
+      if (user) {
+        return {
+          ...itinerary,
+          client: {
+            firstName: user.first_name ?? user.firstName ?? 'Client',
+            lastName: user.last_name ?? user.lastName ?? '',
+          },
+        };
+      }
+    } catch {
+      // User info not available
+    }
+  }
+
+  return {
+    ...itinerary,
+    client: itinerary.client ?? { firstName: 'Client', lastName: '' },
+  };
 }
 
 export type CreateItineraryInput = {

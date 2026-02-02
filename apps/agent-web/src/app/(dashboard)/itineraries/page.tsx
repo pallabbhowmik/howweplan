@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Search,
   Plus,
@@ -254,9 +255,11 @@ function ItineraryCard({ itinerary, viewMode }: { itinerary: DisplayItinerary; v
               <p className="text-lg font-semibold text-gray-900">{formatCurrency(itinerary.totalPrice)}</p>
               <p className="text-xs text-emerald-600">{formatCurrency(itinerary.commission)} commission</p>
             </div>
-            <Button size="sm">
-              {itinerary.status === 'draft' ? 'Edit' : 'View'}
-              <ChevronRight className="ml-1 h-4 w-4" />
+            <Button size="sm" asChild>
+              <Link href={`/itineraries/${itinerary.id}`}>
+                {itinerary.status === 'draft' ? 'Edit' : 'View'}
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Link>
             </Button>
           </div>
         </CardContent>
@@ -278,9 +281,9 @@ function ItineraryCard({ itinerary, viewMode }: { itinerary: DisplayItinerary; v
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h3 className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
+                <Link href={`/itineraries/${itinerary.id}`} className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors hover:underline">
                   {itinerary.name}
-                </h3>
+                </Link>
                 <p className="text-sm text-gray-500">
                   {itinerary.client.firstName} {itinerary.client.lastName} • {itinerary.destination}
                 </p>
@@ -322,15 +325,19 @@ function ItineraryCard({ itinerary, viewMode }: { itinerary: DisplayItinerary; v
             </div>
             <div className="flex gap-2">
               {itinerary.status === 'draft' && (
-                <Button variant="outline" size="sm">
-                  <Edit className="h-4 w-4" />
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/itineraries/${itinerary.id}`}>
+                    <Edit className="h-4 w-4" />
+                  </Link>
                 </Button>
               )}
               <Button variant="outline" size="sm">
                 <Copy className="h-4 w-4" />
               </Button>
-              <Button size="sm">
-                {itinerary.status === 'draft' ? 'Edit' : 'View'}
+              <Button size="sm" asChild>
+                <Link href={`/itineraries/${itinerary.id}`}>
+                  {itinerary.status === 'draft' ? 'Edit' : 'View'}
+                </Link>
               </Button>
             </div>
           </div>
