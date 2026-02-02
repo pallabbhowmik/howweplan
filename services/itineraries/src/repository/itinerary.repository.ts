@@ -119,17 +119,44 @@ export class ItineraryRepository {
   }
 
   /**
-   * Find itineraries by agent ID.
+   * Find itineraries by agent ID or user ID.
+   * First tries to find by agent_id directly, then looks up agents by user_id.
    */
-  async findByAgentId(agentId: string): Promise<Itinerary[]> {
-    const { data, error } = await this.client
+  async findByAgentId(agentIdOrUserId: string): Promise<Itinerary[]> {
+    // First, try direct match on agent_id
+    let { data, error } = await this.client
       .from(this.tableName)
       .select('*')
-      .eq('agent_id', agentId)
+      .eq('agent_id', agentIdOrUserId)
       .order('created_at', { ascending: false });
 
     if (error) {
       throw new Error(`Failed to find itineraries: ${error.message}`);
+    }
+
+    // If no results, try looking up agents by user_id and get their itineraries
+    if (!data || data.length === 0) {
+      // Get agent IDs for this user
+      const { data: agentData } = await this.client
+        .from('agents')
+        .select('id')
+        .eq('user_id', agentIdOrUserId);
+      
+      if (agentData && agentData.length > 0) {
+        const agentIds = agentData.map((a: { id: string }) => a.id);
+        console.log('[findByAgentId] Found agent IDs for user:', agentIds);
+        
+        const { data: itinData, error: itinError } = await this.client
+          .from(this.tableName)
+          .select('*')
+          .in('agent_id', agentIds)
+          .order('created_at', { ascending: false });
+        
+        if (itinError) {
+          throw new Error(`Failed to find itineraries by agent IDs: ${itinError.message}`);
+        }
+        data = itinData;
+      }
     }
 
     const itineraries = (data ?? []).map(row => this.fromItineraryRow(row));
