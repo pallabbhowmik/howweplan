@@ -980,18 +980,21 @@ export async function fetchRequestProposals(requestId: string): Promise<Proposal
       };
     });
     
-    // Fetch agent details for each proposal
+    // Fetch agent details for each proposal using the agent profile endpoint
+    // Note: agentId here is the agent profile ID from the agents table, not user_id
     const agentIds = [...new Set(mappedProposals.map(p => p.agentId).filter(Boolean))];
     const agentDetails: Record<string, any> = {};
     
     await Promise.all(
       agentIds.map(async (agentId) => {
         try {
-          const agentResult = await gatewayRequest<any>(`/api/identity/api/v1/users/${agentId}`);
+          // Use the /agents/:agentId/profile endpoint which looks up by agent profile ID
+          const agentResult = await gatewayRequest<any>(`/api/identity/api/v1/agents/${agentId}/profile`);
           const agent = agentResult.data || agentResult;
           if (agent) {
             agentDetails[agentId] = {
-              id: agent.id,
+              id: agent.agentId || agent.id,
+              userId: agent.userId,
               fullName: agent.fullName || `${agent.firstName || ''} ${agent.lastName || ''}`.trim() || 'Travel Agent',
               businessName: agent.businessName || agent.agencyName || null,
               rating: agent.rating || 0,
@@ -1007,6 +1010,21 @@ export async function fetchRequestProposals(requestId: string): Promise<Proposal
           }
         } catch (err) {
           console.warn(`Failed to fetch agent ${agentId}:`, err);
+          // Set a fallback agent info when fetch fails
+          agentDetails[agentId] = {
+            id: agentId,
+            fullName: 'Travel Agent',
+            businessName: null,
+            rating: 0,
+            avatarUrl: null,
+            specializations: [],
+            yearsOfExperience: 0,
+            tier: 'standard',
+            isVerified: false,
+            totalReviews: 0,
+            responseTimeMinutes: 0,
+            completedBookings: 0,
+          };
         }
       })
     );

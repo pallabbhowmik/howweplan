@@ -62,6 +62,101 @@ function mapDbRowToAgentProfile(row: {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Gets user_id for an agent by their profile ID (from the agents table).
+ * This is used when the caller has an agent profile ID (e.g., from itineraries)
+ * and needs to look up the user's identity.
+ */
+export async function getUserIdByAgentProfileId(agentProfileId: string): Promise<string | null> {
+  const db = getDbClient();
+
+  const { data, error } = await db
+    .from('agents')
+    .select('user_id')
+    .eq('id', agentProfileId)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data.user_id;
+}
+
+/**
+ * Gets full agent info by their profile ID (from the agents table).
+ * Returns combined data from agents table and users table.
+ */
+export async function getAgentByProfileId(agentProfileId: string): Promise<{
+  agentId: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  avatarUrl: string | null;
+  businessName: string | null;
+  bio: string | null;
+  specializations: string[];
+  languages: string[];
+  destinations: string[];
+  yearsOfExperience: number;
+  tier: string;
+  rating: number;
+  totalReviews: number;
+  completedBookings: number;
+  responseTimeMinutes: number;
+  isVerified: boolean;
+  isAvailable: boolean;
+} | null> {
+  const db = getDbClient();
+
+  // First get the agent from the agents table
+  const { data: agentData, error: agentError } = await db
+    .from('agents')
+    .select('*')
+    .eq('id', agentProfileId)
+    .single();
+
+  if (agentError || !agentData) {
+    return null;
+  }
+
+  // Then get the user info
+  const { data: userData, error: userError } = await db
+    .from('users')
+    .select('id, first_name, last_name, email, avatar_url')
+    .eq('id', agentData.user_id)
+    .single();
+
+  if (userError || !userData) {
+    return null;
+  }
+
+  return {
+    agentId: agentData.id,
+    userId: agentData.user_id,
+    firstName: userData.first_name || '',
+    lastName: userData.last_name || '',
+    fullName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Travel Agent',
+    email: userData.email,
+    avatarUrl: userData.avatar_url,
+    businessName: agentData.agency_name,
+    bio: agentData.bio,
+    specializations: agentData.specializations || [],
+    languages: agentData.languages || [],
+    destinations: agentData.destinations || [],
+    yearsOfExperience: agentData.years_of_experience || 0,
+    tier: agentData.tier || 'standard',
+    rating: agentData.rating || 0,
+    totalReviews: agentData.total_reviews || 0,
+    completedBookings: agentData.completed_bookings || 0,
+    responseTimeMinutes: agentData.response_time_minutes || 0,
+    isVerified: agentData.is_verified || false,
+    isAvailable: agentData.is_available || false,
+  };
+}
+
+/**
  * Gets an agent profile by user ID.
  */
 export async function getAgentProfile(userId: string): Promise<AgentProfile | null> {

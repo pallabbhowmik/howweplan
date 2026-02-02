@@ -211,6 +211,39 @@ router.post(
 );
 
 /**
+ * GET /agents/:agentId/profile
+ * Get agent info by their agent profile ID (from agents table).
+ * This endpoint is used when the caller has an agent profile ID
+ * (e.g., from itineraries/proposals) rather than a user ID.
+ */
+router.get(
+  '/:agentId/profile',
+  requireAuth,
+  validateParams(agentIdParamSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { agentId } = req.params as z.infer<typeof agentIdParamSchema>;
+
+    try {
+      const { getAgentByProfileId } = await import('../services/agent.service.js');
+      const agentInfo = await getAgentByProfileId(agentId);
+
+      if (!agentInfo) {
+        throw new AgentProfileNotFoundError(agentId);
+      }
+
+      sendSuccess(res, agentInfo, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      throw error;
+    }
+  }
+);
+
+/**
  * GET /agents/:agentId/public
  * Get public agent identity (first name + photo only).
  * Per business rules: agents are semi-blind pre-confirmation.
