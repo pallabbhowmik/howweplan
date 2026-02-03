@@ -519,6 +519,79 @@ export default function EditItineraryPage() {
                 placeholder="0"
               />
             </div>
+
+            <Separator className="my-4" />
+
+            {/* Inclusions */}
+            <div className="space-y-2">
+              <Label htmlFor="inclusions">Inclusions</Label>
+              <p className="text-sm text-gray-500">What's included in the price (one per line)</p>
+              <Textarea
+                id="inclusions"
+                value={form.inclusions.join('\n')}
+                onChange={(e) => setForm({ 
+                  ...form, 
+                  inclusions: e.target.value.split('\n').map(i => i.trim()).filter(i => i.length > 0)
+                })}
+                placeholder="e.g.,&#10;Accommodation (5 nights)&#10;All meals&#10;Airport transfers&#10;Guided tours"
+                className="min-h-[120px]"
+              />
+            </div>
+
+            {/* Exclusions */}
+            <div className="space-y-2">
+              <Label htmlFor="exclusions">Exclusions</Label>
+              <p className="text-sm text-gray-500">What's NOT included in the price (one per line)</p>
+              <Textarea
+                id="exclusions"
+                value={form.exclusions.join('\n')}
+                onChange={(e) => setForm({ 
+                  ...form, 
+                  exclusions: e.target.value.split('\n').map(i => i.trim()).filter(i => i.length > 0)
+                })}
+                placeholder="e.g.,&#10;International flights&#10;Travel insurance&#10;Personal expenses&#10;Tips and gratuities"
+                className="min-h-[120px]"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Terms and Conditions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Terms and Conditions
+            </CardTitle>
+            <CardDescription>
+              Legal terms for this itinerary (visible to traveler)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={form.termsAndConditions}
+              onChange={(e) => setForm({ ...form, termsAndConditions: e.target.value })}
+              placeholder="Enter the terms and conditions for this trip..."
+              className="min-h-[150px]"
+            />
+          </CardContent>
+        </Card>
+
+        {/* Cancellation Policy */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Cancellation Policy</CardTitle>
+            <CardDescription>
+              Cancellation terms and refund policy (visible to traveler)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={form.cancellationPolicy}
+              onChange={(e) => setForm({ ...form, cancellationPolicy: e.target.value })}
+              placeholder="e.g., Full refund if cancelled 30 days before departure, 50% refund if cancelled 14 days before..."
+              className="min-h-[150px]"
+            />
           </CardContent>
         </Card>
 

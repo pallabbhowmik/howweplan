@@ -1,6 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
+import { createClient } from '@supabase/supabase-js';
 import type { ItineraryService } from '../../services/itinerary.service.js';
 import type { AuthenticatedRequest } from '../middleware/index.js';
+import { env } from '../../env.js';
 import { 
   createItineraryRequestSchema,
   updateItineraryRequestSchema,
@@ -12,6 +14,32 @@ import {
   type ItineraryItemResponse,
 } from '../dto/index.js';
 import type { ItineraryWithMeta, ItineraryItem, Itinerary } from '../../models/index.js';
+
+/**
+ * Look up agent ID from user ID.
+ * An agent has a user_id (from users table) and an id (agent ID).
+ * The JWT contains the user ID (sub), but itineraries store the agent ID.
+ */
+async function getAgentIdFromUserId(userId: string): Promise<string | null> {
+  try {
+    const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const { data, error } = await supabase
+      .from('agents')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !data) {
+      console.warn(`Agent lookup failed for user ${userId}:`, error?.message);
+      return null;
+    }
+
+    return data.id;
+  } catch (err) {
+    console.error('Error looking up agent:', err);
+    return null;
+  }
+}
 
 /**
  * Handlers for itinerary endpoints.
@@ -301,10 +329,23 @@ export class ItineraryHandler {
       const input = updateItineraryRequestSchema.parse(req.body);
       const { changeReason, ...updates } = input;
 
+      // Look up agent ID from user ID (JWT sub contains user_id, not agent_id)
+      const agentId = await getAgentIdFromUserId(user.sub);
+      if (!agentId) {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Could not verify agent identity. Please ensure you are logged in as an agent.',
+          },
+        });
+        return;
+      }
+
       const itinerary = await this.itineraryService.updateProposal(
         id,
         updates,
-        user.sub,
+        agentId,
         changeReason as string | undefined
       );
 
