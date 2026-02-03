@@ -103,7 +103,18 @@ export async function startConversation(
   agentId: string,
   bookingId?: string | null
 ): Promise<{ conversationId: string }> {
-  const response: any = await messagingApi.createConversation(userId, agentId, bookingId);
-  const conversation = response?.data ?? response;
-  return { conversationId: conversation.id };
+  console.log('[startConversation] Creating conversation - userId:', userId, 'agentId:', agentId, 'bookingId:', bookingId);
+  try {
+    const response: any = await messagingApi.createConversation(userId, agentId, bookingId);
+    console.log('[startConversation] Response:', response);
+    const conversation = response?.data ?? response;
+    if (!conversation?.id) {
+      console.error('[startConversation] No conversation ID in response:', response);
+      throw new Error('Failed to create conversation - no ID returned');
+    }
+    return { conversationId: conversation.id };
+  } catch (error) {
+    console.error('[startConversation] Error:', error);
+    throw error;
+  }
 }

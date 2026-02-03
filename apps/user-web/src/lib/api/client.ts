@@ -278,11 +278,15 @@ export const messagingApi = {
   /**
    * Create a new conversation between user and agent.
    */
-  createConversation: (userId: string, agentId: string, bookingId?: string | null) =>
-    apiRequest(`/api/messaging/api/v1/conversations`, {
+  createConversation: async (userId: string, agentId: string, bookingId?: string | null) => {
+    console.log('[messagingApi.createConversation] Request - userId:', userId, 'agentId:', agentId, 'bookingId:', bookingId);
+    const result = await apiRequest(`/api/messaging/api/v1/conversations`, {
       method: 'POST',
       body: JSON.stringify({ userId, agentId, bookingId: bookingId || null }),
-    }),
+    });
+    console.log('[messagingApi.createConversation] Result:', result);
+    return result;
+  },
 
   /**
    * List conversations for the authenticated user/agent.
