@@ -260,6 +260,7 @@ export interface Proposal {
   createdAt: string;
   agent?: {
     id: string;
+    userId?: string;  // The agent's user account ID (for messaging)
     fullName: string;
     businessName: string | null;
     rating: number;
