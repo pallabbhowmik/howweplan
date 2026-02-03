@@ -328,4 +328,45 @@ router.get(
   }
 );
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BATCH ENDPOINT - Optimized for multiple agent lookups
+// ─────────────────────────────────────────────────────────────────────────────
+
+const batchAgentsSchema = z.object({
+  agentIds: z.array(uuidSchema).min(1).max(50),
+});
+
+/**
+ * POST /agents/batch
+ * Get multiple agent profiles in a single request.
+ * 
+ * This batch endpoint reduces N+1 API calls when fetching multiple agents.
+ * Time complexity: O(n) with single database round trip using IN clause.
+ * 
+ * Request body: { agentIds: string[] }
+ * Response: { agents: Record<string, AgentProfile>, notFound: string[] }
+ */
+router.post(
+  '/batch',
+  requireAuth,
+  validateBody(batchAgentsSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { agentIds } = req.body as z.infer<typeof batchAgentsSchema>;
+
+    try {
+      const { getAgentsByProfileIds } = await import('../services/agent.service.js');
+      const { agents, notFound } = await getAgentsByProfileIds(agentIds);
+
+      sendSuccess(res, { agents, notFound }, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      throw error;
+    }
+  }
+);
+
 export { router as agentRouter };

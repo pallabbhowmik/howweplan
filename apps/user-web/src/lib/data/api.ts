@@ -878,6 +878,17 @@ export async function markNotificationRead(notificationId: string): Promise<void
 // Dashboard Stats API - Aggregated from services
 // ============================================================================
 
+// Pre-defined state sets for O(1) lookups (created once, reused)
+const ACTIVE_REQUEST_STATES = new Set([
+  'SUBMITTED', 'MATCHING', 'PROPOSALS_RECEIVED', 'AGENTS_MATCHED', 
+  'DRAFT', 'open', 'matched', 'proposals_received'
+]);
+const SELECTION_PENDING_STATES = new Set([
+  'PROPOSALS_RECEIVED', 'AGENTS_MATCHED', 'proposals_received'
+]);
+const CONFIRMED_BOOKING_STATES = new Set(['CONFIRMED', 'confirmed']);
+const COMPLETED_BOOKING_STATES = new Set(['COMPLETED', 'completed']);
+
 export async function fetchDashboardStats(userId: string): Promise<DashboardStats> {
   // Fetch data from gateway APIs in parallel
   const [requests, bookings, notifications] = await Promise.all([
@@ -886,29 +897,37 @@ export async function fetchDashboardStats(userId: string): Promise<DashboardStat
     fetchUserNotifications(userId, 100).catch(() => []),
   ]);
 
-  // Calculate stats from requests
-  const activeStates = ['SUBMITTED', 'MATCHING', 'PROPOSALS_RECEIVED', 'AGENTS_MATCHED', 'DRAFT', 'open', 'matched', 'proposals_received'];
-  const selectionStates = ['PROPOSALS_RECEIVED', 'AGENTS_MATCHED', 'proposals_received'];
+  // Calculate stats using Set.has() for O(1) lookups instead of Array.includes() O(n)
+  let activeRequests = 0;
+  let awaitingSelection = 0;
   
-  const activeRequests = requests.filter(r => 
-    activeStates.includes(r.state)
-  ).length;
+  for (const r of requests) {
+    if (ACTIVE_REQUEST_STATES.has(r.state)) {
+      activeRequests++;
+    }
+    if (SELECTION_PENDING_STATES.has(r.state)) {
+      awaitingSelection++;
+    }
+  }
+
+  // Calculate stats from bookings - single pass
+  let confirmedBookings = 0;
+  let completedTrips = 0;
   
-  const awaitingSelection = requests.filter(r => 
-    selectionStates.includes(r.state)
-  ).length;
+  for (const b of bookings) {
+    if (CONFIRMED_BOOKING_STATES.has(b.state)) {
+      confirmedBookings++;
+    }
+    if (COMPLETED_BOOKING_STATES.has(b.state)) {
+      completedTrips++;
+    }
+  }
 
-  // Calculate stats from bookings
-  const confirmedBookings = bookings.filter(b => 
-    b.state === 'CONFIRMED' || b.state === 'confirmed'
-  ).length;
-
-  const completedTrips = bookings.filter(b => 
-    b.state === 'COMPLETED' || b.state === 'completed'
-  ).length;
-
-  // Calculate unread from notifications
-  const unreadMessages = notifications.filter(n => !n.isRead).length;
+  // Calculate unread from notifications - single pass counter
+  let unreadMessages = 0;
+  for (const n of notifications) {
+    if (!n.isRead) unreadMessages++;
+  }
 
   return {
     activeRequests,

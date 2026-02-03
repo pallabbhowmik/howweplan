@@ -157,6 +157,116 @@ export async function getAgentByProfileId(agentProfileId: string): Promise<{
 }
 
 /**
+ * Gets multiple agent profiles by their profile IDs in a single batch query.
+ * 
+ * OPTIMIZATION: Uses IN clause for single database round trip instead of N queries.
+ * Time complexity: O(n) with single DB call instead of O(n) DB calls.
+ * 
+ * @param agentProfileIds Array of agent profile IDs (from agents table)
+ * @returns Object with agents map and list of not found IDs
+ */
+export async function getAgentsByProfileIds(agentProfileIds: string[]): Promise<{
+  agents: Record<string, {
+    agentId: string;
+    userId: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    email: string;
+    avatarUrl: string | null;
+    businessName: string | null;
+    bio: string | null;
+    specializations: string[];
+    languages: string[];
+    destinations: string[];
+    yearsOfExperience: number;
+    tier: string;
+    rating: number;
+    totalReviews: number;
+    completedBookings: number;
+    responseTimeMinutes: number;
+    isVerified: boolean;
+    isAvailable: boolean;
+  }>;
+  notFound: string[];
+}> {
+  const db = getDbClient();
+  const agents: Record<string, any> = {};
+  const notFound: string[] = [];
+
+  if (agentProfileIds.length === 0) {
+    return { agents, notFound };
+  }
+
+  // Batch query agents with IN clause - O(1) database round trip
+  const { data: agentsData, error: agentsError } = await db
+    .from('agents')
+    .select('*')
+    .in('id', agentProfileIds);
+
+  if (agentsError || !agentsData) {
+    return { agents, notFound: agentProfileIds };
+  }
+
+  // Track found agent IDs
+  const foundAgentIds = new Set<string>();
+  const userIds = agentsData.map(a => a.user_id);
+
+  // Batch query users with IN clause - O(1) database round trip
+  const { data: usersData, error: usersError } = await db
+    .from('users')
+    .select('id, first_name, last_name, email, avatar_url')
+    .in('id', userIds);
+
+  if (usersError || !usersData) {
+    return { agents, notFound: agentProfileIds };
+  }
+
+  // Create user lookup map for O(1) access
+  const userMap = new Map(usersData.map(u => [u.id, u]));
+
+  // Build result using Map for O(1) lookups
+  for (const agentData of agentsData) {
+    const userData = userMap.get(agentData.user_id);
+    if (!userData) continue;
+
+    foundAgentIds.add(agentData.id);
+    
+    agents[agentData.id] = {
+      agentId: agentData.id,
+      userId: agentData.user_id,
+      firstName: userData.first_name || '',
+      lastName: userData.last_name || '',
+      fullName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Travel Agent',
+      email: userData.email,
+      avatarUrl: userData.avatar_url,
+      businessName: agentData.agency_name,
+      bio: agentData.bio,
+      specializations: agentData.specializations || [],
+      languages: agentData.languages || [],
+      destinations: agentData.destinations || [],
+      yearsOfExperience: agentData.years_of_experience || 0,
+      tier: agentData.tier || 'standard',
+      rating: agentData.rating || 0,
+      totalReviews: agentData.total_reviews || 0,
+      completedBookings: agentData.completed_bookings || 0,
+      responseTimeMinutes: agentData.response_time_minutes || 0,
+      isVerified: agentData.is_verified || false,
+      isAvailable: agentData.is_available || false,
+    };
+  }
+
+  // Find which IDs were not found
+  for (const id of agentProfileIds) {
+    if (!foundAgentIds.has(id)) {
+      notFound.push(id);
+    }
+  }
+
+  return { agents, notFound };
+}
+
+/**
  * Gets an agent profile by user ID.
  */
 export async function getAgentProfile(userId: string): Promise<AgentProfile | null> {

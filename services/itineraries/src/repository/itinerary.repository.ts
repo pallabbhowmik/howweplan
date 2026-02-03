@@ -90,6 +90,7 @@ export class ItineraryRepository {
 
   /**
    * Find itineraries by request ID.
+   * Uses batch query to avoid N+1 problem.
    */
   async findByRequestId(requestId: string): Promise<Itinerary[]> {
     const { data, error } = await this.client
@@ -103,17 +104,9 @@ export class ItineraryRepository {
     }
 
     const itineraries = (data ?? []).map(row => this.fromItineraryRow(row));
-
-    // Load items for each itinerary
-    for (const itinerary of itineraries) {
-      const { data: itemsData } = await this.client
-        .from(this.itemsTableName)
-        .select('*')
-        .eq('itinerary_id', itinerary.id)
-        .order('sequence', { ascending: true });
-
-      itinerary.items = (itemsData ?? []).map(row => this.fromItemRow(row));
-    }
+    
+    // Batch load items for all itineraries in a single query
+    await this.loadItemsForItineraries(itineraries);
 
     return itineraries;
   }
@@ -121,6 +114,7 @@ export class ItineraryRepository {
   /**
    * Find itineraries by agent ID or user ID.
    * First tries to find by agent_id directly, then looks up agents by user_id.
+   * Uses batch query to avoid N+1 problem.
    */
   async findByAgentId(agentIdOrUserId: string): Promise<Itinerary[]> {
     // First, try direct match on agent_id
@@ -161,21 +155,15 @@ export class ItineraryRepository {
 
     const itineraries = (data ?? []).map(row => this.fromItineraryRow(row));
 
-    for (const itinerary of itineraries) {
-      const { data: itemsData } = await this.client
-        .from(this.itemsTableName)
-        .select('*')
-        .eq('itinerary_id', itinerary.id)
-        .order('sequence', { ascending: true });
-
-      itinerary.items = (itemsData ?? []).map(row => this.fromItemRow(row));
-    }
+    // Batch load items for all itineraries in a single query
+    await this.loadItemsForItineraries(itineraries);
 
     return itineraries;
   }
 
   /**
    * Find itineraries by traveler ID.
+   * Uses batch query to avoid N+1 problem.
    */
   async findByTravelerId(travelerId: string): Promise<Itinerary[]> {
     const { data, error } = await this.client
@@ -190,17 +178,51 @@ export class ItineraryRepository {
 
     const itineraries = (data ?? []).map(row => this.fromItineraryRow(row));
 
-    for (const itinerary of itineraries) {
-      const { data: itemsData } = await this.client
-        .from(this.itemsTableName)
-        .select('*')
-        .eq('itinerary_id', itinerary.id)
-        .order('sequence', { ascending: true });
-
-      itinerary.items = (itemsData ?? []).map(row => this.fromItemRow(row));
-    }
+    // Batch load items for all itineraries in a single query
+    await this.loadItemsForItineraries(itineraries);
 
     return itineraries;
+  }
+
+  /**
+   * Batch load items for multiple itineraries.
+   * Uses a single query with IN clause and groups results using Map (O(n) complexity).
+   * This avoids the N+1 query problem where we'd otherwise make 1 query per itinerary.
+   */
+  private async loadItemsForItineraries(itineraries: Itinerary[]): Promise<void> {
+    if (itineraries.length === 0) return;
+
+    // Get all itinerary IDs
+    const itineraryIds = itineraries.map(i => i.id);
+
+    // Single batch query with IN clause
+    const { data: allItemsData, error } = await this.client
+      .from(this.itemsTableName)
+      .select('*')
+      .in('itinerary_id', itineraryIds)
+      .order('sequence', { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to load itinerary items: ${error.message}`);
+    }
+
+    // Group items by itinerary_id using Map for O(1) lookups
+    const itemsByItineraryId = new Map<string, ItineraryItem[]>();
+    
+    for (const row of allItemsData ?? []) {
+      const itineraryId = row['itinerary_id'] as string;
+      const item = this.fromItemRow(row);
+      
+      if (!itemsByItineraryId.has(itineraryId)) {
+        itemsByItineraryId.set(itineraryId, []);
+      }
+      itemsByItineraryId.get(itineraryId)!.push(item);
+    }
+
+    // Attach items to itineraries using Map lookup (O(1) per itinerary)
+    for (const itinerary of itineraries) {
+      itinerary.items = itemsByItineraryId.get(itinerary.id) ?? [];
+    }
   }
 
   /**
