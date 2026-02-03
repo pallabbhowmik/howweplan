@@ -66,6 +66,7 @@ interface FormState {
   endDate: string;
   destinations: string[];
   tripType: string;
+  travelersCount: number;
   totalPrice: number;
   pricePerPerson: number;
   depositAmount: number;
@@ -115,6 +116,7 @@ export default function EditItineraryPage() {
     endDate: '',
     destinations: [],
     tripType: 'LEISURE',
+    travelersCount: 1,
     totalPrice: 0,
     pricePerPerson: 0,
     depositAmount: 0,
@@ -165,6 +167,7 @@ export default function EditItineraryPage() {
           endDate: formatDateForInput(overview.endDate),
           destinations: overview.destinations || [],
           tripType: overview.tripType || 'LEISURE',
+          travelersCount: overview.travelersCount || 1,
           totalPrice: pricing.totalPrice || 0,
           pricePerPerson: pricing.pricePerPerson || 0,
           depositAmount: pricing.depositAmount || 0,
@@ -232,6 +235,7 @@ export default function EditItineraryPage() {
           numberOfDays,
           numberOfNights,
           destinations: form.destinations.length > 0 ? form.destinations : undefined,
+          travelersCount: form.travelersCount,
           tripType: form.tripType || undefined,
         },
         pricing: {
@@ -629,21 +633,33 @@ export default function EditItineraryPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Number of Travelers */}
+            <div className="space-y-2">
+              <Label htmlFor="travelersCount" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Number of Travelers
+              </Label>
+              <Input
+                id="travelersCount"
+                type="number"
+                min="1"
+                value={form.travelersCount}
+                onChange={(e) => {
+                  const travelers = Math.max(1, Number(e.target.value));
+                  // Auto-calculate total if pricePerPerson exists
+                  const newTotal = form.pricePerPerson > 0 ? form.pricePerPerson * travelers : form.totalPrice;
+                  setForm({ 
+                    ...form, 
+                    travelersCount: travelers,
+                    totalPrice: newTotal
+                  });
+                }}
+                placeholder="1"
+              />
+              <p className="text-xs text-gray-500">Changing this will auto-calculate total price based on per-person price</p>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="totalPrice">Total Price (₹)</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
-                  <Input
-                    id="totalPrice"
-                    type="number"
-                    value={form.totalPrice}
-                    onChange={(e) => setForm({ ...form, totalPrice: Number(e.target.value) })}
-                    className="pl-8"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="pricePerPerson">Price Per Person (₹)</Label>
                 <div className="relative">
@@ -652,11 +668,45 @@ export default function EditItineraryPage() {
                     id="pricePerPerson"
                     type="number"
                     value={form.pricePerPerson}
-                    onChange={(e) => setForm({ ...form, pricePerPerson: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const perPerson = Number(e.target.value);
+                      // Auto-calculate total based on travelers
+                      const newTotal = perPerson * form.travelersCount;
+                      setForm({ 
+                        ...form, 
+                        pricePerPerson: perPerson,
+                        totalPrice: newTotal
+                      });
+                    }}
                     className="pl-8"
                     placeholder="0"
                   />
                 </div>
+                <p className="text-xs text-gray-500">Auto-calculates total price</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="totalPrice">Total Price (₹)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <Input
+                    id="totalPrice"
+                    type="number"
+                    value={form.totalPrice}
+                    onChange={(e) => {
+                      const total = Number(e.target.value);
+                      // Auto-calculate per-person based on travelers
+                      const newPerPerson = form.travelersCount > 0 ? Math.round(total / form.travelersCount) : 0;
+                      setForm({ 
+                        ...form, 
+                        totalPrice: total,
+                        pricePerPerson: newPerPerson
+                      });
+                    }}
+                    className="pl-8"
+                    placeholder="0"
+                  />
+                </div>
+                <p className="text-xs text-gray-500">= ₹{form.pricePerPerson.toLocaleString('en-IN')} × {form.travelersCount} travelers</p>
               </div>
             </div>
 
