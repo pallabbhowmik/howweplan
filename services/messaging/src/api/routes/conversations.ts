@@ -16,6 +16,7 @@ import {
 import { Errors } from '../errors';
 import type { ConversationService } from '../../services/conversation.service';
 import type { AuthMiddleware } from '../../middleware/auth';
+import { getServiceSupabaseClient } from '../../db/supabase';
 
 export function createConversationRoutes(
   conversationService: ConversationService,
@@ -26,6 +27,12 @@ export function createConversationRoutes(
   /**
    * POST /conversations
    * Create a new conversation between a user and agent.
+   * 
+   * Note: agentId can be either:
+   * - The agent's user_id (from users table) - for authorization
+   * - The agent's profile id (from agents table) - for database storage
+   * 
+   * We handle both cases by looking up the agent profile.
    */
   router.post(
     '/',
@@ -34,14 +41,52 @@ export function createConversationRoutes(
       try {
         const input = createConversationSchema.parse(req.body);
         const actor = req.user!;
+        const supabase = getServiceSupabaseClient();
 
-        // Verify actor is either the user or agent in the conversation
-        if (actor.userId !== input.userId && actor.userId !== input.agentId) {
+        // Look up the agent to get both profile ID and user ID
+        // First try to find by user_id (if caller passed the agent's user account ID)
+        let agentProfileId = input.agentId;
+        let agentUserId = input.agentId;
+
+        const { data: agentByUserId } = await supabase
+          .from('agents')
+          .select('id, user_id')
+          .eq('user_id', input.agentId)
+          .maybeSingle();
+
+        if (agentByUserId) {
+          // Caller passed the agent's user_id, get the profile ID
+          agentProfileId = agentByUserId.id;
+          agentUserId = agentByUserId.user_id;
+        } else {
+          // Try to find by profile ID
+          const { data: agentByProfileId } = await supabase
+            .from('agents')
+            .select('id, user_id')
+            .eq('id', input.agentId)
+            .maybeSingle();
+
+          if (agentByProfileId) {
+            agentProfileId = agentByProfileId.id;
+            agentUserId = agentByProfileId.user_id;
+          } else {
+            throw Errors.FORBIDDEN('Agent not found');
+          }
+        }
+
+        // Verify actor is either the user or the agent in the conversation
+        if (actor.userId !== input.userId && actor.userId !== agentUserId) {
           throw Errors.FORBIDDEN('You can only create conversations you are part of');
         }
 
+        // Create conversation with the agent profile ID (for foreign key)
+        const conversationInput = {
+          ...input,
+          agentId: agentProfileId,
+        };
+
         const conversation = await conversationService.createConversation(
-          input,
+          conversationInput,
           {
             actorId: actor.userId,
             actorType: actor.userType,
