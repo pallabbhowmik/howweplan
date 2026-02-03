@@ -509,6 +509,7 @@ export class ItineraryHandler {
         inclusions: itinerary.pricing.inclusions,
         exclusions: itinerary.pricing.exclusions,
       } : undefined,
+      dayPlans: itinerary.dayPlans ?? [],
       items: (itinerary.items || []).map(item => this.itemToResponse(item)),
       itemCount: itinerary.itemCount ?? 0,
       version: itinerary.version,

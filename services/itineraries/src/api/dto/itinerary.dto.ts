@@ -7,6 +7,7 @@ import {
   itineraryStatusSchema,
   disclosureStateSchema,
   itineraryItemTypeSchema,
+  dayPlanSchema,
 } from '../../models/index.js';
 
 /**
@@ -107,6 +108,7 @@ export const itineraryResponseSchema = z.object({
     inclusions: z.array(z.string()),
     exclusions: z.array(z.string()),
   }).optional(),
+  dayPlans: z.array(dayPlanSchema).optional(),
   items: z.array(itineraryItemResponseSchema),
   itemCount: z.number(),
   version: z.number(),

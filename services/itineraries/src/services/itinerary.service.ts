@@ -194,6 +194,7 @@ export class ItineraryService {
           ? { ...itinerary.pricing, ...updates.pricing }
           : undefined
         : itinerary.pricing,
+      dayPlans: updates.dayPlans ?? itinerary.dayPlans,
       termsAndConditions: updates.termsAndConditions ?? itinerary.termsAndConditions,
       cancellationPolicy: updates.cancellationPolicy ?? itinerary.cancellationPolicy,
       internalNotes: updates.internalNotes ?? itinerary.internalNotes,
