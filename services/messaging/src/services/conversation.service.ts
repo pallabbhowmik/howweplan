@@ -136,6 +136,8 @@ export class ConversationService {
       }
     }
 
+    return this.toConversationView(currentConversation, requesterId);
+  }
 
   private async isAgentUserForConversation(
     supabase: ReturnType<typeof getServiceSupabaseClient>,
@@ -149,8 +151,6 @@ export class ConversationService {
       .eq('user_id', actorId)
       .maybeSingle();
     return Boolean(data);
-  }
-    return this.toConversationView(currentConversation, requesterId);
   }
 
   /**
