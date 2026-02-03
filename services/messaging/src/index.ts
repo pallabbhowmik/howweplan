@@ -12,7 +12,7 @@ import { env, config } from './env';
 import { createAuthMiddleware } from './middleware/auth';
 import { idempotencyMiddleware } from './middleware/idempotency';
 
-if (process.env.NODE_ENV === 'production') {
+if (process.env['NODE_ENV'] === 'production') {
   const noop = () => undefined;
   console.log = noop;
   console.info = noop;
