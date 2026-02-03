@@ -11,6 +11,15 @@ import helmet from 'helmet';
 // Environment validation runs on import
 import { config } from './env';
 
+if (process.env.NODE_ENV === 'production') {
+  const noop = () => undefined;
+  console.log = noop;
+  console.info = noop;
+  console.warn = noop;
+  console.error = noop;
+  console.debug = noop;
+}
+
 // CORS configuration
 const corsOptions = {
   origin: config.app.isProduction 

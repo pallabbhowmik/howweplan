@@ -114,11 +114,23 @@ export function createConversationRoutes(
         const input = listConversationsSchema.parse(req.query);
         const actor = req.user!;
 
+        // For agents, resolve profile ID from user ID to match conversations.agent_id
+        let agentProfileId: string | undefined;
+        if (actor.userType === 'AGENT') {
+          const supabase = getServiceSupabaseClient();
+          const { data: agentRow } = await supabase
+            .from('agents')
+            .select('id')
+            .eq('user_id', actor.userId)
+            .maybeSingle();
+          agentProfileId = agentRow?.id;
+        }
+
         // Users can only list their own conversations
         const filters = {
           ...input,
           userId: actor.userType === 'USER' ? actor.userId : input.userId,
-          agentId: actor.userType === 'AGENT' ? actor.userId : input.agentId,
+          agentId: actor.userType === 'AGENT' ? agentProfileId ?? actor.userId : input.agentId,
         };
 
         const result = await conversationService.listConversations(

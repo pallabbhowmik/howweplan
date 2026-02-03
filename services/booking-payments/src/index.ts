@@ -14,6 +14,15 @@ import { logger } from './services/logger.service.js';
 import { router } from './api/routes.js';
 import { idempotencyMiddleware } from './middleware/idempotency.middleware.js';
 
+if (process.env.NODE_ENV === 'production') {
+  const noop = () => undefined;
+  console.log = noop;
+  console.info = noop;
+  console.warn = noop;
+  console.error = noop;
+  console.debug = noop;
+}
+
 const app = express();
 
 // CORS middleware - must be before other middleware

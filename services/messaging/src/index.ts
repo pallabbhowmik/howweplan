@@ -11,6 +11,15 @@ import compression from 'compression';
 import { env, config } from './env';
 import { createAuthMiddleware } from './middleware/auth';
 import { idempotencyMiddleware } from './middleware/idempotency';
+
+if (process.env.NODE_ENV === 'production') {
+  const noop = () => undefined;
+  console.log = noop;
+  console.info = noop;
+  console.warn = noop;
+  console.error = noop;
+  console.debug = noop;
+}
 import {
   createConversationRoutes,
   createMessageRoutes,

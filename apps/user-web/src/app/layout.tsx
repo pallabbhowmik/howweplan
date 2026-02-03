@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { TestSiteBanner } from '@/components/ui/test-site-banner';
+import { ConsoleSilencer } from '@/components/console-silencer';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -23,6 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
+        <ConsoleSilencer />
         <TestSiteBanner />
         <Providers>{children}</Providers>
       </body>

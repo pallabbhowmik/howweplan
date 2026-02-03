@@ -32,6 +32,20 @@ import type {
 // =============================================================================
 
 export class MessageService {
+  private async isAgentUserForConversation(
+    supabase: ReturnType<typeof getServiceSupabaseClient>,
+    agentProfileId: string,
+    actorId: string
+  ): Promise<boolean> {
+    const { data } = await supabase
+      .from('agents')
+      .select('id')
+      .eq('id', agentProfileId)
+      .eq('user_id', actorId)
+      .maybeSingle();
+    return Boolean(data);
+  }
+
   /**
    * Sends a new message to a conversation.
    * Content will be automatically masked if contacts are not revealed.
@@ -88,7 +102,14 @@ export class MessageService {
       actor.actorId !== conversation.userId &&
       actor.actorId !== conversation.agentId
     ) {
-      throw Errors.NOT_PARTICIPANT();
+      const isAgentUser = await this.isAgentUserForConversation(
+        supabase,
+        conversation.agentId,
+        actor.actorId
+      );
+      if (!isAgentUser) {
+        throw Errors.NOT_PARTICIPANT();
+      }
     }
 
     // Check conversation is active
@@ -221,7 +242,14 @@ export class MessageService {
     const userId = String((convoRow as any).user_id);
     const agentId = String((convoRow as any).agent_id);
     if (requesterId !== userId && requesterId !== agentId) {
-      throw Errors.NOT_PARTICIPANT();
+      const isAgentUser = await this.isAgentUserForConversation(
+        supabase,
+        agentId,
+        requesterId
+      );
+      if (!isAgentUser) {
+        throw Errors.NOT_PARTICIPANT();
+      }
     }
 
     const limit = pagination?.limit ?? 50;
@@ -530,7 +558,14 @@ export class MessageService {
     const userId = String((convoRow as any).user_id);
     const agentId = String((convoRow as any).agent_id);
     if (readById !== userId && readById !== agentId) {
-      throw Errors.NOT_PARTICIPANT();
+      const isAgentUser = await this.isAgentUserForConversation(
+        supabase,
+        agentId,
+        readById
+      );
+      if (!isAgentUser) {
+        throw Errors.NOT_PARTICIPANT();
+      }
     }
 
     const now = new Date();

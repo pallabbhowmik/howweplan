@@ -8,6 +8,15 @@ import { authMiddleware, errorHandler } from './api/middleware/index';
 import { queryRoutes, ingestRoutes, healthRoutes } from './api/routes/index';
 import { logger } from './utils/logger';
 
+if (process.env.NODE_ENV === 'production') {
+  const noop = () => undefined;
+  console.log = noop;
+  console.info = noop;
+  console.warn = noop;
+  console.error = noop;
+  console.debug = noop;
+}
+
 /**
  * Build the Fastify application
  */

@@ -16,6 +16,15 @@ import { createMatchingEngine } from './engine/index.js';
 import { startServer, initWebhookRouter } from './routes/index.js';
 import { initializePool, closePool } from './db/connection.js';
 
+if (process.env.NODE_ENV === 'production') {
+  const noop = () => undefined;
+  console.log = noop;
+  console.info = noop;
+  console.warn = noop;
+  console.error = noop;
+  console.debug = noop;
+}
+
 /**
  * Service state
  */

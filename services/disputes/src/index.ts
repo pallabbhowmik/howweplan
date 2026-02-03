@@ -19,6 +19,15 @@ import { idempotencyMiddleware } from './api/idempotency.middleware.js';
 import { logger } from './audit/logger.js';
 import { eventSubscriber, registerDefaultHandlers } from './events/subscriber.js';
 
+if (process.env.NODE_ENV === 'production') {
+  const noop = () => undefined;
+  console.log = noop;
+  console.info = noop;
+  console.warn = noop;
+  console.error = noop;
+  console.debug = noop;
+}
+
 /**
  * Create and configure the Express application.
  */

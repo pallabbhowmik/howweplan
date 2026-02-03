@@ -25,6 +25,15 @@ import { NotificationService, AuditService, RateLimiterService } from './service
 import { DeliveryLogRepository } from './repositories';
 import { logger } from './utils/logger';
 
+if (process.env.NODE_ENV === 'production') {
+  const noop = () => undefined;
+  console.log = noop;
+  console.info = noop;
+  console.warn = noop;
+  console.error = noop;
+  console.debug = noop;
+}
+
 class Application {
   private readonly app: Express;
   private readonly deliveryLogRepo: DeliveryLogRepository;

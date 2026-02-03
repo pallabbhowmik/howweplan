@@ -50,3 +50,6 @@ export {
   setCorrelationId,
   withCorrelation,
 } from './correlation';
+
+// Console silencer
+export { silenceConsoleInProduction } from './silence-console';

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { TestSiteBanner } from '@/components/ui/test-site-banner';
+import { ConsoleSilencer } from '@/components/console-silencer';
 
 export const metadata: Metadata = {
   title: 'HowWePlan Agent Portal',
@@ -18,6 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <ConsoleSilencer />
         <TestSiteBanner />
         {children}
       </body>

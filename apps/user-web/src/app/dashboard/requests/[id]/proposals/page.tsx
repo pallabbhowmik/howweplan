@@ -159,32 +159,27 @@ export default function ProposalsPage() {
     }
   };
 
-  const handleMessageAgent = async (agentUserId: string | undefined) => {
-    console.log('[MessageAgent] Button clicked, agentUserId:', agentUserId, 'user:', user?.userId);
-    
+  const handleMessageAgent = async (agentId: string | undefined) => {
     if (!user?.userId) {
       alert('Please log in to message agents');
       return;
     }
     
-    if (!agentUserId) {
+    if (!agentId) {
       alert('Unable to message this agent - contact information unavailable');
       return;
     }
     
-    setMessagingInProgress(agentUserId);
+    setMessagingInProgress(agentId);
     try {
-      console.log('[MessageAgent] Starting conversation with agent:', agentUserId);
-      const { conversationId } = await startConversation(user.userId, agentUserId);
-      console.log('[MessageAgent] Conversation created:', conversationId);
+      const { conversationId } = await startConversation(user.userId, agentId);
       router.push(`/dashboard/messages?conversation=${conversationId}`);
     } catch (error) {
-      console.error('[MessageAgent] Failed to start conversation:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       // Show user-friendly error
       alert(`Failed to start conversation: ${errorMessage}`);
       // Still try to redirect to messages with agent filter
-      router.push(`/dashboard/messages?agent=${agentUserId}`);
+      router.push(`/dashboard/messages?agent=${agentId}`);
     } finally {
       setMessagingInProgress(null);
     }
@@ -516,14 +511,12 @@ export default function ProposalsPage() {
                     <Button 
                       variant="outline" 
                       onClick={() => {
-                        const targetId = proposal.agent?.userId || proposal.agentId;
-                        console.log('[MessageAgent] Click - agent:', proposal.agent, 'agentId:', proposal.agentId, 'targetId:', targetId);
-                        handleMessageAgent(targetId);
+                        handleMessageAgent(proposal.agentId);
                       }} 
-                      disabled={messagingInProgress === (proposal.agent?.userId || proposal.agentId)}
+                      disabled={messagingInProgress === proposal.agentId}
                       title="Send a message to this agent"
                     >
-                      {messagingInProgress === (proposal.agent?.userId || proposal.agentId) ? (
+                      {messagingInProgress === proposal.agentId ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       ) : (
                         <MessageSquare className="h-4 w-4 mr-2" />

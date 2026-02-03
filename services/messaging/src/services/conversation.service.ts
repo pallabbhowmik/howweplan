@@ -123,13 +123,33 @@ export class ConversationService {
     const currentConversation = this.fromDbConversation(data);
 
     // Verify requester is a participant
-    if (
-      currentConversation.userId !== requesterId &&
-      currentConversation.agentId !== requesterId
-    ) {
-      throw Errors.NOT_PARTICIPANT();
+    const userId = String((currentConversation as any).userId);
+    const agentId = String((currentConversation as any).agentId);
+    if (requesterId !== userId && requesterId !== agentId) {
+      const isAgentUser = await this.isAgentUserForConversation(
+        supabase,
+        agentId,
+        requesterId
+      );
+      if (!isAgentUser) {
+        throw Errors.NOT_PARTICIPANT();
+      }
     }
 
+
+  private async isAgentUserForConversation(
+    supabase: ReturnType<typeof getServiceSupabaseClient>,
+    agentProfileId: string,
+    actorId: string
+  ): Promise<boolean> {
+    const { data } = await supabase
+      .from('agents')
+      .select('id')
+      .eq('id', agentProfileId)
+      .eq('user_id', actorId)
+      .maybeSingle();
+    return Boolean(data);
+  }
     return this.toConversationView(currentConversation, requesterId);
   }
 

@@ -10,6 +10,15 @@ import { appConfig } from './config/env';
 import { initializeEventBus, closeEventBus } from './events/publisher';
 import { initializeEventConsumer, closeEventConsumer } from './events/consumer';
 
+if (process.env.NODE_ENV === 'production') {
+  const noop = () => undefined;
+  console.log = noop;
+  console.info = noop;
+  console.warn = noop;
+  console.error = noop;
+  console.debug = noop;
+}
+
 // =============================================================================
 // SERVICE STARTUP
 // =============================================================================

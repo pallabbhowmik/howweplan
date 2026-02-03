@@ -92,14 +92,20 @@ export const config = {
 
   // CORS Configuration
   cors: {
-    allowedOrigins: process.env.CORS_ALLOWED_ORIGINS?.split(',') || [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:3002',
-      'https://howweplan-user.vercel.app',
-      'https://howweplan-agent.vercel.app',
-      'https://howweplan-admin.vercel.app',
-    ],
+    allowedOrigins: Array.from(
+      new Set([
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:3002',
+        'https://howweplan-user.vercel.app',
+        'https://howweplan-agent.vercel.app',
+        'https://howweplan-admin.vercel.app',
+        ...((process.env.CORS_ALLOWED_ORIGINS || '')
+          .split(',')
+          .map((o) => o.trim())
+          .filter(Boolean)),
+      ])
+    ),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-API-Key'],
   },

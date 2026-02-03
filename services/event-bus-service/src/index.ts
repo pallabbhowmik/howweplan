@@ -34,6 +34,15 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 
+if (process.env.NODE_ENV === 'production') {
+  const noop = () => undefined;
+  console.log = noop;
+  console.info = noop;
+  console.warn = noop;
+  console.error = noop;
+  console.debug = noop;
+}
+
 // Internal imports
 import { EventEnvelope, EventDomain, EventState, EventTypes } from './types/event.types';
 import { EventStore, InMemoryEventStore, createEventStore, getEventStore } from './store/event-store';

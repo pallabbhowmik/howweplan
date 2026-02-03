@@ -18,6 +18,15 @@ import { IdentityError } from './services/errors.js';
 import { closeDbConnection } from './services/database.js';
 import { shutdownEventEmitter } from './events/index.js';
 
+if (process.env.NODE_ENV === 'production') {
+  const noop = () => undefined;
+  console.log = noop;
+  console.info = noop;
+  console.warn = noop;
+  console.error = noop;
+  console.debug = noop;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // EXPRESS APP SETUP
 // ─────────────────────────────────────────────────────────────────────────────
