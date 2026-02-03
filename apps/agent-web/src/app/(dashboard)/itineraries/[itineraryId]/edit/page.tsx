@@ -1,0 +1,570 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import {
+  ArrowLeft,
+  Calendar,
+  MapPin,
+  Users,
+  DollarSign,
+  Plus,
+  Trash2,
+  Save,
+  Loader2,
+  AlertCircle,
+  FileText,
+  RefreshCw,
+} from 'lucide-react';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  Input,
+  Textarea,
+  Badge,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  Label,
+  Separator,
+} from '@/components/ui';
+import { cn } from '@/lib/utils';
+import { useAgentSession } from '@/lib/agent/session';
+import {
+  getAgentItineraryById,
+  updateItinerary,
+  updateProposal,
+  type AgentItinerary,
+  type UpdateItineraryInput,
+  type UpdateProposalInput,
+} from '@/lib/data/agent';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface DayPlan {
+  dayNumber: number;
+  title: string;
+  description: string;
+  activities: string[];
+}
+
+interface FormState {
+  title: string;
+  summary: string;
+  startDate: string;
+  endDate: string;
+  destinations: string[];
+  tripType: string;
+  totalPrice: number;
+  pricePerPerson: number;
+  depositAmount: number;
+  currency: string;
+  inclusions: string[];
+  exclusions: string[];
+  termsAndConditions: string;
+  cancellationPolicy: string;
+  internalNotes: string;
+  days: DayPlan[];
+  changeReason: string;
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+function formatCurrency(amount: number, currency = 'INR'): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+export default function EditItineraryPage() {
+  const params = useParams();
+  const router = useRouter();
+  const itineraryId = params.itineraryId as string;
+  const { agent } = useAgentSession();
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [itinerary, setItinerary] = useState<AgentItinerary | null>(null);
+
+  const [form, setForm] = useState<FormState>({
+    title: '',
+    summary: '',
+    startDate: '',
+    endDate: '',
+    destinations: [],
+    tripType: 'LEISURE',
+    totalPrice: 0,
+    pricePerPerson: 0,
+    depositAmount: 0,
+    currency: 'INR',
+    inclusions: [],
+    exclusions: [],
+    termsAndConditions: '',
+    cancellationPolicy: '',
+    internalNotes: '',
+    days: [],
+    changeReason: '',
+  });
+
+  // Load existing itinerary
+  useEffect(() => {
+    async function loadItinerary() {
+      if (!itineraryId) return;
+
+      try {
+        setLoading(true);
+        const data = await getAgentItineraryById(itineraryId);
+        
+        if (!data) {
+          setError('Itinerary not found');
+          return;
+        }
+
+        setItinerary(data);
+
+        // Populate form with existing data
+        const overview = data.overview || {} as AgentItinerary['overview'];
+        const pricing = data.pricing || {} as NonNullable<AgentItinerary['pricing']>;
+        
+        // Convert ISO dates to YYYY-MM-DD format for input fields
+        const formatDateForInput = (isoDate: string | undefined): string => {
+          if (!isoDate) return '';
+          try {
+            return new Date(isoDate).toISOString().split('T')[0];
+          } catch {
+            return isoDate.split('T')[0] || '';
+          }
+        };
+        
+        setForm({
+          title: overview.title || '',
+          summary: overview.summary || '',
+          startDate: formatDateForInput(overview.startDate),
+          endDate: formatDateForInput(overview.endDate),
+          destinations: overview.destinations || [],
+          tripType: overview.tripType || 'LEISURE',
+          totalPrice: pricing.totalPrice || 0,
+          pricePerPerson: pricing.pricePerPerson || 0,
+          depositAmount: pricing.depositAmount || 0,
+          currency: pricing.currency || 'INR',
+          inclusions: pricing.inclusions || [],
+          exclusions: pricing.exclusions || [],
+          termsAndConditions: data.termsAndConditions || '',
+          cancellationPolicy: data.cancellationPolicy || '',
+          internalNotes: data.internalNotes || '',
+          days: (data.items || []).reduce((acc: DayPlan[], item) => {
+            const dayNum = item.dayNumber || 1;
+            const existingDay = acc.find(d => d.dayNumber === dayNum);
+            if (existingDay) {
+              existingDay.activities.push(item.title);
+            } else {
+              acc.push({
+                dayNumber: dayNum,
+                title: `Day ${dayNum}`,
+                description: '',
+                activities: [item.title],
+              });
+            }
+            return acc;
+          }, []),
+          changeReason: '',
+        });
+      } catch (err) {
+        console.error('Error loading itinerary:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load itinerary');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadItinerary();
+  }, [itineraryId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!itinerary) return;
+
+    setSaving(true);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      // Calculate number of days and nights
+      const startDate = form.startDate ? new Date(form.startDate) : new Date();
+      const endDate = form.endDate ? new Date(form.endDate) : new Date();
+      const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+      const numberOfDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+      const numberOfNights = Math.max(0, numberOfDays - 1);
+
+      // Convert dates to ISO format (backend expects datetime format)
+      const startDateISO = form.startDate ? new Date(form.startDate + 'T00:00:00Z').toISOString() : undefined;
+      const endDateISO = form.endDate ? new Date(form.endDate + 'T23:59:59Z').toISOString() : undefined;
+
+      // Build update input
+      const updateInput = {
+        overview: {
+          title: form.title || undefined,
+          summary: form.summary || undefined,
+          startDate: startDateISO,
+          endDate: endDateISO,
+          numberOfDays,
+          numberOfNights,
+          destinations: form.destinations.length > 0 ? form.destinations : undefined,
+          tripType: form.tripType || undefined,
+        },
+        pricing: {
+          totalPrice: form.totalPrice,
+          pricePerPerson: form.pricePerPerson > 0 ? form.pricePerPerson : undefined,
+          depositAmount: form.depositAmount > 0 ? form.depositAmount : undefined,
+          currency: form.currency,
+          inclusions: form.inclusions.length > 0 ? form.inclusions : undefined,
+          exclusions: form.exclusions.length > 0 ? form.exclusions : undefined,
+        },
+        termsAndConditions: form.termsAndConditions || undefined,
+        cancellationPolicy: form.cancellationPolicy || undefined,
+        internalNotes: form.internalNotes || undefined,
+        changeReason: form.changeReason,
+      };
+
+      // Use updateProposal for submitted/under_review proposals, updateItinerary for drafts
+      const isDraft = itinerary.status?.toLowerCase() === 'draft';
+      
+      if (isDraft) {
+        await updateItinerary(itineraryId, updateInput);
+      } else {
+        // For submitted proposals, require a change reason
+        if (!form.changeReason.trim()) {
+          setError('Please provide a reason for the update. This will be shared with the traveler.');
+          setSaving(false);
+          return;
+        }
+        await updateProposal(itineraryId, updateInput);
+      }
+
+      setSuccess(true);
+      
+      // Redirect back to itinerary detail after a short delay
+      setTimeout(() => {
+        router.push(`/itineraries/${itineraryId}`);
+      }, 1500);
+    } catch (err) {
+      console.error('Error updating itinerary:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update itinerary');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error && !itinerary) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <Card>
+          <CardContent className="p-12 text-center">
+            <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">{error}</h2>
+            <Button onClick={() => router.push('/itineraries')}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Itineraries
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const isSubmitted = ['submitted', 'under_review'].includes(itinerary?.status?.toLowerCase() || '');
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => router.push(`/itineraries/${itineraryId}`)}
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {isSubmitted ? 'Update Proposal' : 'Edit Itinerary'}
+          </h1>
+          <p className="text-gray-500">
+            {isSubmitted 
+              ? 'Make changes to your submitted proposal. The traveler will be notified of the update.'
+              : 'Modify your draft itinerary before submitting.'
+            }
+          </p>
+        </div>
+      </div>
+
+      {/* Warning for submitted proposals */}
+      {isSubmitted && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+          <RefreshCw className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium text-amber-800">Updating a Submitted Proposal</p>
+            <p className="text-sm text-amber-700 mt-1">
+              This proposal has already been sent to the traveler. Any changes you make will:
+            </p>
+            <ul className="text-sm text-amber-700 mt-2 list-disc list-inside space-y-1">
+              <li>Notify the traveler via email</li>
+              <li>Update the proposal version number</li>
+              <li>Show a "Updated" indicator on their dashboard</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message */}
+      {success && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3">
+          <FileText className="h-5 w-5 text-emerald-600 shrink-0" />
+          <div>
+            <p className="font-medium text-emerald-800">Changes Saved Successfully!</p>
+            <p className="text-sm text-emerald-700">
+              {isSubmitted 
+                ? 'The traveler has been notified about the updated proposal.'
+                : 'Your itinerary has been updated.'
+              }
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && itinerary && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
+          <div>
+            <p className="font-medium text-red-800">Error</p>
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Change Reason (for submitted proposals) */}
+        {isSubmitted && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <RefreshCw className="h-5 w-5" />
+                Reason for Update
+              </CardTitle>
+              <CardDescription>
+                Explain what you've changed. This will be shown to the traveler.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                value={form.changeReason}
+                onChange={(e) => setForm({ ...form, changeReason: e.target.value })}
+                placeholder="e.g., Updated pricing based on current hotel rates, Added a day trip option, Changed flight times..."
+                className="min-h-[100px]"
+                required={isSubmitted}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Overview Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Trip Overview</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="e.g., Magical Kerala Backwaters Adventure"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="summary">Summary</Label>
+              <Textarea
+                id="summary"
+                value={form.summary}
+                onChange={(e) => setForm({ ...form, summary: e.target.value })}
+                placeholder="Describe the highlights of this trip..."
+                className="min-h-[100px]"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startDate">Start Date</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={form.startDate}
+                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endDate">End Date</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={form.endDate}
+                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="destinations">Destinations (comma-separated)</Label>
+              <Input
+                id="destinations"
+                value={form.destinations.join(', ')}
+                onChange={(e) => setForm({ 
+                  ...form, 
+                  destinations: e.target.value.split(',').map(d => d.trim()).filter(d => d.length > 0)
+                })}
+                placeholder="e.g., Mumbai, Goa, Kerala"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pricing Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Pricing
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="totalPrice">Total Price</Label>
+                <div className="flex">
+                  <Select
+                    value={form.currency}
+                    onValueChange={(value) => setForm({ ...form, currency: value })}
+                  >
+                    <SelectTrigger className="w-24 rounded-r-none">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="INR">₹ INR</SelectItem>
+                      <SelectItem value="USD">$ USD</SelectItem>
+                      <SelectItem value="EUR">€ EUR</SelectItem>
+                      <SelectItem value="GBP">£ GBP</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="totalPrice"
+                    type="number"
+                    value={form.totalPrice}
+                    onChange={(e) => setForm({ ...form, totalPrice: Number(e.target.value) })}
+                    className="rounded-l-none"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pricePerPerson">Price Per Person</Label>
+                <Input
+                  id="pricePerPerson"
+                  type="number"
+                  value={form.pricePerPerson}
+                  onChange={(e) => setForm({ ...form, pricePerPerson: Number(e.target.value) })}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="depositAmount">Deposit Amount</Label>
+              <Input
+                id="depositAmount"
+                type="number"
+                value={form.depositAmount}
+                onChange={(e) => setForm({ ...form, depositAmount: Number(e.target.value) })}
+                placeholder="0"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Internal Notes */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Internal Notes</CardTitle>
+            <CardDescription>
+              Private notes (not visible to the traveler)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={form.internalNotes}
+              onChange={(e) => setForm({ ...form, internalNotes: e.target.value })}
+              placeholder="Add any internal notes about this itinerary..."
+              className="min-h-[100px]"
+            />
+          </CardContent>
+        </Card>
+
+        {/* Submit Buttons */}
+        <div className="flex items-center justify-end gap-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push(`/itineraries/${itineraryId}`)}
+            disabled={saving}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                {isSubmitted ? 'Update & Notify Traveler' : 'Save Changes'}
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}

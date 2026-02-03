@@ -129,6 +129,27 @@ export interface ItinerarySubmittedPayload {
   obfuscatedSummary: string;
 }
 
+export interface ItineraryProposalUpdatedPayload {
+  itineraryId: string;
+  tripRequestId: string;
+  agentId: string;
+  userId: string;
+  userEmail: string;
+  userFirstName: string;
+  /** Version number after update */
+  version: number;
+  /** Previous version number */
+  previousVersion: number;
+  /** Reason for the update provided by agent */
+  changeReason?: string;
+  /** Summary of the updated proposal */
+  proposalSummary: {
+    title: string;
+    totalPrice: number;
+    currency: string;
+  };
+}
+
 export interface ItineraryRevisionRequestedPayload {
   itineraryId: string;
   tripRequestId: string;
@@ -258,6 +279,7 @@ export const EventTypes = {
   AGENT_ASSIGNED: 'agent.assigned',
   AGENT_CONFIRMED: 'agent.confirmed',
   ITINERARY_SUBMITTED: 'itinerary.submitted',
+  ITINERARY_PROPOSAL_UPDATED: 'itinerary.proposal_updated',
   ITINERARY_REVISION_REQUESTED: 'itinerary.revision_requested',
 
   // Chat events

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Star, Clock, CheckCircle, Calendar, MessageSquare, Loader2, Lock, Eye, ExternalLink, Shield, Award, Zap, Users, MapPin, ThumbsUp, TrendingUp, BadgeCheck, Quote, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Star, Clock, CheckCircle, Calendar, MessageSquare, Loader2, Lock, Eye, ExternalLink, Shield, Award, Zap, Users, MapPin, ThumbsUp, TrendingUp, BadgeCheck, Quote, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import { startConversation } from '@/lib/data/messages';
 import { PriceBudgetComparison, SavingsHighlight } from '@/components/trust/PriceBudgetComparison';
 import { ItineraryTemplateCompact } from '@/components/trust/ItineraryTemplate';
 import { cn } from '@/lib/utils';
+import { useRequestUpdates } from '@/lib/realtime';
 import {
   Tooltip,
   TooltipContent,
@@ -62,6 +63,38 @@ export default function ProposalsPage() {
   const [messagingInProgress, setMessagingInProgress] = useState<string | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState<string | null>(null);
+  const [updatedProposalId, setUpdatedProposalId] = useState<string | null>(null);
+
+  // Reload proposals from API
+  const reloadProposals = useCallback(async () => {
+    try {
+      const proposalsData = await fetchRequestProposals(requestId);
+      setProposals(proposalsData);
+    } catch (error) {
+      console.error('Error reloading proposals:', error);
+    }
+  }, [requestId]);
+
+  // Real-time updates for proposals
+  const { lastEvent } = useRequestUpdates({
+    requestId,
+    userId: user?.userId,
+    enabled: !userLoading && !!requestId,
+    onUpdate: useCallback((event) => {
+      console.log('[Proposals] Real-time event received:', event.type, event.data);
+      
+      if (event.type === 'NEW_PROPOSAL' || event.type === 'PROPOSAL_UPDATED') {
+        // Highlight the updated proposal and reload
+        if (event.data.itineraryId) {
+          setUpdatedProposalId(event.data.itineraryId);
+          // Clear highlight after 3 seconds
+          setTimeout(() => setUpdatedProposalId(null), 3000);
+        }
+        // Reload proposals to get fresh data
+        reloadProposals();
+      }
+    }, [reloadProposals]),
+  });
 
   useEffect(() => {
     const loadData = async () => {
@@ -227,7 +260,17 @@ export default function ProposalsPage() {
               : null;
             
             return (
-            <Card key={proposal.id} className="hover:shadow-lg transition-all duration-300 overflow-hidden border-2 hover:border-blue-200">
+            <Card key={proposal.id} className={cn(
+              "hover:shadow-lg transition-all duration-300 overflow-hidden border-2 hover:border-blue-200",
+              updatedProposalId === proposal.id && "ring-2 ring-amber-400 ring-offset-2 animate-pulse border-amber-300"
+            )}>
+              {/* Updated Badge */}
+              {updatedProposalId === proposal.id && (
+                <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2 text-amber-800 text-sm">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span className="font-medium">This proposal was just updated!</span>
+                </div>
+              )}
               {/* Agent Profile Header */}
               <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50/50 border-b pb-4">
                 <div className="flex items-start gap-4">

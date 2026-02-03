@@ -25,7 +25,7 @@ import { apiConfig } from '@/config';
 // ============================================================================
 
 export interface RequestUpdateEvent {
-  type: 'REQUEST_UPDATE' | 'NEW_PROPOSAL' | 'STATE_CHANGE' | 'AGENT_RESPONSE';
+  type: 'REQUEST_UPDATE' | 'NEW_PROPOSAL' | 'STATE_CHANGE' | 'AGENT_RESPONSE' | 'PROPOSAL_UPDATED';
   requestId: string;
   data: {
     state?: string;
@@ -34,6 +34,16 @@ export interface RequestUpdateEvent {
     agentName?: string;
     message?: string;
     timestamp: string;
+    /** For PROPOSAL_UPDATED events */
+    itineraryId?: string;
+    version?: number;
+    previousVersion?: number;
+    changeReason?: string;
+    proposalSummary?: {
+      title: string;
+      totalPrice: number;
+      currency: string;
+    };
   };
 }
 
@@ -178,7 +188,8 @@ export function useRequestUpdates(options: UseRequestUpdatesOptions): UseRequest
           if (data.type === 'REQUEST_UPDATE' || 
               data.type === 'NEW_PROPOSAL' || 
               data.type === 'STATE_CHANGE' ||
-              data.type === 'AGENT_RESPONSE') {
+              data.type === 'AGENT_RESPONSE' ||
+              data.type === 'PROPOSAL_UPDATED') {
             processMessage(data);
           }
         } catch (err) {

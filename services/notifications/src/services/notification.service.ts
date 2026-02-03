@@ -407,6 +407,7 @@ export class NotificationService {
       'agent-assigned': 'New Trip Assignment',
       'agent-confirmed-user': 'Your Travel Agent Has Confirmed',
       'itinerary-submitted': 'Your Itinerary is Ready for Review',
+      'proposal-updated': 'Your Proposal Has Been Updated',
       'itinerary-revision-requested': 'Revision Requested for Itinerary',
       'chat-message-received': 'New Message on HowWePlan',
       'refund-requested-user': 'Refund Request Received',
@@ -438,6 +439,7 @@ export class NotificationService {
       'booking-created': this.renderBookingCreatedTemplate.bind(this),
       'booking-confirmed-user': this.renderBookingConfirmedTemplate.bind(this),
       'itinerary-submitted': this.renderItinerarySubmittedTemplate.bind(this),
+      'proposal-updated': this.renderProposalUpdatedTemplate.bind(this),
     };
 
     const renderer = templates[templateId];
@@ -801,6 +803,85 @@ export class NotificationService {
           </td>
         </tr>
       </table>
+    `;
+
+    return this.wrapEmailTemplate(content);
+  }
+
+  /**
+   * Proposal Updated Template - Sent when agent updates a submitted proposal
+   */
+  private renderProposalUpdatedTemplate(variables: Record<string, unknown>): string {
+    const firstName = String(variables.firstName || 'there');
+    const itineraryId = String(variables.itineraryId || '');
+    const tripRequestId = String(variables.tripRequestId || '');
+    const version = Number(variables.version || 1);
+    const previousVersion = Number(variables.previousVersion || 1);
+    const changeReason = String(variables.changeReason || 'The agent has updated the proposal details.');
+    const proposalTitle = String(variables.proposalTitle || 'Your Proposal');
+    const totalPrice = Number(variables.totalPrice || 0);
+    const currency = String(variables.currency || 'USD');
+
+    const formattedPrice = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+    }).format(totalPrice);
+
+    const content = `
+      <div style="text-align: center; margin-bottom: 30px;">
+        <span style="font-size: 64px;">🔄</span>
+      </div>
+      <h1 style="margin: 0 0 20px 0; font-size: 28px; font-weight: 700; color: #1e3a5f; text-align: center;">
+        Your Proposal Has Been Updated
+      </h1>
+      <p style="margin: 0 0 25px 0; font-size: 16px; line-height: 1.6; color: #4b5563; text-align: center;">
+        Hi ${firstName}, your travel agent has made updates to your proposal.
+      </p>
+      
+      <!-- Proposal Details Card -->
+      <div style="background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%); border-radius: 12px; padding: 25px; margin-bottom: 25px;">
+        <h3 style="margin: 0 0 15px 0; font-size: 18px; font-weight: 600; color: #1e3a5f;">
+          ${proposalTitle}
+        </h3>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+          <tr>
+            <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Version</td>
+            <td style="padding: 8px 0; color: #1e3a5f; font-size: 14px; font-weight: 600; text-align: right;">
+              v${previousVersion} → v${version}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Updated Price</td>
+            <td style="padding: 8px 0; color: #3b82f6; font-size: 16px; font-weight: 700; text-align: right;">
+              ${formattedPrice}
+            </td>
+          </tr>
+        </table>
+      </div>
+      
+      <!-- Change Reason -->
+      <div style="background-color: #fefce8; border-left: 4px solid #eab308; border-radius: 0 8px 8px 0; padding: 15px 20px; margin-bottom: 25px;">
+        <p style="margin: 0 0 5px 0; font-size: 13px; font-weight: 600; color: #a16207;">
+          What Changed:
+        </p>
+        <p style="margin: 0; font-size: 14px; color: #854d0e; line-height: 1.5;">
+          ${changeReason}
+        </p>
+      </div>
+      
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+          <td align="center">
+            <a href="${env.FRONTEND_URL}/dashboard/requests/${tripRequestId}/proposals/${itineraryId}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 10px; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);">
+              Review Updated Proposal
+            </a>
+          </td>
+        </tr>
+      </table>
+      
+      <p style="margin: 25px 0 0 0; font-size: 13px; color: #9ca3af; text-align: center;">
+        If you have any questions about these changes, feel free to message your agent directly.
+      </p>
     `;
 
     return this.wrapEmailTemplate(content);

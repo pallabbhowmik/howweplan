@@ -175,7 +175,7 @@ export class ItineraryService {
   ): Promise<Itinerary> {
     const itinerary = await this.getRawItinerary(id);
 
-    // Only draft itineraries can be updated
+    // Only draft itineraries can be updated via this method
     if (itinerary.status !== ItineraryStatus.DRAFT) {
       throw new InvalidStateTransitionError(
         `Cannot update itinerary in ${itinerary.status} status`
@@ -225,6 +225,111 @@ export class ItineraryService {
       },
       metadata: {
         changeReason,
+      },
+    }));
+
+    return updatedItinerary;
+  }
+
+  /**
+   * Update a submitted proposal (before user acceptance).
+   * Agents can update their proposals to make changes based on traveler feedback.
+   * This emits a notification event to inform the traveler of the update.
+   */
+  async updateProposal(
+    id: string,
+    updates: UpdateItineraryInput,
+    actorId: string,
+    changeReason?: string
+  ): Promise<Itinerary> {
+    const itinerary = await this.getRawItinerary(id);
+
+    // Only DRAFT or SUBMITTED proposals can be updated (not APPROVED/REJECTED/ARCHIVED)
+    const editableStatuses = [ItineraryStatus.DRAFT, ItineraryStatus.SUBMITTED, ItineraryStatus.UNDER_REVIEW];
+    if (!editableStatuses.includes(itinerary.status as typeof ItineraryStatus[keyof typeof ItineraryStatus])) {
+      throw new InvalidStateTransitionError(
+        `Cannot update proposal in ${itinerary.status} status. Proposals can only be updated before acceptance.`
+      );
+    }
+
+    // Verify the actor is the agent who created this proposal
+    if (itinerary.agentId !== actorId) {
+      throw new ValidationError('Only the agent who created this proposal can update it');
+    }
+
+    const now = new Date().toISOString();
+    const previousVersion = itinerary.version;
+    const updatedItinerary: Itinerary = {
+      ...itinerary,
+      overview: updates.overview 
+        ? { ...itinerary.overview, ...updates.overview }
+        : itinerary.overview,
+      pricing: updates.pricing
+        ? itinerary.pricing 
+          ? { ...itinerary.pricing, ...updates.pricing }
+          : undefined
+        : itinerary.pricing,
+      termsAndConditions: updates.termsAndConditions ?? itinerary.termsAndConditions,
+      cancellationPolicy: updates.cancellationPolicy ?? itinerary.cancellationPolicy,
+      internalNotes: updates.internalNotes ?? itinerary.internalNotes,
+      version: itinerary.version + 1,
+      updatedAt: now,
+    };
+
+    // Persist updates
+    await this.repository.update(id, updatedItinerary);
+
+    // Create new version for history tracking
+    if (env.ENABLE_VERSION_HISTORY) {
+      await this.versionService.createVersion(
+        updatedItinerary,
+        actorId,
+        'AGENT',
+        changeReason || 'Proposal updated'
+      );
+    }
+
+    // Emit proposal updated event (for notifications and real-time updates)
+    await publishEvent({
+      type: 'itinerary.proposal_updated',
+      payload: {
+        itineraryId: id,
+        requestId: itinerary.requestId,
+        agentId: itinerary.agentId,
+        travelerId: itinerary.travelerId,
+        version: updatedItinerary.version,
+        previousVersion,
+        changeReason: changeReason || 'Agent updated the proposal',
+        updatedAt: now,
+        // Include summary for notification
+        proposalSummary: {
+          title: updatedItinerary.overview?.title,
+          totalPrice: updatedItinerary.pricing?.totalPrice,
+          currency: updatedItinerary.pricing?.currency || 'INR',
+        },
+      },
+      metadata: {
+        timestamp: now,
+        correlationId: `proposal-update-${id}-${Date.now()}`,
+        source: env.SERVICE_NAME,
+      },
+    });
+
+    // Also emit audit event for compliance
+    await publishEvent(createAuditEvent({
+      eventType: 'itinerary.proposal_updated',
+      entityType: 'itinerary',
+      entityId: id,
+      actorId,
+      actorRole: 'AGENT',
+      changes: {
+        version: { from: previousVersion, to: updatedItinerary.version },
+        status: { from: itinerary.status, to: updatedItinerary.status },
+      },
+      metadata: {
+        changeReason,
+        requestId: itinerary.requestId,
+        travelerId: itinerary.travelerId,
       },
     }));
 

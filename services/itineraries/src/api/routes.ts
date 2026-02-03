@@ -169,6 +169,17 @@ export function createRoutes(
     itineraryHandler.changeStatus
   );
 
+  // Update proposal (agents can update their submitted proposals before acceptance)
+  // This triggers notifications to the traveler about the update
+  itinerariesRouter.patch(
+    '/:id/proposal',
+    authenticate,
+    requireAgentOrAdmin,
+    validateParams(idParamSchema),
+    validateBody(updateItineraryRequestSchema),
+    itineraryHandler.updateProposal
+  );
+
   // ============================================================
   // ITEM ROUTES
   // ============================================================

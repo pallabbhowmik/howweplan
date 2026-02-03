@@ -82,10 +82,13 @@ function getStatusConfig(status: string): {
     draft: { label: 'Draft', variant: 'default', icon: <FileText className="h-4 w-4" /> },
     submitted: { label: 'Submitted', variant: 'info', icon: <Send className="h-4 w-4" /> },
     sent: { label: 'Sent to Client', variant: 'info', icon: <Send className="h-4 w-4" /> },
+    under_review: { label: 'Under Review', variant: 'warning', icon: <Eye className="h-4 w-4" /> },
     approved: { label: 'Approved', variant: 'success', icon: <CheckCircle className="h-4 w-4" /> },
     revision_requested: { label: 'Revision Requested', variant: 'warning', icon: <AlertCircle className="h-4 w-4" /> },
     completed: { label: 'Completed', variant: 'success', icon: <CheckCircle className="h-4 w-4" /> },
+    rejected: { label: 'Rejected', variant: 'destructive', icon: <AlertCircle className="h-4 w-4" /> },
     cancelled: { label: 'Cancelled', variant: 'destructive', icon: <AlertCircle className="h-4 w-4" /> },
+    archived: { label: 'Archived', variant: 'default', icon: <FileText className="h-4 w-4" /> },
   };
   return configs[status?.toLowerCase()] || { label: status || 'Unknown', variant: 'default', icon: null };
 }
@@ -299,16 +302,23 @@ export default function ItineraryDetailPage() {
             <Download className="h-4 w-4 mr-2" />
             Export PDF
           </Button>
-          {itinerary.status?.toLowerCase() === 'draft' && (
+          {/* Allow editing for draft, submitted, and under_review proposals */}
+          {['draft', 'submitted', 'under_review'].includes(itinerary.status?.toLowerCase() || '') && (
             <>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => router.push(`/itineraries/${itineraryId}/edit`)}
+              >
                 <Edit className="h-4 w-4 mr-2" />
-                Edit
+                {itinerary.status?.toLowerCase() === 'draft' ? 'Edit' : 'Update Proposal'}
               </Button>
-              <Button size="sm">
-                <Send className="h-4 w-4 mr-2" />
-                Submit
-              </Button>
+              {itinerary.status?.toLowerCase() === 'draft' && (
+                <Button size="sm">
+                  <Send className="h-4 w-4 mr-2" />
+                  Submit
+                </Button>
+              )}
             </>
           )}
         </div>

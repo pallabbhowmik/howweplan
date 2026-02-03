@@ -280,6 +280,47 @@ export class ItineraryHandler {
   };
 
   /**
+   * Update a proposal (submitted itinerary) before user acceptance.
+   * This allows agents to modify their proposals and notifies the traveler.
+   * PATCH /api/v1/itineraries/:id/proposal
+   */
+  updateProposal = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const user = (req as AuthenticatedRequest).user;
+      const { id } = req.params;
+      
+      if (!id) {
+        res.status(400).json({ error: 'Itinerary ID required' });
+        return;
+      }
+
+      const input = updateItineraryRequestSchema.parse(req.body);
+      const { changeReason, ...updates } = input;
+
+      const itinerary = await this.itineraryService.updateProposal(
+        id,
+        updates,
+        user.sub,
+        changeReason as string | undefined
+      );
+
+      const response = this.toResponse({
+        ...itinerary,
+        isRevealed: itinerary.disclosureState === 'REVEALED',
+        itemCount: itinerary.items.length,
+        isLatestVersion: true,
+      });
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * List itineraries with filters.
    * GET /api/v1/itineraries
    */

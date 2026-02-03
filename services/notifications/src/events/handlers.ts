@@ -10,6 +10,7 @@ import {
   AgentAssignedPayload,
   AgentConfirmedPayload,
   ItinerarySubmittedPayload,
+  ItineraryProposalUpdatedPayload,
   ItineraryRevisionRequestedPayload,
   ChatMessageReceivedPayload,
   RefundRequestedPayload,
@@ -428,6 +429,54 @@ registerHandler<ItinerarySubmittedPayload>(
       actorId: 'system',
       correlationId: event.correlationId,
       metadata: {},
+    });
+  }
+);
+
+registerHandler<ItineraryProposalUpdatedPayload>(
+  EventTypes.ITINERARY_PROPOSAL_UPDATED,
+  async (event, notificationService, auditService) => {
+    const { payload } = event;
+
+    await notificationService.sendEmail({
+      idempotencyKey: `${event.eventId}-proposal-updated`,
+      recipient: payload.userEmail,
+      templateId: 'proposal-updated',
+      priority: 'high',
+      variables: {
+        firstName: payload.userFirstName,
+        itineraryId: payload.itineraryId,
+        tripRequestId: payload.tripRequestId,
+        version: payload.version,
+        previousVersion: payload.previousVersion,
+        changeReason: payload.changeReason || 'The agent has updated the proposal details.',
+        proposalTitle: payload.proposalSummary.title,
+        totalPrice: payload.proposalSummary.totalPrice,
+        currency: payload.proposalSummary.currency,
+      },
+      metadata: {
+        sourceEventId: event.eventId,
+        sourceEventType: event.eventType,
+        userId: payload.userId,
+        agentId: payload.agentId,
+        itineraryId: payload.itineraryId,
+        correlationId: event.correlationId,
+        createdAt: new Date(),
+      },
+    });
+
+    await auditService.log({
+      eventType: 'notification.sent',
+      entityType: 'itinerary',
+      entityId: payload.itineraryId,
+      action: 'proposal_updated_notification',
+      actorId: 'system',
+      correlationId: event.correlationId,
+      metadata: { 
+        version: payload.version,
+        previousVersion: payload.previousVersion,
+        changeReason: payload.changeReason,
+      },
     });
   }
 );

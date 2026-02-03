@@ -140,12 +140,17 @@ function getStatusConfig(status: string): {
 } {
   const configs: Record<string, { label: string; variant: 'success' | 'warning' | 'info' | 'default' | 'destructive'; icon: React.ReactNode }> = {
     draft: { label: 'Draft', variant: 'default', icon: <FileText className="h-3 w-3" /> },
+    submitted: { label: 'Submitted', variant: 'info', icon: <Send className="h-3 w-3" /> },
     sent: { label: 'Sent to Client', variant: 'info', icon: <Send className="h-3 w-3" /> },
+    under_review: { label: 'Under Review', variant: 'warning', icon: <Eye className="h-3 w-3" /> },
     approved: { label: 'Approved', variant: 'success', icon: <CheckCircle className="h-3 w-3" /> },
     revision_requested: { label: 'Revision Requested', variant: 'warning', icon: <AlertCircle className="h-3 w-3" /> },
     completed: { label: 'Completed', variant: 'default', icon: <CheckCircle className="h-3 w-3" /> },
+    rejected: { label: 'Rejected', variant: 'destructive', icon: <AlertCircle className="h-3 w-3" /> },
+    cancelled: { label: 'Cancelled', variant: 'destructive', icon: <AlertCircle className="h-3 w-3" /> },
+    archived: { label: 'Archived', variant: 'default', icon: <FileText className="h-3 w-3" /> },
   };
-  return configs[status] || { label: status, variant: 'default', icon: null };
+  return configs[status?.toLowerCase()] || { label: status || 'Unknown', variant: 'default', icon: null };
 }
 
 // ============================================================================
@@ -256,8 +261,8 @@ function ItineraryCard({ itinerary, viewMode }: { itinerary: DisplayItinerary; v
               <p className="text-xs text-emerald-600">{formatCurrency(itinerary.commission)} commission</p>
             </div>
             <Button size="sm" asChild>
-              <Link href={`/itineraries/${itinerary.id}`}>
-                {itinerary.status === 'draft' ? 'Edit' : 'View'}
+              <Link href={['draft', 'submitted', 'under_review'].includes(itinerary.status) ? `/itineraries/${itinerary.id}/edit` : `/itineraries/${itinerary.id}`}>
+                {['draft', 'submitted', 'under_review'].includes(itinerary.status) ? 'Edit' : 'View'}
                 <ChevronRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
@@ -324,9 +329,9 @@ function ItineraryCard({ itinerary, viewMode }: { itinerary: DisplayItinerary; v
               <p className="text-sm text-emerald-600">{formatCurrency(itinerary.commission)} commission</p>
             </div>
             <div className="flex gap-2">
-              {itinerary.status === 'draft' && (
+              {['draft', 'submitted', 'under_review'].includes(itinerary.status) && (
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/itineraries/${itinerary.id}`}>
+                  <Link href={`/itineraries/${itinerary.id}/edit`}>
                     <Edit className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -336,7 +341,7 @@ function ItineraryCard({ itinerary, viewMode }: { itinerary: DisplayItinerary; v
               </Button>
               <Button size="sm" asChild>
                 <Link href={`/itineraries/${itinerary.id}`}>
-                  {itinerary.status === 'draft' ? 'Edit' : 'View'}
+                  {['draft', 'submitted', 'under_review'].includes(itinerary.status) ? 'Edit' : 'View'}
                 </Link>
               </Button>
             </div>

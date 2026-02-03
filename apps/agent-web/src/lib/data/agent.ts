@@ -1364,7 +1364,36 @@ export async function createItinerary(input: CreateItineraryInput): Promise<Agen
   return result ?? null;
 }
 
-export type UpdateItineraryInput = Partial<Omit<CreateItineraryInput, 'requestId' | 'travelerId'>>;
+export type UpdateItineraryInput = {
+  overview?: {
+    title?: string;
+    summary?: string;
+    startDate?: string;
+    endDate?: string;
+    numberOfDays?: number;
+    numberOfNights?: number;
+    destinations?: string[];
+    travelersCount?: number;
+    tripType?: string;
+  };
+  pricing?: {
+    currency?: string;
+    totalPrice?: number;
+    pricePerPerson?: number;
+    depositAmount?: number;
+    inclusions?: string[];
+    exclusions?: string[];
+    paymentTerms?: string;
+  };
+  termsAndConditions?: string;
+  cancellationPolicy?: string;
+  internalNotes?: string;
+};
+
+export interface UpdateProposalInput extends UpdateItineraryInput {
+  /** Reason for the update, shown to the traveler */
+  changeReason?: string;
+}
 
 /**
  * Update an existing itinerary.
@@ -1378,6 +1407,25 @@ export async function updateItinerary(itineraryId: string, input: UpdateItinerar
     `/api/itineraries/api/v1/itineraries/${encodeURIComponent(itineraryId)}`,
     {
       method: 'PUT',
+      body: JSON.stringify(input),
+    }
+  );
+  return result ?? null;
+}
+
+/**
+ * Update a submitted proposal (before user acceptance).
+ * This notifies the traveler about the changes.
+ */
+export async function updateProposal(itineraryId: string, input: UpdateProposalInput): Promise<AgentItinerary | null> {
+  if (!getAccessToken()) {
+    throw new ApiError('Not authenticated. Please log in.', 401, 'NOT_AUTHENTICATED');
+  }
+
+  const result = await tryFetchJson<AgentItinerary>(
+    `/api/itineraries/api/v1/itineraries/${encodeURIComponent(itineraryId)}/proposal`,
+    {
+      method: 'PATCH',
       body: JSON.stringify(input),
     }
   );
