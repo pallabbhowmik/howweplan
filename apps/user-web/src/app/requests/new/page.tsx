@@ -311,7 +311,19 @@ function NewRequestPageContent() {
       setShowSuccess(true);
     } catch (error) {
       console.error('Failed to submit request:', error);
-      alert('Failed to submit request. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      // Show a more helpful error message to the user
+      if (errorMessage.includes('Departure must be at least 3 days')) {
+        alert('Your departure date must be at least 3 days from today. Please select a later date.');
+      } else if (errorMessage.includes('Return date must be after departure')) {
+        alert('Your return date must be after your departure date. Please check your dates.');
+      } else if (errorMessage.includes('at least one adult')) {
+        alert('At least one adult traveler is required.');
+      } else if (errorMessage.includes('budget')) {
+        alert('Please check your budget range - minimum budget cannot exceed maximum budget.');
+      } else {
+        alert(`Failed to submit request: ${errorMessage}`);
+      }
     } finally {
       setIsSubmitting(false);
     }

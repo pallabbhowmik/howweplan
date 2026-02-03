@@ -386,6 +386,16 @@ async function gatewayRequest<T>(
       (typeof errorData?.error === 'string' ? errorData.error : undefined) ||
       `Request failed: ${response.status}`;
 
+    // Extract validation error details for better error messages
+    const details = errorData?.error?.details;
+    if (details?.errors && Array.isArray(details.errors)) {
+      const validationMessages = details.errors
+        .map((e: { field: string; message: string }) => `${e.field}: ${e.message}`)
+        .join('; ');
+      console.error(`[API] Validation errors: ${validationMessages}`);
+      throw new Error(`${message}. Details: ${validationMessages}`);
+    }
+
     throw new Error(message);
   }
 
@@ -690,6 +700,11 @@ export async function createTravelRequest(input: CreateTravelRequestInput): Prom
     'luxury': 'luxury',
     'mid-range': 'mid-range',
     'ultra-luxury': 'ultra-luxury',
+    // Map frontend tripType values to backend travelStyle values
+    'leisure': 'mid-range',
+    'business': 'mid-range',
+    'honeymoon': 'luxury',
+    'culinary': 'mid-range',
   };
 
   const requestBody = {
@@ -710,6 +725,8 @@ export async function createTravelRequest(input: CreateTravelRequestInput): Prom
     },
     notes: [input.preferences, input.specialRequests].filter(Boolean).join('\n') || null,
   };
+
+  console.debug('[API] Creating travel request with body:', JSON.stringify(requestBody, null, 2));
 
   const result = await gatewayRequest<any>('/api/requests/api/v1/requests', {
     method: 'POST',
