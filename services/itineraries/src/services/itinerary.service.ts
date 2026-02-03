@@ -83,6 +83,7 @@ export class ItineraryService {
       overview: input.overview,
       pricing: input.pricing,
       items,
+      dayPlans: [],
       version: 1,
       termsAndConditions: input.termsAndConditions,
       cancellationPolicy: input.cancellationPolicy,

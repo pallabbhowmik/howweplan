@@ -62,7 +62,7 @@ export class RedisCache implements Cache {
     }
 
     // Handle errors
-    this.client.on('error', (err) => {
+    this.client.on('error', (err: Error) => {
       console.error('[RedisCache] Connection error:', err.message);
     });
   }
@@ -218,7 +218,7 @@ export class RedisCache implements Cache {
       
       if (keys.length > 0) {
         // Remove prefix from keys since ioredis adds it back
-        const unprefixedKeys = keys.map(k => 
+        const unprefixedKeys = keys.map((k: string) => 
           k.startsWith(this.keyPrefix) ? k.slice(this.keyPrefix.length) : k
         );
         deleted += await this.client.del(...unprefixedKeys);
