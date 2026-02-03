@@ -276,6 +276,15 @@ export const requestsApi = {
 
 export const messagingApi = {
   /**
+   * Create a new conversation between user and agent.
+   */
+  createConversation: (userId: string, agentId: string, bookingId?: string | null) =>
+    apiRequest(`/api/messaging/api/v1/conversations`, {
+      method: 'POST',
+      body: JSON.stringify({ userId, agentId, bookingId: bookingId || null }),
+    }),
+
+  /**
    * List conversations for the authenticated user/agent.
    * Server infers the principal from the bearer token.
    */

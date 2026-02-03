@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUserSession } from '@/lib/user/session';
 import { fetchRequest, fetchRequestProposals, createBookingFromProposal, type TravelRequest, type Proposal } from '@/lib/data/api';
+import { startConversation } from '@/lib/data/messages';
 import { PriceBudgetComparison, SavingsHighlight } from '@/components/trust/PriceBudgetComparison';
 import { ItineraryTemplateCompact } from '@/components/trust/ItineraryTemplate';
 import { cn } from '@/lib/utils';
@@ -53,11 +54,12 @@ export default function ProposalsPage() {
   const params = useParams();
   const router = useRouter();
   const requestId = params.id as string;
-  const { loading: userLoading } = useUserSession();
+  const { user, loading: userLoading } = useUserSession();
   const [request, setRequest] = useState<TravelRequest | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingInProgress, setBookingInProgress] = useState<string | null>(null);
+  const [messagingInProgress, setMessagingInProgress] = useState<string | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState<string | null>(null);
 
@@ -121,6 +123,25 @@ export default function ProposalsPage() {
       console.error('Booking error:', error);
       setBookingError(error instanceof Error ? error.message : 'Failed to create booking. Please try again.');
       setBookingInProgress(null);
+    }
+  };
+
+  const handleMessageAgent = async (agentId: string) => {
+    if (!user?.userId) {
+      alert('Please log in to message agents');
+      return;
+    }
+    
+    setMessagingInProgress(agentId);
+    try {
+      const { conversationId } = await startConversation(user.userId, agentId);
+      router.push(`/dashboard/messages?conversation=${conversationId}`);
+    } catch (error) {
+      console.error('Failed to start conversation:', error);
+      // If conversation already exists, just redirect to messages with agent filter
+      router.push(`/dashboard/messages?agent=${agentId}`);
+    } finally {
+      setMessagingInProgress(null);
     }
   };
 
@@ -437,8 +458,12 @@ export default function ProposalsPage() {
                         'Select & Book'
                       )}
                     </Button>
-                    <Button variant="outline">
-                      <MessageSquare className="h-4 w-4 mr-2" />
+                    <Button variant="outline" onClick={() => handleMessageAgent(proposal.agent?.id || proposal.agentId)} disabled={messagingInProgress === (proposal.agent?.id || proposal.agentId)}>
+                      {messagingInProgress === (proposal.agent?.id || proposal.agentId) ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                      )}
                       Message Agent
                     </Button>
                   </div>

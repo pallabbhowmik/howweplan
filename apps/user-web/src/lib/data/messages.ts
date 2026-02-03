@@ -93,3 +93,17 @@ export async function markConversationReadAsUser(conversationId: string): Promis
   if (!last?.id) return;
   await messagingApi.markReadUpTo(conversationId, String(last.id));
 }
+
+/**
+ * Start a new conversation with an agent.
+ * Returns the conversation ID which can be used to redirect to the messages page.
+ */
+export async function startConversation(
+  userId: string,
+  agentId: string,
+  bookingId?: string | null
+): Promise<{ conversationId: string }> {
+  const response: any = await messagingApi.createConversation(userId, agentId, bookingId);
+  const conversation = response?.data ?? response;
+  return { conversationId: conversation.id };
+}
