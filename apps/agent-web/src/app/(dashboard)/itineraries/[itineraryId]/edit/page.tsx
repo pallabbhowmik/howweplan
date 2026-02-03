@@ -8,7 +8,7 @@ import {
   Calendar,
   MapPin,
   Users,
-  DollarSign,
+  IndianRupee,
   Plus,
   Trash2,
   Save,
@@ -16,6 +16,8 @@ import {
   AlertCircle,
   FileText,
   RefreshCw,
+  GripVertical,
+  Clock,
 } from 'lucide-react';
 import {
   Button,
@@ -81,10 +83,10 @@ interface FormState {
 // UTILITY FUNCTIONS
 // ============================================================================
 
-function formatCurrency(amount: number, currency = 'INR'): string {
+function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency,
+    currency: 'INR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
@@ -116,7 +118,7 @@ export default function EditItineraryPage() {
     totalPrice: 0,
     pricePerPerson: 0,
     depositAmount: 0,
-    currency: 'INR',
+    currency: 'INR',  // Fixed to INR only
     inclusions: [],
     exclusions: [],
     termsAndConditions: '',
@@ -460,64 +462,217 @@ export default function EditItineraryPage() {
           </CardContent>
         </Card>
 
+        {/* Day-by-Day Itinerary */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Day-by-Day Itinerary
+            </CardTitle>
+            <CardDescription>
+              Add activities and details for each day of the trip
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {form.days.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p>No days added yet</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-3"
+                  onClick={() => setForm({
+                    ...form,
+                    days: [{ dayNumber: 1, title: 'Day 1', description: '', activities: [''] }]
+                  })}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add First Day
+                </Button>
+              </div>
+            ) : (
+              <>
+                {form.days.map((day, dayIndex) => (
+                  <div key={dayIndex} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <GripVertical className="h-4 w-4 text-gray-400" />
+                        <Badge variant="secondary">Day {day.dayNumber}</Badge>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700"
+                        onClick={() => {
+                          const newDays = form.days.filter((_, i) => i !== dayIndex);
+                          // Renumber days
+                          newDays.forEach((d, i) => d.dayNumber = i + 1);
+                          setForm({ ...form, days: newDays });
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Day Title</Label>
+                      <Input
+                        value={day.title}
+                        onChange={(e) => {
+                          const newDays = [...form.days];
+                          newDays[dayIndex].title = e.target.value;
+                          setForm({ ...form, days: newDays });
+                        }}
+                        placeholder={`Day ${day.dayNumber} - e.g., Arrival & City Tour`}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Description</Label>
+                      <Textarea
+                        value={day.description}
+                        onChange={(e) => {
+                          const newDays = [...form.days];
+                          newDays[dayIndex].description = e.target.value;
+                          setForm({ ...form, days: newDays });
+                        }}
+                        placeholder="Describe what happens on this day..."
+                        className="min-h-[60px]"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Activities
+                      </Label>
+                      {day.activities.map((activity, actIndex) => (
+                        <div key={actIndex} className="flex gap-2">
+                          <Input
+                            value={activity}
+                            onChange={(e) => {
+                              const newDays = [...form.days];
+                              newDays[dayIndex].activities[actIndex] = e.target.value;
+                              setForm({ ...form, days: newDays });
+                            }}
+                            placeholder={`Activity ${actIndex + 1} - e.g., Visit Taj Mahal`}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0"
+                            onClick={() => {
+                              const newDays = [...form.days];
+                              newDays[dayIndex].activities = day.activities.filter((_, i) => i !== actIndex);
+                              if (newDays[dayIndex].activities.length === 0) {
+                                newDays[dayIndex].activities = [''];
+                              }
+                              setForm({ ...form, days: newDays });
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-gray-400" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-600"
+                        onClick={() => {
+                          const newDays = [...form.days];
+                          newDays[dayIndex].activities.push('');
+                          setForm({ ...form, days: newDays });
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Activity
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    const nextDayNum = form.days.length + 1;
+                    setForm({
+                      ...form,
+                      days: [...form.days, { 
+                        dayNumber: nextDayNum, 
+                        title: `Day ${nextDayNum}`, 
+                        description: '', 
+                        activities: [''] 
+                      }]
+                    });
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Day {form.days.length + 1}
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Pricing Section */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Pricing
+              <IndianRupee className="h-5 w-5" />
+              Pricing (INR)
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="totalPrice">Total Price</Label>
-                <div className="flex">
-                  <Select
-                    value={form.currency}
-                    onValueChange={(value) => setForm({ ...form, currency: value })}
-                  >
-                    <SelectTrigger className="w-24 rounded-r-none">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="INR">₹ INR</SelectItem>
-                      <SelectItem value="USD">$ USD</SelectItem>
-                      <SelectItem value="EUR">€ EUR</SelectItem>
-                      <SelectItem value="GBP">£ GBP</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <Label htmlFor="totalPrice">Total Price (₹)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
                   <Input
                     id="totalPrice"
                     type="number"
                     value={form.totalPrice}
                     onChange={(e) => setForm({ ...form, totalPrice: Number(e.target.value) })}
-                    className="rounded-l-none"
+                    className="pl-8"
                     placeholder="0"
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="pricePerPerson">Price Per Person</Label>
-                <Input
-                  id="pricePerPerson"
-                  type="number"
-                  value={form.pricePerPerson}
-                  onChange={(e) => setForm({ ...form, pricePerPerson: Number(e.target.value) })}
-                  placeholder="0"
-                />
+                <Label htmlFor="pricePerPerson">Price Per Person (₹)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <Input
+                    id="pricePerPerson"
+                    type="number"
+                    value={form.pricePerPerson}
+                    onChange={(e) => setForm({ ...form, pricePerPerson: Number(e.target.value) })}
+                    className="pl-8"
+                    placeholder="0"
+                  />
+                </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="depositAmount">Deposit Amount</Label>
-              <Input
-                id="depositAmount"
-                type="number"
-                value={form.depositAmount}
-                onChange={(e) => setForm({ ...form, depositAmount: Number(e.target.value) })}
-                placeholder="0"
-              />
+              <Label htmlFor="depositAmount">Deposit Amount (₹)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                <Input
+                  id="depositAmount"
+                  type="number"
+                  value={form.depositAmount}
+                  onChange={(e) => setForm({ ...form, depositAmount: Number(e.target.value) })}
+                  className="pl-8"
+                  placeholder="0"
+                />
+              </div>
             </div>
 
             <Separator className="my-4" />
