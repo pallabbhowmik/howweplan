@@ -246,6 +246,19 @@ export default function EditItineraryPage() {
     loadItinerary();
   }, [itineraryId]);
 
+  // Auto-generate days when dates exist but days array is empty
+  useEffect(() => {
+    if (!loading && form.startDate && form.endDate && form.days.length === 0) {
+      const numDays = calculateNumberOfDays(form.startDate, form.endDate);
+      if (numDays > 0) {
+        setForm(prev => ({
+          ...prev,
+          days: generateDayPlans(numDays, [])
+        }));
+      }
+    }
+  }, [loading, form.startDate, form.endDate, form.days.length]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!itinerary) return;
@@ -416,10 +429,10 @@ export default function EditItineraryPage() {
 
       {/* Error Message */}
       {error && itinerary && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
+        <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 flex items-start gap-3 shadow-sm">
+          <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium text-red-800">Error</p>
+            <p className="font-semibold text-red-800">Error</p>
             <p className="text-sm text-red-600">{error}</p>
           </div>
         </div>
@@ -428,13 +441,15 @@ export default function EditItineraryPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Change Reason (for submitted proposals) */}
         {isSubmitted && (
-          <Card>
+          <Card className="border-2 border-amber-200 bg-amber-50/50">
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <RefreshCw className="h-5 w-5" />
+              <CardTitle className="text-lg flex items-center gap-2 text-amber-800">
+                <div className="h-8 w-8 rounded-lg bg-amber-500 flex items-center justify-center">
+                  <RefreshCw className="h-5 w-5 text-white" />
+                </div>
                 Reason for Update
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-amber-700">
                 Explain what you've changed. This will be shown to the traveler.
               </CardDescription>
             </CardHeader>
@@ -443,7 +458,7 @@ export default function EditItineraryPage() {
                 value={form.changeReason}
                 onChange={(e) => setForm({ ...form, changeReason: e.target.value })}
                 placeholder="e.g., Updated pricing based on current hotel rates, Added a day trip option, Changed flight times..."
-                className="min-h-[100px]"
+                className="min-h-[100px] bg-white"
                 required={isSubmitted}
               />
             </CardContent>
@@ -451,9 +466,14 @@ export default function EditItineraryPage() {
         )}
 
         {/* Overview Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Trip Overview</CardTitle>
+        <Card className="border-2 border-blue-100">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
+                <FileText className="h-5 w-5 text-white" />
+              </div>
+              Trip Overview
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -531,13 +551,15 @@ export default function EditItineraryPage() {
         </Card>
 
         {/* Day-by-Day Itinerary */}
-        <Card>
-          <CardHeader>
+        <Card className="border-2 border-indigo-100">
+          <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
+              <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+                <Calendar className="h-5 w-5 text-white" />
+              </div>
               Day-by-Day Itinerary
               {form.startDate && form.endDate && (
-                <Badge variant="secondary" className="ml-2">
+                <Badge className="ml-2 bg-indigo-600">
                   {calculateNumberOfDays(form.startDate, form.endDate)} days
                 </Badge>
               )}
@@ -549,122 +571,164 @@ export default function EditItineraryPage() {
               }
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-6">
             {!form.startDate || !form.endDate ? (
-              <div className="text-center py-8 text-gray-500">
-                <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                <p className="font-medium">Set Travel Dates First</p>
-                <p className="text-sm mt-1">Enter start and end dates above to configure the day-by-day itinerary</p>
+              <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                  <Calendar className="h-8 w-8 text-gray-400" />
+                </div>
+                <p className="font-semibold text-gray-700">Set Travel Dates First</p>
+                <p className="text-sm text-gray-500 mt-1 max-w-xs mx-auto">
+                  Enter start and end dates above to configure the day-by-day itinerary
+                </p>
               </div>
             ) : form.days.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                <p>Loading days...</p>
+              <div className="text-center py-12 bg-indigo-50 rounded-xl border-2 border-dashed border-indigo-200">
+                <div className="h-16 w-16 rounded-full bg-indigo-100 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                  <Calendar className="h-8 w-8 text-indigo-500" />
+                </div>
+                <p className="font-semibold text-indigo-700">Generating Days...</p>
+                <p className="text-sm text-indigo-500 mt-1">Setting up your itinerary</p>
               </div>
             ) : (
-              <>
-                {form.days.map((day, dayIndex) => (
-                  <div key={dayIndex} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <GripVertical className="h-4 w-4 text-gray-400" />
-                      <Badge variant="secondary">Day {day.dayNumber}</Badge>
-                      <span className="text-sm text-gray-500">
-                        {form.startDate && new Date(new Date(form.startDate).getTime() + (day.dayNumber - 1) * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                      </span>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label>Day Title</Label>
-                      <Input
-                        value={day.title}
-                        onChange={(e) => {
-                          const newDays = [...form.days];
-                          newDays[dayIndex].title = e.target.value;
-                          setForm({ ...form, days: newDays });
-                        }}
-                        placeholder={`Day ${day.dayNumber} - e.g., Arrival & City Tour`}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Description</Label>
-                      <Textarea
-                        value={day.description}
-                        onChange={(e) => {
-                          const newDays = [...form.days];
-                          newDays[dayIndex].description = e.target.value;
-                          setForm({ ...form, days: newDays });
-                        }}
-                        placeholder="Describe what happens on this day..."
-                        className="min-h-[60px]"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        Activities
-                      </Label>
-                      {day.activities.map((activity, actIndex) => (
-                        <div key={actIndex} className="flex gap-2">
-                          <Input
-                            value={activity}
-                            onChange={(e) => {
-                              const newDays = [...form.days];
-                              newDays[dayIndex].activities[actIndex] = e.target.value;
-                              setForm({ ...form, days: newDays });
-                            }}
-                            placeholder={`Activity ${actIndex + 1} - e.g., Visit Taj Mahal`}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="shrink-0"
-                            onClick={() => {
-                              const newDays = [...form.days];
-                              newDays[dayIndex].activities = day.activities.filter((_, i) => i !== actIndex);
-                              if (newDays[dayIndex].activities.length === 0) {
-                                newDays[dayIndex].activities = [''];
-                              }
-                              setForm({ ...form, days: newDays });
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-gray-400" />
-                          </Button>
+              <div className="space-y-4">
+                {form.days.map((day, dayIndex) => {
+                  const dayDate = form.startDate 
+                    ? new Date(new Date(form.startDate).getTime() + (day.dayNumber - 1) * 24 * 60 * 60 * 1000)
+                    : null;
+                  const dateStr = dayDate 
+                    ? dayDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                    : '';
+                  
+                  return (
+                    <div 
+                      key={dayIndex} 
+                      className="relative border-2 rounded-xl p-5 space-y-4 bg-white hover:border-indigo-200 hover:shadow-md transition-all duration-200"
+                    >
+                      {/* Day Header */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md">
+                            {day.dayNumber}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-gray-900">Day {day.dayNumber}</span>
+                              {dateStr && (
+                                <Badge variant="outline" className="text-xs font-normal">
+                                  {dateStr}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-blue-600"
-                        onClick={() => {
-                          const newDays = [...form.days];
-                          newDays[dayIndex].activities.push('');
-                          setForm({ ...form, days: newDays });
-                        }}
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Activity
-                      </Button>
+                      </div>
+                      
+                      {/* Day Title */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">Day Title</Label>
+                        <Input
+                          value={day.title}
+                          onChange={(e) => {
+                            const newDays = [...form.days];
+                            newDays[dayIndex].title = e.target.value;
+                            setForm({ ...form, days: newDays });
+                          }}
+                          placeholder={`e.g., Arrival & City Tour`}
+                          className="font-medium"
+                        />
+                      </div>
+
+                      {/* Day Description */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">Description</Label>
+                        <Textarea
+                          value={day.description}
+                          onChange={(e) => {
+                            const newDays = [...form.days];
+                            newDays[dayIndex].description = e.target.value;
+                            setForm({ ...form, days: newDays });
+                          }}
+                          placeholder="Describe what happens on this day... (optional)"
+                          className="min-h-[70px] resize-none"
+                        />
+                      </div>
+
+                      {/* Activities */}
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-indigo-500" />
+                          Activities & Highlights
+                        </Label>
+                        <div className="space-y-2 pl-1">
+                          {day.activities.map((activity, actIndex) => (
+                            <div key={actIndex} className="flex gap-2 items-center group">
+                              <div className="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-medium text-indigo-600 shrink-0">
+                                {actIndex + 1}
+                              </div>
+                              <Input
+                                value={activity}
+                                onChange={(e) => {
+                                  const newDays = [...form.days];
+                                  newDays[dayIndex].activities[actIndex] = e.target.value;
+                                  setForm({ ...form, days: newDays });
+                                }}
+                                placeholder={`Activity ${actIndex + 1} - e.g., Visit Taj Mahal at sunrise`}
+                                className="flex-1"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:text-red-500"
+                                onClick={() => {
+                                  const newDays = [...form.days];
+                                  newDays[dayIndex].activities = day.activities.filter((_, i) => i !== actIndex);
+                                  if (newDays[dayIndex].activities.length === 0) {
+                                    newDays[dayIndex].activities = [''];
+                                  }
+                                  setForm({ ...form, days: newDays });
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300"
+                          onClick={() => {
+                            const newDays = [...form.days];
+                            newDays[dayIndex].activities.push('');
+                            setForm({ ...form, days: newDays });
+                          }}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Activity
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </>
+                  );
+                })}
+              </div>
             )}
           </CardContent>
         </Card>
 
         {/* Pricing Section */}
-        <Card>
-          <CardHeader>
+        <Card className="border-2 border-emerald-100">
+          <CardHeader className="bg-gradient-to-r from-emerald-50 to-green-50 border-b">
             <CardTitle className="text-lg flex items-center gap-2">
-              <IndianRupee className="h-5 w-5" />
+              <div className="h-8 w-8 rounded-lg bg-emerald-600 flex items-center justify-center">
+                <IndianRupee className="h-5 w-5 text-white" />
+              </div>
               Pricing (INR)
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-6">
             {/* Number of Travelers */}
             <div className="space-y-2">
               <Label htmlFor="travelersCount" className="flex items-center gap-2">
@@ -794,17 +858,19 @@ export default function EditItineraryPage() {
         </Card>
 
         {/* Terms and Conditions */}
-        <Card>
-          <CardHeader>
+        <Card className="border-2 border-slate-200">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 border-b">
             <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="h-5 w-5" />
+              <div className="h-8 w-8 rounded-lg bg-slate-600 flex items-center justify-center">
+                <FileText className="h-5 w-5 text-white" />
+              </div>
               Terms and Conditions
             </CardTitle>
             <CardDescription>
               Legal terms for this itinerary (visible to traveler)
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <Textarea
               value={form.termsAndConditions}
               onChange={(e) => setForm({ ...form, termsAndConditions: e.target.value })}
@@ -815,14 +881,19 @@ export default function EditItineraryPage() {
         </Card>
 
         {/* Cancellation Policy */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Cancellation Policy</CardTitle>
+        <Card className="border-2 border-orange-100">
+          <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-orange-500 flex items-center justify-center">
+                <AlertCircle className="h-5 w-5 text-white" />
+              </div>
+              Cancellation Policy
+            </CardTitle>
             <CardDescription>
               Cancellation terms and refund policy (visible to traveler)
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <Textarea
               value={form.cancellationPolicy}
               onChange={(e) => setForm({ ...form, cancellationPolicy: e.target.value })}
@@ -833,9 +904,15 @@ export default function EditItineraryPage() {
         </Card>
 
         {/* Internal Notes */}
-        <Card>
+        <Card className="border-2 border-gray-200 border-dashed">
           <CardHeader>
-            <CardTitle className="text-lg">Internal Notes</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2 text-gray-600">
+              <div className="h-8 w-8 rounded-lg bg-gray-400 flex items-center justify-center">
+                <FileText className="h-5 w-5 text-white" />
+              </div>
+              Internal Notes
+              <Badge variant="outline" className="text-xs">Private</Badge>
+            </CardTitle>
             <CardDescription>
               Private notes (not visible to the traveler)
             </CardDescription>
@@ -851,16 +928,21 @@ export default function EditItineraryPage() {
         </Card>
 
         {/* Submit Buttons */}
-        <div className="flex items-center justify-end gap-4">
+        <div className="flex items-center justify-end gap-4 pt-4 pb-8">
           <Button
             type="button"
             variant="outline"
             onClick={() => router.push(`/itineraries/${itineraryId}`)}
             disabled={saving}
+            className="px-6"
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={saving}>
+          <Button 
+            type="submit" 
+            disabled={saving}
+            className="px-8 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+          >
             {saving ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
