@@ -43,6 +43,7 @@ import {
   AvatarImage,
 } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import { useAgentSession } from '@/lib/agent/session';
 import { getAgentItineraryById, type AgentItinerary } from '@/lib/data/agent';
 
 // ============================================================================
@@ -170,6 +171,7 @@ function ItineraryDetailSkeleton() {
 // ============================================================================
 
 export default function ItineraryDetailPage() {
+  const { agent } = useAgentSession();
   const params = useParams();
   const router = useRouter();
   const itineraryId = params.itineraryId as string;
@@ -253,6 +255,12 @@ export default function ItineraryDetailPage() {
     exclusions: [] as string[],
     paymentTerms: undefined as string | undefined,
   };
+  const commissionRate = agent?.commissionRate ?? 0.1;
+  const commissionAmount = Math.max(0, Math.round((pricing.totalPrice || 0) * commissionRate));
+  const payoutAmount = Math.max(0, (pricing.totalPrice || 0) - commissionAmount);
+  const perPersonPrice = pricing.pricePerPerson ?? (
+    overview.travelersCount ? Math.round((pricing.totalPrice || 0) / overview.travelersCount) : undefined
+  );
   const items = itinerary.items || [];
   const dayPlans = itinerary.dayPlans || [];
   const statusConfig = getStatusConfig(itinerary.status);
@@ -519,11 +527,11 @@ export default function ItineraryDetailPage() {
                         {formatCurrency(pricing.totalPrice || 0, pricing.currency)}
                       </span>
                     </div>
-                    {pricing.pricePerPerson && (
+                    {perPersonPrice && perPersonPrice > 0 && (
                       <div className="flex justify-between">
                         <span className="text-gray-500">Per Person</span>
                         <span>
-                          {formatCurrency(pricing.pricePerPerson, pricing.currency)}
+                          {formatCurrency(perPersonPrice, pricing.currency)}
                         </span>
                       </div>
                     )}
@@ -535,11 +543,17 @@ export default function ItineraryDetailPage() {
                         </span>
                       </div>
                     )}
-                    <div className="pt-3 border-t">
+                    <div className="pt-3 border-t space-y-2">
                       <div className="flex justify-between text-emerald-600">
-                        <span>Your Commission (10%)</span>
+                        <span>Your Commission ({Math.round(commissionRate * 100)}%)</span>
                         <span className="font-semibold">
-                          {formatCurrency(Math.round((pricing.totalPrice || 0) * 0.1), pricing.currency)}
+                          {formatCurrency(commissionAmount, pricing.currency)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-gray-700">
+                        <span>Estimated Payout</span>
+                        <span className="font-semibold">
+                          {formatCurrency(payoutAmount, pricing.currency)}
                         </span>
                       </div>
                     </div>

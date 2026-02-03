@@ -1038,29 +1038,43 @@ export async function fetchRequestProposals(requestId: string): Promise<Proposal
       const overview = p.overview || {};
       const pricing = p.pricing || {};
       
-      // Build legacy itinerary format from items for backward compatibility
+      // Build legacy itinerary format from dayPlans or items for backward compatibility
       const items = p.items || [];
+      const dayPlans = p.dayPlans || p.day_plans || [];
       const groupedByDay: Record<number, any> = {};
-      items.forEach((item: any) => {
-        const day = item.dayNumber || 1;
-        if (!groupedByDay[day]) {
+
+      if (Array.isArray(dayPlans) && dayPlans.length > 0) {
+        dayPlans.forEach((plan: any) => {
+          const day = plan.dayNumber || 1;
           groupedByDay[day] = {
             day,
-            title: `Day ${day}`,
-            description: '',
-            activities: [],
+            title: plan.title || `Day ${day}`,
+            description: plan.description || '',
+            activities: Array.isArray(plan.activities) ? plan.activities : [],
           };
-        }
-        if (item.title) {
-          groupedByDay[day].activities.push(item.title);
-        }
-        if (item.description && !groupedByDay[day].description) {
-          groupedByDay[day].description = item.description;
-        }
-      });
+        });
+      } else {
+        items.forEach((item: any) => {
+          const day = item.dayNumber || 1;
+          if (!groupedByDay[day]) {
+            groupedByDay[day] = {
+              day,
+              title: `Day ${day}`,
+              description: '',
+              activities: [],
+            };
+          }
+          if (item.title) {
+            groupedByDay[day].activities.push(item.title);
+          }
+          if (item.description && !groupedByDay[day].description) {
+            groupedByDay[day].description = item.description;
+          }
+        });
+      }
       
       // Create itinerary array from overview data or items
-      const numberOfDays = overview.numberOfDays || Object.keys(groupedByDay).length || 0;
+      const numberOfDays = overview.numberOfDays || (Array.isArray(dayPlans) ? dayPlans.length : 0) || Object.keys(groupedByDay).length || 0;
       const itinerary = numberOfDays > 0 
         ? Array.from({ length: numberOfDays }, (_, i) => 
             groupedByDay[i + 1] || { day: i + 1, title: `Day ${i + 1}`, description: '', activities: [] }
@@ -1083,7 +1097,7 @@ export async function fetchRequestProposals(requestId: string): Promise<Proposal
         overview: p.overview,
         pricing: p.pricing,
         items: p.items,
-        dayPlans: p.dayPlans || p.day_plans,
+        dayPlans: dayPlans,
         // Legacy format for backward compatibility
         itinerary,
         inclusions: pricing.inclusions || p.inclusions || [],

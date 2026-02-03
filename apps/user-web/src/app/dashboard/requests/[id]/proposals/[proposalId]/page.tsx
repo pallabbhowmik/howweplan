@@ -196,6 +196,28 @@ export default function ProposalDetailPage() {
   // Check if we have day plans to display
   const hasDayPlans = dayPlans.length > 0;
 
+  // Highlights for overview (prefer items, fallback to dayPlans)
+  const highlightItems = items.length > 0
+    ? items.map((item) => ({
+        title: item.title,
+        dayNumber: item.dayNumber,
+        type: item.type,
+      }))
+    : dayPlans.flatMap((plan) => {
+        if (plan.activities && plan.activities.length > 0) {
+          return plan.activities.map((activity) => ({
+            title: activity,
+            dayNumber: plan.dayNumber,
+            type: 'activity',
+          }));
+        }
+        return [{
+          title: plan.title || `Day ${plan.dayNumber}`,
+          dayNumber: plan.dayNumber,
+          type: 'activity',
+        }];
+      });
+
   const handleBookNow = async () => {
     if (!user || !request || !proposal) {
       setBookingError('Please login to book this trip');
@@ -602,10 +624,10 @@ export default function ProposalDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {items.length > 0 ? (
+                {highlightItems.length > 0 ? (
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {items.slice(0, 6).map((item, index) => (
-                      <div key={item.id || index} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                    {highlightItems.slice(0, 6).map((item, index) => (
+                      <div key={`${item.dayNumber}-${index}`} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
                         <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
                           {getActivityIcon(item.type)}
                         </div>

@@ -385,7 +385,12 @@ export default function MessagesPage() {
   const [showQuickReplies, setShowQuickReplies] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
   
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [newMsgCount, setNewMsgCount] = useState(0);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const prevMsgCountRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const activeConversation = useMemo(
@@ -426,6 +431,8 @@ export default function MessagesPage() {
     if (!selectedConversation) {
       setMessages([]);
       setMessagesError(null);
+      setNewMsgCount(0);
+      prevMsgCountRef.current = 0;
       return;
     }
 
@@ -454,6 +461,19 @@ export default function MessagesPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConversation]);
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const atBottom = distanceFromBottom < 80;
+    setIsAtBottom(atBottom);
+    if (atBottom) setNewMsgCount(0);
+  }, []);
 
   // Note: Supabase Realtime is disabled for local development since the Docker setup
   // doesn't include the realtime service. The polling fallback below handles updates.
@@ -529,8 +549,17 @@ export default function MessagesPage() {
   }, [selectedConversation]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    const prevCount = prevMsgCountRef.current;
+    const nextCount = messages.length;
+    if (nextCount > prevCount) {
+      if (isAtBottom) {
+        scrollToBottom();
+      } else {
+        setNewMsgCount((c) => c + (nextCount - prevCount));
+      }
+    }
+    prevMsgCountRef.current = nextCount;
+  }, [messages, isAtBottom, scrollToBottom]);
 
   // Typing indicator is controlled by real events, not simulated
   // In production, this would be triggered by realtime presence events
@@ -708,7 +737,11 @@ export default function MessagesPage() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-slate-50/50 to-white">
+            <div
+              ref={messagesContainerRef}
+              onScroll={handleScroll}
+              className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-slate-50/50 to-white relative"
+            >
               {messagesLoading ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
@@ -750,6 +783,17 @@ export default function MessagesPage() {
                   ))}
                   {isTyping && <TypingIndicator clientName={activeConversation.clientName} />}
                 </>
+              )}
+              {newMsgCount > 0 && !isAtBottom && (
+                <div className="sticky bottom-4 w-full flex justify-center z-10">
+                  <button
+                    type="button"
+                    onClick={() => scrollToBottom()}
+                    className="px-4 py-2 text-sm font-medium rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 transition-all"
+                  >
+                    {newMsgCount} new message{newMsgCount > 1 ? 's' : ''} · Jump to latest
+                  </button>
+                </div>
               )}
               <div ref={messagesEndRef} />
             </div>
