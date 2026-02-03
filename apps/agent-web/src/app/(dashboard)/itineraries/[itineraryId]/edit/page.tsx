@@ -93,6 +93,39 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+/**
+ * Calculate number of days between two dates (inclusive)
+ */
+function calculateNumberOfDays(startDate: string, endDate: string): number {
+  if (!startDate || !endDate) return 0;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  return Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+}
+
+/**
+ * Generate empty day plans for a given number of days
+ */
+function generateDayPlans(numberOfDays: number, existingDays: DayPlan[] = []): DayPlan[] {
+  const days: DayPlan[] = [];
+  for (let i = 1; i <= numberOfDays; i++) {
+    const existing = existingDays.find(d => d.dayNumber === i);
+    if (existing) {
+      days.push(existing);
+    } else {
+      days.push({
+        dayNumber: i,
+        title: `Day ${i}`,
+        description: '',
+        activities: [''],
+      });
+    }
+  }
+  return days;
+}
+
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
@@ -177,21 +210,29 @@ export default function EditItineraryPage() {
           termsAndConditions: data.termsAndConditions || '',
           cancellationPolicy: data.cancellationPolicy || '',
           internalNotes: data.internalNotes || '',
-          days: (data.items || []).reduce((acc: DayPlan[], item) => {
-            const dayNum = item.dayNumber || 1;
-            const existingDay = acc.find(d => d.dayNumber === dayNum);
-            if (existingDay) {
-              existingDay.activities.push(item.title);
-            } else {
-              acc.push({
-                dayNumber: dayNum,
-                title: `Day ${dayNum}`,
-                description: '',
-                activities: [item.title],
-              });
-            }
-            return acc;
-          }, []),
+          // Prefer dayPlans if available, otherwise convert items to day plans
+          days: data.dayPlans && data.dayPlans.length > 0
+            ? data.dayPlans.map(dp => ({
+                dayNumber: dp.dayNumber,
+                title: dp.title || `Day ${dp.dayNumber}`,
+                description: dp.description || '',
+                activities: dp.activities || [],
+              }))
+            : (data.items || []).reduce((acc: DayPlan[], item) => {
+                const dayNum = item.dayNumber || 1;
+                const existingDay = acc.find(d => d.dayNumber === dayNum);
+                if (existingDay) {
+                  existingDay.activities.push(item.title);
+                } else {
+                  acc.push({
+                    dayNumber: dayNum,
+                    title: `Day ${dayNum}`,
+                    description: '',
+                    activities: [item.title],
+                  });
+                }
+                return acc;
+              }, []),
           changeReason: '',
         });
       } catch (err) {
@@ -246,6 +287,13 @@ export default function EditItineraryPage() {
           inclusions: form.inclusions.length > 0 ? form.inclusions : undefined,
           exclusions: form.exclusions.length > 0 ? form.exclusions : undefined,
         },
+        // Convert day plans for API
+        dayPlans: form.days.map(day => ({
+          dayNumber: day.dayNumber,
+          title: day.title,
+          description: day.description || undefined,
+          activities: day.activities.filter(a => a.trim()),
+        })),
         termsAndConditions: form.termsAndConditions || undefined,
         cancellationPolicy: form.cancellationPolicy || undefined,
         internalNotes: form.internalNotes || undefined,
@@ -437,7 +485,15 @@ export default function EditItineraryPage() {
                   id="startDate"
                   type="date"
                   value={form.startDate}
-                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                  onChange={(e) => {
+                    const newStartDate = e.target.value;
+                    const numDays = calculateNumberOfDays(newStartDate, form.endDate);
+                    setForm({ 
+                      ...form, 
+                      startDate: newStartDate,
+                      days: numDays > 0 ? generateDayPlans(numDays, form.days) : form.days
+                    });
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -446,7 +502,15 @@ export default function EditItineraryPage() {
                   id="endDate"
                   type="date"
                   value={form.endDate}
-                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                  onChange={(e) => {
+                    const newEndDate = e.target.value;
+                    const numDays = calculateNumberOfDays(form.startDate, newEndDate);
+                    setForm({ 
+                      ...form, 
+                      endDate: newEndDate,
+                      days: numDays > 0 ? generateDayPlans(numDays, form.days) : form.days
+                    });
+                  }}
                 />
               </div>
             </div>
@@ -472,52 +536,41 @@ export default function EditItineraryPage() {
             <CardTitle className="text-lg flex items-center gap-2">
               <Calendar className="h-5 w-5" />
               Day-by-Day Itinerary
+              {form.startDate && form.endDate && (
+                <Badge variant="secondary" className="ml-2">
+                  {calculateNumberOfDays(form.startDate, form.endDate)} days
+                </Badge>
+              )}
             </CardTitle>
             <CardDescription>
-              Add activities and details for each day of the trip
+              {form.startDate && form.endDate 
+                ? `Plan activities for each of the ${calculateNumberOfDays(form.startDate, form.endDate)} days of your trip`
+                : 'Set the start and end dates above to configure day-by-day details'
+              }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {form.days.length === 0 ? (
+            {!form.startDate || !form.endDate ? (
               <div className="text-center py-8 text-gray-500">
                 <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                <p>No days added yet</p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="mt-3"
-                  onClick={() => setForm({
-                    ...form,
-                    days: [{ dayNumber: 1, title: 'Day 1', description: '', activities: [''] }]
-                  })}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add First Day
-                </Button>
+                <p className="font-medium">Set Travel Dates First</p>
+                <p className="text-sm mt-1">Enter start and end dates above to configure the day-by-day itinerary</p>
+              </div>
+            ) : form.days.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p>Loading days...</p>
               </div>
             ) : (
               <>
                 {form.days.map((day, dayIndex) => (
                   <div key={dayIndex} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <GripVertical className="h-4 w-4 text-gray-400" />
-                        <Badge variant="secondary">Day {day.dayNumber}</Badge>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-500 hover:text-red-700"
-                        onClick={() => {
-                          const newDays = form.days.filter((_, i) => i !== dayIndex);
-                          // Renumber days
-                          newDays.forEach((d, i) => d.dayNumber = i + 1);
-                          setForm({ ...form, days: newDays });
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <div className="flex items-center gap-2">
+                      <GripVertical className="h-4 w-4 text-gray-400" />
+                      <Badge variant="secondary">Day {day.dayNumber}</Badge>
+                      <span className="text-sm text-gray-500">
+                        {form.startDate && new Date(new Date(form.startDate).getTime() + (day.dayNumber - 1) * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </span>
                     </div>
                     
                     <div className="space-y-2">
@@ -598,27 +651,6 @@ export default function EditItineraryPage() {
                     </div>
                   </div>
                 ))}
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    const nextDayNum = form.days.length + 1;
-                    setForm({
-                      ...form,
-                      days: [...form.days, { 
-                        dayNumber: nextDayNum, 
-                        title: `Day ${nextDayNum}`, 
-                        description: '', 
-                        activities: [''] 
-                      }]
-                    });
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Day {form.days.length + 1}
-                </Button>
               </>
             )}
           </CardContent>

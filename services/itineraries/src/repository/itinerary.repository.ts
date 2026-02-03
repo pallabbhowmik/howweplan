@@ -298,6 +298,7 @@ export class ItineraryRepository {
       disclosure_state: itinerary.disclosureState,
       overview: itinerary.overview,
       pricing: itinerary.pricing,
+      day_plans: itinerary.dayPlans,
       version: itinerary.version,
       terms_and_conditions: itinerary.termsAndConditions,
       cancellation_policy: itinerary.cancellationPolicy,
@@ -320,6 +321,7 @@ export class ItineraryRepository {
     if (updates.disclosureState !== undefined) row['disclosure_state'] = updates.disclosureState;
     if (updates.overview !== undefined) row['overview'] = updates.overview;
     if (updates.pricing !== undefined) row['pricing'] = updates.pricing;
+    if (updates.dayPlans !== undefined) row['day_plans'] = updates.dayPlans;
     if (updates.version !== undefined) row['version'] = updates.version;
     if (updates.termsAndConditions !== undefined) row['terms_and_conditions'] = updates.termsAndConditions;
     if (updates.cancellationPolicy !== undefined) row['cancellation_policy'] = updates.cancellationPolicy;
@@ -346,6 +348,7 @@ export class ItineraryRepository {
       overview: row['overview'] as Itinerary['overview'],
       pricing: row['pricing'] as Itinerary['pricing'],
       items: [], // Loaded separately
+      dayPlans: (row['day_plans'] as Itinerary['dayPlans']) ?? [],
       version: row['version'] as number,
       termsAndConditions: row['terms_and_conditions'] as string | undefined,
       cancellationPolicy: row['cancellation_policy'] as string | undefined,

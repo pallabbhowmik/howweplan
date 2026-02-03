@@ -254,15 +254,19 @@ export default function ItineraryDetailPage() {
     paymentTerms: undefined as string | undefined,
   };
   const items = itinerary.items || [];
+  const dayPlans = itinerary.dayPlans || [];
   const statusConfig = getStatusConfig(itinerary.status);
 
-  // Group items by day
+  // Group items by day (used as fallback if no dayPlans)
   const itemsByDay: Record<number, typeof items> = {};
   items.forEach((item) => {
     const day = item.dayNumber || 1;
     if (!itemsByDay[day]) itemsByDay[day] = [];
     itemsByDay[day].push(item);
   });
+
+  // Determine if we have day plans to display
+  const hasDayPlans = dayPlans.length > 0;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -379,8 +383,10 @@ export default function ItineraryDetailPage() {
                 <FileText className="h-5 w-5 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Activities</p>
-                <p className="font-semibold">{items.length} items</p>
+                <p className="text-sm text-gray-500">Days Planned</p>
+                <p className="font-semibold">
+                  {hasDayPlans ? `${dayPlans.length} days` : `${items.length} items`}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -574,7 +580,7 @@ export default function ItineraryDetailPage() {
 
           {/* Day-by-Day Tab */}
           <TabsContent value="itinerary" className="space-y-6">
-            {Object.keys(itemsByDay).length === 0 ? (
+            {!hasDayPlans && Object.keys(itemsByDay).length === 0 ? (
               <Card>
                 <CardContent className="p-12 text-center">
                   <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
@@ -584,15 +590,71 @@ export default function ItineraryDetailPage() {
                   <p className="text-gray-500 mb-4">
                     Start building your day-by-day itinerary.
                   </p>
-                  {itinerary.status?.toLowerCase() === 'draft' && (
-                    <Button>
+                  {['draft', 'submitted', 'under_review'].includes(itinerary.status?.toLowerCase() || '') && (
+                    <Button onClick={() => router.push(`/itineraries/${itineraryId}/edit`)}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Add First Item
+                      Add Day-by-Day Details
                     </Button>
                   )}
                 </CardContent>
               </Card>
+            ) : hasDayPlans ? (
+              // Render day plans (simplified structure)
+              dayPlans
+                .sort((a, b) => a.dayNumber - b.dayNumber)
+                .map((dayPlan) => {
+                  // Calculate the actual date for this day
+                  const startDate = overview.startDate ? new Date(overview.startDate) : null;
+                  const dayDate = startDate 
+                    ? new Date(startDate.getTime() + (dayPlan.dayNumber - 1) * 24 * 60 * 60 * 1000)
+                    : null;
+                  const dateStr = dayDate 
+                    ? dayDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                    : '';
+                  
+                  return (
+                    <Card key={dayPlan.dayNumber}>
+                      <CardHeader className="bg-gray-50 border-b">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Calendar className="h-5 w-5 text-indigo-600" />
+                          <span>Day {dayPlan.dayNumber}</span>
+                          {dateStr && (
+                            <span className="text-sm font-normal text-gray-500">
+                              ({dateStr})
+                            </span>
+                          )}
+                          <span className="mx-2">—</span>
+                          <span className="font-normal">{dayPlan.title}</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4">
+                        {dayPlan.description && (
+                          <p className="text-gray-600 mb-4">{dayPlan.description}</p>
+                        )}
+                        {dayPlan.activities && dayPlan.activities.length > 0 ? (
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-gray-700 flex items-center gap-2">
+                              <FileText className="h-4 w-4" />
+                              Activities
+                            </h4>
+                            <ul className="space-y-2 ml-6">
+                              {dayPlan.activities.map((activity, idx) => (
+                                <li key={idx} className="flex items-start gap-2">
+                                  <span className="text-indigo-600 font-medium">{idx + 1}.</span>
+                                  <span>{activity}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : (
+                          <p className="text-gray-500 italic">No activities planned for this day.</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })
             ) : (
+              // Fallback to items-based rendering
               Object.entries(itemsByDay)
                 .sort(([a], [b]) => Number(a) - Number(b))
                 .map(([day, dayItems]) => (

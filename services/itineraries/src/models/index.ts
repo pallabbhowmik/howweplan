@@ -46,6 +46,8 @@ export {
   type CreateItineraryInput,
   updateItinerarySchema,
   type UpdateItineraryInput,
+  dayPlanSchema,
+  type DayPlan,
   type ItineraryWithMeta,
   withMeta,
 } from './itinerary.model.js';

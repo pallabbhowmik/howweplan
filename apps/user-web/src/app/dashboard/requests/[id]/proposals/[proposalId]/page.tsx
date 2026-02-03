@@ -77,6 +77,13 @@ interface ItineraryItem {
   confirmed?: boolean;
 }
 
+interface DayPlan {
+  dayNumber: number;
+  title: string;
+  description?: string;
+  activities: string[];
+}
+
 // =============================================================================
 // UTILITY FUNCTIONS
 // =============================================================================
@@ -157,6 +164,7 @@ export default function ProposalDetailPage() {
   const overview: ItineraryOverview = (proposal?.overview as ItineraryOverview) || {};
   const pricing: ItineraryPricing = (proposal?.pricing as ItineraryPricing) || {};
   const items: ItineraryItem[] = (proposal?.items as ItineraryItem[]) || [];
+  const dayPlans: DayPlan[] = ((proposal as any)?.dayPlans as DayPlan[]) || [];
   
   // Calculate values - prices are stored as whole currency (not cents)
   const totalPrice = pricing.totalPrice || proposal?.totalPrice || 0;
@@ -184,6 +192,9 @@ export default function ProposalDetailPage() {
     if (!itemsByDay[day]) itemsByDay[day] = [];
     itemsByDay[day].push(item);
   });
+
+  // Check if we have day plans to display
+  const hasDayPlans = dayPlans.length > 0;
 
   const handleBookNow = async () => {
     if (!user || !request || !proposal) {
@@ -616,7 +627,63 @@ export default function ProposalDetailPage() {
 
           {/* Itinerary Tab */}
           <TabsContent value="itinerary" className="space-y-6">
-            {Object.keys(itemsByDay).length > 0 ? (
+            {hasDayPlans ? (
+              // Render day plans (simplified structure)
+              dayPlans
+                .sort((a, b) => a.dayNumber - b.dayNumber)
+                .map((dayPlan) => {
+                  // Calculate the actual date for this day
+                  const startDate = overview.startDate ? new Date(overview.startDate) : null;
+                  const dayDate = startDate 
+                    ? new Date(startDate.getTime() + (dayPlan.dayNumber - 1) * 24 * 60 * 60 * 1000)
+                    : null;
+                  const dateStr = dayDate 
+                    ? dayDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                    : '';
+                  
+                  return (
+                    <Card key={dayPlan.dayNumber} className="overflow-hidden">
+                      <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b">
+                        <CardTitle className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
+                            {dayPlan.dayNumber}
+                          </div>
+                          <div>
+                            <p className="text-lg font-bold">Day {dayPlan.dayNumber} — {dayPlan.title}</p>
+                            {dateStr && (
+                              <p className="text-sm text-muted-foreground font-normal">
+                                {dateStr}
+                              </p>
+                            )}
+                          </div>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4">
+                        {dayPlan.description && (
+                          <p className="text-muted-foreground mb-4">{dayPlan.description}</p>
+                        )}
+                        {dayPlan.activities && dayPlan.activities.length > 0 ? (
+                          <div className="space-y-3">
+                            {dayPlan.activities.map((activity, idx) => (
+                              <div key={idx} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0 font-medium">
+                                  {idx + 1}
+                                </div>
+                                <p className="flex-1 pt-1">{activity}</p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-muted-foreground italic text-center py-2">
+                            No activities planned for this day yet.
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })
+            ) : Object.keys(itemsByDay).length > 0 ? (
+              // Fallback to items-based rendering
               Object.entries(itemsByDay).map(([dayNum, dayItems]) => (
                 <Card key={dayNum} className="overflow-hidden">
                   <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b">

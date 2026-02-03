@@ -55,6 +55,18 @@ export const pricingInfoSchema = z.object({
 export type PricingInfo = z.infer<typeof pricingInfoSchema>;
 
 /**
+ * Day plan schema for simplified itinerary editing.
+ */
+export const dayPlanSchema = z.object({
+  dayNumber: z.number().int().positive(),
+  title: z.string().max(200),
+  description: z.string().max(2000).optional(),
+  activities: z.array(z.string().max(500)).max(20).default([]),
+});
+
+export type DayPlan = z.infer<typeof dayPlanSchema>;
+
+/**
  * Main itinerary model.
  */
 export const itinerarySchema = z.object({
@@ -80,6 +92,9 @@ export const itinerarySchema = z.object({
   
   /** All items in this itinerary */
   items: z.array(itineraryItemSchema).default([]),
+  
+  /** Simplified day-by-day plans (easier to edit than items) */
+  dayPlans: z.array(dayPlanSchema).default([]),
   
   /** Current version number */
   version: z.number().int().positive().default(1),
@@ -135,6 +150,8 @@ export const updateItinerarySchema = z.object({
     tripType: z.enum(['ADVENTURE', 'BEACH', 'CITY_BREAK', 'CRUISE', 'CULTURAL', 'FAMILY', 'HONEYMOON', 'LUXURY', 'SAFARI', 'SKI', 'WELLNESS', 'OTHER']).optional(),
   }).optional(),
   pricing: pricingInfoSchema.partial().optional(),
+  /** Simplified day-by-day plans - will be converted to itinerary items */
+  dayPlans: z.array(dayPlanSchema).max(365).optional(),
   termsAndConditions: z.string().max(10000).optional(),
   cancellationPolicy: z.string().max(5000).optional(),
   internalNotes: z.string().max(5000).optional(),

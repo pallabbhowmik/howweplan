@@ -1196,6 +1196,12 @@ export type AgentItinerary = {
     notes?: string;
     confirmed: boolean;
   }>;
+  dayPlans?: Array<{
+    dayNumber: number;
+    title: string;
+    description?: string;
+    activities: string[];
+  }>;
   version: number;
   termsAndConditions?: string;
   cancellationPolicy?: string;
@@ -1385,6 +1391,12 @@ export type UpdateItineraryInput = {
     exclusions?: string[];
     paymentTerms?: string;
   };
+  dayPlans?: Array<{
+    dayNumber: number;
+    title: string;
+    description?: string;
+    activities: string[];
+  }>;
   termsAndConditions?: string;
   cancellationPolicy?: string;
   internalNotes?: string;
