@@ -66,6 +66,23 @@ export class AuthError extends Error {
   }
 }
 
+export class NetworkError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NetworkError';
+  }
+}
+
+// Helper to check if an error is a network/connection error
+function isNetworkError(error: unknown): boolean {
+  if (error instanceof TypeError && error.message === 'Failed to fetch') return true;
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return msg.includes('network') || msg.includes('connection') || msg.includes('fetch');
+  }
+  return false;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   const data = await response.json();
   
@@ -305,8 +322,15 @@ export async function ensureValidToken(): Promise<boolean> {
     }
     
     return true;
-  } catch {
-    // Refresh failed - user needs to re-authenticate
+  } catch (error) {
+    // Don't clear auth data on network errors - user might just be offline
+    if (isNetworkError(error)) {
+      console.debug('[auth] Network error during token refresh - keeping existing tokens');
+      // Return true to allow request to proceed with existing token
+      // The server will return 401 if the token is actually expired
+      return true;
+    }
+    // Only clear auth data on actual auth failures
     clearAuthData();
     return false;
   }
@@ -321,7 +345,16 @@ export async function authenticatedFetch(
   options: RequestInit = {}
 ): Promise<Response> {
   // Ensure we have a valid token
-  const hasValidToken = await ensureValidToken();
+  let hasValidToken: boolean;
+  try {
+    hasValidToken = await ensureValidToken();
+  } catch (error) {
+    if (isNetworkError(error)) {
+      throw new NetworkError('Unable to connect to server. Please check your internet connection.');
+    }
+    throw error;
+  }
+  
   if (!hasValidToken) {
     throw new AuthError('Session expired. Please log in again.', 'SESSION_EXPIRED', 401);
   }
@@ -333,18 +366,32 @@ export async function authenticatedFetch(
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
   
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (error) {
+    if (isNetworkError(error)) {
+      throw new NetworkError('Unable to connect to server. Please check your internet connection.');
+    }
+    throw error;
+  }
   
   // If we get a 401, try refreshing once
   if (response.status === 401) {
-    const refreshed = await ensureValidToken();
-    if (refreshed) {
-      const newToken = getAccessToken();
-      headers.set('Authorization', `Bearer ${newToken}`);
-      return fetch(url, { ...options, headers });
+    try {
+      const refreshed = await ensureValidToken();
+      if (refreshed) {
+        const newToken = getAccessToken();
+        headers.set('Authorization', `Bearer ${newToken}`);
+        return fetch(url, { ...options, headers });
+      }
+    } catch (error) {
+      if (isNetworkError(error)) {
+        throw new NetworkError('Unable to connect to server. Please check your internet connection.');
+      }
     }
     throw new AuthError('Session expired. Please log in again.', 'SESSION_EXPIRED', 401);
   }

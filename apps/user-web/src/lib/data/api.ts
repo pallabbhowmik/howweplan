@@ -314,9 +314,32 @@ export interface UpdateTravelRequestInput {
 // Helper Functions
 // ============================================================================
 
+// Helper to check if an error is a network/connection error
+function isNetworkError(error: unknown): boolean {
+  if (error instanceof TypeError && error.message === 'Failed to fetch') return true;
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    if (error.name === 'NetworkError') return true;
+    return msg.includes('network') || msg.includes('connection') || msg.includes('failed to fetch');
+  }
+  return false;
+}
+
+// Retry configuration for transient errors (common on Render free tier)
+const RETRY_CONFIG = {
+  maxRetries: 2,
+  initialDelay: 1000, // 1 second
+  maxDelay: 5000,
+};
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function gatewayRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  retryCount = 0
 ): Promise<T> {
   const token = getAccessToken();
 
@@ -328,11 +351,30 @@ async function gatewayRequest<T>(
 
   const url = `${API_BASE}${endpoint}`;
 
-  // If we have a token, use authenticatedFetch so expired tokens get refreshed.
-  // If we don't have a token, keep current behavior (some endpoints are public).
-  const response = token
-    ? await authenticatedFetch(url, { ...options, headers })
-    : await fetch(url, { ...options, headers });
+  let response: Response;
+  try {
+    // If we have a token, use authenticatedFetch so expired tokens get refreshed.
+    // If we don't have a token, keep current behavior (some endpoints are public).
+    response = token
+      ? await authenticatedFetch(url, { ...options, headers })
+      : await fetch(url, { ...options, headers });
+  } catch (error) {
+    // Handle network errors with retry for transient failures
+    if (isNetworkError(error)) {
+      if (retryCount < RETRY_CONFIG.maxRetries) {
+        const delay = Math.min(
+          RETRY_CONFIG.initialDelay * Math.pow(2, retryCount),
+          RETRY_CONFIG.maxDelay
+        );
+        console.debug(`[API] Network error for ${endpoint}, retrying in ${delay}ms (attempt ${retryCount + 1}/${RETRY_CONFIG.maxRetries})`);
+        await sleep(delay);
+        return gatewayRequest<T>(endpoint, options, retryCount + 1);
+      }
+      console.debug(`[API] Network error for ${endpoint} - server may be unavailable after ${RETRY_CONFIG.maxRetries} retries`);
+      throw new Error('Unable to connect to server. The service may be starting up - please try again in a moment.');
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
