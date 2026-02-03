@@ -13,7 +13,7 @@ import { startConversation } from '@/lib/data/messages';
 import { PriceBudgetComparison, SavingsHighlight } from '@/components/trust/PriceBudgetComparison';
 import { ItineraryTemplateCompact } from '@/components/trust/ItineraryTemplate';
 import { cn } from '@/lib/utils';
-import { useRequestUpdates } from '@/lib/realtime';
+import { useRequestUpdates, type RequestUpdateEvent } from '@/lib/realtime';
 import {
   Tooltip,
   TooltipContent,
@@ -80,7 +80,7 @@ export default function ProposalsPage() {
     requestId,
     userId: user?.userId,
     enabled: !userLoading && !!requestId,
-    onUpdate: useCallback((event) => {
+    onUpdate: useCallback((event: RequestUpdateEvent) => {
       console.log('[Proposals] Real-time event received:', event.type, event.data);
       
       if (event.type === 'NEW_PROPOSAL' || event.type === 'PROPOSAL_UPDATED') {
