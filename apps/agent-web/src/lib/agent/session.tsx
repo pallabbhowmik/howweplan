@@ -32,6 +32,7 @@ function createAgentFromAuthUser(authUser: AuthUser | null): DemoAgent | null {
     email: authUser.email,
     firstName: authUser.firstName,
     lastName: authUser.lastName,
+    commissionRate: 0.1,
   };
 }
 

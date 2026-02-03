@@ -368,6 +368,9 @@ export default function EditItineraryPage() {
   }
 
   const isSubmitted = ['submitted', 'under_review'].includes(itinerary?.status?.toLowerCase() || '');
+  const commissionRate = agent?.commissionRate ?? 0.1;
+  const commissionAmount = Math.max(0, Math.round(form.totalPrice * commissionRate));
+  const payoutAmount = Math.max(0, form.totalPrice - commissionAmount);
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -822,6 +825,21 @@ export default function EditItineraryPage() {
             </div>
 
             <Separator className="my-4" />
+
+            {/* Commission & Payout */}
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-emerald-800">Platform commission ({Math.round(commissionRate * 100)}%)</span>
+                <span className="font-semibold text-emerald-900">{formatCurrency(commissionAmount)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-700 font-medium">Estimated payout</span>
+                <span className="text-lg font-semibold text-emerald-700">{formatCurrency(payoutAmount)}</span>
+              </div>
+              <p className="text-xs text-emerald-700">
+                Estimated earnings after platform commission for planning purposes.
+              </p>
+            </div>
 
             {/* Inclusions */}
             <div className="space-y-2">

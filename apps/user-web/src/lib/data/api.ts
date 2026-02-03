@@ -248,6 +248,13 @@ export interface Proposal {
     notes?: string;
     confirmed: boolean;
   }>;
+  // Simplified day-by-day plans
+  dayPlans?: Array<{
+    dayNumber: number;
+    title: string;
+    description?: string;
+    activities: string[];
+  }>;
   // Legacy itinerary format for backward compatibility
   itinerary: Array<{
     day: number;
@@ -1076,6 +1083,7 @@ export async function fetchRequestProposals(requestId: string): Promise<Proposal
         overview: p.overview,
         pricing: p.pricing,
         items: p.items,
+        dayPlans: p.dayPlans || p.day_plans,
         // Legacy format for backward compatibility
         itinerary,
         inclusions: pricing.inclusions || p.inclusions || [],

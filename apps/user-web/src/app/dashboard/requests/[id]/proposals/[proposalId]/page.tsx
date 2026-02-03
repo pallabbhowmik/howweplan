@@ -164,7 +164,7 @@ export default function ProposalDetailPage() {
   const overview: ItineraryOverview = (proposal?.overview as ItineraryOverview) || {};
   const pricing: ItineraryPricing = (proposal?.pricing as ItineraryPricing) || {};
   const items: ItineraryItem[] = (proposal?.items as ItineraryItem[]) || [];
-  const dayPlans: DayPlan[] = ((proposal as any)?.dayPlans as DayPlan[]) || [];
+  const dayPlans: DayPlan[] = (proposal?.dayPlans as DayPlan[]) || [];
   
   // Calculate values - prices are stored as whole currency (not cents)
   const totalPrice = pricing.totalPrice || proposal?.totalPrice || 0;

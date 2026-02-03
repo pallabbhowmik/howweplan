@@ -4,6 +4,7 @@ export type DemoAgent = {
   email: string;
   firstName: string;
   lastName: string;
+  commissionRate?: number;
 };
 
 export const demoAgents: DemoAgent[] = [
@@ -14,6 +15,7 @@ export const demoAgents: DemoAgent[] = [
     email: 'star.agent@howweplan.com',
     firstName: 'Sarah',
     lastName: 'Star',
+    commissionRate: 0.1,
   },
   {
     agentId: 'b0000000-0000-0000-0000-000000000002',
@@ -21,5 +23,6 @@ export const demoAgents: DemoAgent[] = [
     email: 'bench.agent@howweplan.com',
     firstName: 'Ben',
     lastName: 'Benchley',
+    commissionRate: 0.1,
   },
 ];
