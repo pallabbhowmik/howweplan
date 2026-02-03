@@ -60,6 +60,27 @@ export interface ItineraryUpdatedPayload {
 export type ItineraryUpdatedEvent = BaseEvent<ItineraryUpdatedPayload>;
 
 /**
+ * Emitted when an agent updates their proposal.
+ */
+export interface ItineraryProposalUpdatedPayload {
+  itineraryId: string;
+  requestId: string;
+  agentId: string;
+  travelerId: string;
+  version: number;
+  previousVersion: number;
+  changeReason: string;
+  updatedAt: string;
+  proposalSummary: {
+    title?: string;
+    totalPrice?: number;
+    currency: string;
+  };
+}
+
+export type ItineraryProposalUpdatedEvent = BaseEvent<ItineraryProposalUpdatedPayload>;
+
+/**
  * Emitted when a new version is created.
  */
 export interface VersionCreatedPayload {
@@ -161,6 +182,7 @@ export type AuditEvent = BaseEvent<AuditEventPayload>;
 export type PublishedEvent =
   | ItinerarySubmittedEvent
   | ItineraryUpdatedEvent
+  | ItineraryProposalUpdatedEvent
   | VersionCreatedEvent
   | ItineraryDisclosedEvent
   | ItineraryStatusChangedEvent
@@ -180,6 +202,7 @@ export const EventTypes = {
   // Published
   ITINERARY_SUBMITTED: 'itinerary.submitted',
   ITINERARY_UPDATED: 'itinerary.updated',
+  ITINERARY_PROPOSAL_UPDATED: 'itinerary.proposal_updated',
   ITINERARY_VERSION_CREATED: 'itinerary.version.created',
   ITINERARY_DISCLOSED: 'itinerary.disclosed',
   ITINERARY_STATUS_CHANGED: 'itinerary.status_changed',

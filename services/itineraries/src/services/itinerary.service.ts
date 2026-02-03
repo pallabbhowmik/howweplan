@@ -245,8 +245,8 @@ export class ItineraryService {
     const itinerary = await this.getRawItinerary(id);
 
     // Only DRAFT or SUBMITTED proposals can be updated (not APPROVED/REJECTED/ARCHIVED)
-    const editableStatuses = [ItineraryStatus.DRAFT, ItineraryStatus.SUBMITTED, ItineraryStatus.UNDER_REVIEW];
-    if (!editableStatuses.includes(itinerary.status as typeof ItineraryStatus[keyof typeof ItineraryStatus])) {
+    const editableStatuses: string[] = [ItineraryStatus.DRAFT, ItineraryStatus.SUBMITTED, ItineraryStatus.UNDER_REVIEW];
+    if (!editableStatuses.includes(itinerary.status)) {
       throw new InvalidStateTransitionError(
         `Cannot update proposal in ${itinerary.status} status. Proposals can only be updated before acceptance.`
       );
