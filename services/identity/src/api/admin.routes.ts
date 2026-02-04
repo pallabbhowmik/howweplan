@@ -21,6 +21,8 @@ import {
   revokeVerification,
   listPendingVerifications,
 } from '../services/agent.service.js';
+import * as indiaVerification from '../services/india-verification.service.js';
+import { IndiaDocumentType, DOCUMENT_TYPE_INFO, MINIMUM_REQUIRED_DOCUMENTS } from '../types/india-verification.types.js';
 import { getDbClient } from '../services/database.js';
 import { EventContext } from '../events/index.js';
 import { IdentityError, UserNotFoundError, AdminReasonRequiredError } from '../services/errors.js';
@@ -2272,6 +2274,357 @@ router.post(
     } catch (error) {
       console.error('Agent reactivation error:', error);
       sendApiError(res, authReq.correlationId, 500, 'INTERNAL', 'Failed to reactivate agent');
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOCUMENT VERIFICATION ROUTES (India Compliance)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /admin/verification/pending
+ * Get all pending verification documents.
+ */
+router.get(
+  '/verification/pending',
+  validateQuery(z.object({
+    page: z.string().transform(Number).default('1'),
+    pageSize: z.string().transform(Number).default('20'),
+  })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { page, pageSize } = req.query as any;
+
+    try {
+      const result = await indiaVerification.getPendingVerifications(page, pageSize);
+      sendSuccess(res, result, authReq.correlationId);
+    } catch (error) {
+      console.error('Failed to fetch pending verifications:', error);
+      sendApiError(res, authReq.correlationId, 500, 'INTERNAL', 'Failed to fetch pending verifications');
+    }
+  }
+);
+
+/**
+ * GET /admin/verification/document-types
+ * Get all document types with their metadata.
+ */
+router.get(
+  '/verification/document-types',
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    sendSuccess(res, {
+      documentTypes: DOCUMENT_TYPE_INFO,
+      requiredDocuments: MINIMUM_REQUIRED_DOCUMENTS,
+    }, authReq.correlationId);
+  }
+);
+
+/**
+ * GET /admin/agents/:agentId/documents
+ * Get all verification documents for an agent.
+ */
+router.get(
+  '/agents/:agentId/documents',
+  validateParams(z.object({ agentId: z.string().uuid() })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { agentId } = req.params;
+
+    try {
+      const db = getDbClient();
+      
+      // Get user_id from agents table
+      const { data: agentData, error: agentError } = await db
+        .from('agents')
+        .select('user_id')
+        .eq('id', agentId)
+        .single();
+
+      if (agentError || !agentData) {
+        sendApiError(res, authReq.correlationId, 404, 'NOT_FOUND', 'Agent not found');
+        return;
+      }
+
+      const result = await indiaVerification.getAgentDocumentsForAdmin(agentData.user_id);
+      sendSuccess(res, result, authReq.correlationId);
+    } catch (error) {
+      console.error('Failed to fetch agent documents:', error);
+      sendApiError(res, authReq.correlationId, 500, 'INTERNAL', 'Failed to fetch agent documents');
+    }
+  }
+);
+
+/**
+ * POST /admin/documents/:documentId/approve
+ * Approve a specific document.
+ */
+router.post(
+  '/documents/:documentId/approve',
+  validateParams(z.object({ documentId: z.string().uuid() })),
+  validateBody(z.object({
+    notes: z.string().max(1000).optional(),
+    correlationId: z.string().optional(),
+  })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { documentId } = req.params;
+    const body = req.body as { notes?: string };
+
+    try {
+      const db = getDbClient();
+      const { data: admin } = await db
+        .from('users')
+        .select('first_name, last_name')
+        .eq('id', authReq.identity.sub)
+        .single();
+
+      const adminName = admin ? `${admin.first_name || ''} ${admin.last_name || ''}`.trim() || 'Admin' : 'Admin';
+
+      const document = await indiaVerification.approveDocument(
+        documentId,
+        authReq.identity.sub,
+        adminName,
+        body.notes
+      );
+
+      sendSuccess(res, document, authReq.correlationId);
+    } catch (error) {
+      console.error('Failed to approve document:', error);
+      sendApiError(res, authReq.correlationId, 500, 'INTERNAL', error instanceof Error ? error.message : 'Failed to approve document');
+    }
+  }
+);
+
+/**
+ * POST /admin/documents/:documentId/reject
+ * Reject a specific document.
+ */
+router.post(
+  '/documents/:documentId/reject',
+  validateParams(z.object({ documentId: z.string().uuid() })),
+  validateBody(z.object({
+    reason: z.string().min(10).max(1000),
+    correlationId: z.string().optional(),
+  })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { documentId } = req.params;
+    const body = req.body as { reason: string };
+
+    try {
+      const db = getDbClient();
+      const { data: admin } = await db
+        .from('users')
+        .select('first_name, last_name')
+        .eq('id', authReq.identity.sub)
+        .single();
+
+      const adminName = admin ? `${admin.first_name || ''} ${admin.last_name || ''}`.trim() || 'Admin' : 'Admin';
+
+      const document = await indiaVerification.rejectDocument(
+        documentId,
+        authReq.identity.sub,
+        adminName,
+        body.reason
+      );
+
+      sendSuccess(res, document, authReq.correlationId);
+    } catch (error) {
+      console.error('Failed to reject document:', error);
+      sendApiError(res, authReq.correlationId, 500, 'INTERNAL', error instanceof Error ? error.message : 'Failed to reject document');
+    }
+  }
+);
+
+/**
+ * POST /admin/documents/:documentId/request-reupload
+ * Request document re-upload.
+ */
+router.post(
+  '/documents/:documentId/request-reupload',
+  validateParams(z.object({ documentId: z.string().uuid() })),
+  validateBody(z.object({
+    reason: z.string().min(10).max(1000),
+    deadlineDays: z.number().int().min(1).max(30).default(7),
+    correlationId: z.string().optional(),
+  })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { documentId } = req.params;
+    const body = req.body as { reason: string; deadlineDays: number };
+
+    try {
+      const db = getDbClient();
+      const { data: admin } = await db
+        .from('users')
+        .select('first_name, last_name')
+        .eq('id', authReq.identity.sub)
+        .single();
+
+      const adminName = admin ? `${admin.first_name || ''} ${admin.last_name || ''}`.trim() || 'Admin' : 'Admin';
+
+      const document = await indiaVerification.requestReupload(
+        documentId,
+        authReq.identity.sub,
+        adminName,
+        body.reason,
+        body.deadlineDays
+      );
+
+      sendSuccess(res, document, authReq.correlationId);
+    } catch (error) {
+      console.error('Failed to request reupload:', error);
+      sendApiError(res, authReq.correlationId, 500, 'INTERNAL', error instanceof Error ? error.message : 'Failed to request reupload');
+    }
+  }
+);
+
+/**
+ * POST /admin/agents/:agentId/request-document
+ * Request an additional document from an agent.
+ */
+router.post(
+  '/agents/:agentId/request-document',
+  validateParams(z.object({ agentId: z.string().uuid() })),
+  validateBody(z.object({
+    documentType: z.string(),
+    reason: z.string().min(10).max(1000),
+    correlationId: z.string().optional(),
+  })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { agentId } = req.params;
+    const body = req.body as { documentType: string; reason: string };
+
+    try {
+      const db = getDbClient();
+      
+      // Get user_id from agents table
+      const { data: agentData, error: agentError } = await db
+        .from('agents')
+        .select('user_id')
+        .eq('id', agentId)
+        .single();
+
+      if (agentError || !agentData) {
+        sendApiError(res, authReq.correlationId, 404, 'NOT_FOUND', 'Agent not found');
+        return;
+      }
+
+      const { data: admin } = await db
+        .from('users')
+        .select('first_name, last_name')
+        .eq('id', authReq.identity.sub)
+        .single();
+
+      const adminName = admin ? `${admin.first_name || ''} ${admin.last_name || ''}`.trim() || 'Admin' : 'Admin';
+
+      await indiaVerification.requestAdditionalDocument(
+        agentData.user_id,
+        body.documentType as IndiaDocumentType,
+        authReq.identity.sub,
+        adminName,
+        body.reason
+      );
+
+      sendSuccess(res, { success: true }, authReq.correlationId);
+    } catch (error) {
+      console.error('Failed to request document:', error);
+      sendApiError(res, authReq.correlationId, 500, 'INTERNAL', error instanceof Error ? error.message : 'Failed to request document');
+    }
+  }
+);
+
+/**
+ * POST /admin/agents/:agentId/comments
+ * Add a comment for an agent.
+ */
+router.post(
+  '/agents/:agentId/comments',
+  validateParams(z.object({ agentId: z.string().uuid() })),
+  validateBody(z.object({
+    comment: z.string().min(5).max(1000),
+    documentId: z.string().uuid().optional().nullable(),
+    correlationId: z.string().optional(),
+  })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { agentId } = req.params;
+    const body = req.body as { comment: string; documentId?: string | null };
+
+    try {
+      const db = getDbClient();
+      
+      // Get user_id from agents table
+      const { data: agentData, error: agentError } = await db
+        .from('agents')
+        .select('user_id')
+        .eq('id', agentId)
+        .single();
+
+      if (agentError || !agentData) {
+        sendApiError(res, authReq.correlationId, 404, 'NOT_FOUND', 'Agent not found');
+        return;
+      }
+
+      const { data: admin } = await db
+        .from('users')
+        .select('first_name, last_name')
+        .eq('id', authReq.identity.sub)
+        .single();
+
+      const adminName = admin ? `${admin.first_name || ''} ${admin.last_name || ''}`.trim() || 'Admin' : 'Admin';
+
+      const comment = await indiaVerification.addComment(
+        agentData.user_id,
+        body.documentId || null,
+        authReq.identity.sub,
+        adminName,
+        body.comment,
+        'COMMENT'
+      );
+
+      sendSuccess(res, comment, authReq.correlationId);
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+      sendApiError(res, authReq.correlationId, 500, 'INTERNAL', error instanceof Error ? error.message : 'Failed to add comment');
+    }
+  }
+);
+
+/**
+ * GET /admin/agents/:agentId/comments
+ * Get all comments for an agent.
+ */
+router.get(
+  '/agents/:agentId/comments',
+  validateParams(z.object({ agentId: z.string().uuid() })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { agentId } = req.params;
+
+    try {
+      const db = getDbClient();
+      
+      // Get user_id from agents table
+      const { data: agentData, error: agentError } = await db
+        .from('agents')
+        .select('user_id')
+        .eq('id', agentId)
+        .single();
+
+      if (agentError || !agentData) {
+        sendApiError(res, authReq.correlationId, 404, 'NOT_FOUND', 'Agent not found');
+        return;
+      }
+
+      const comments = await indiaVerification.getAllComments(agentData.user_id);
+      sendSuccess(res, comments, authReq.correlationId);
+    } catch (error) {
+      console.error('Failed to fetch comments:', error);
+      sendApiError(res, authReq.correlationId, 500, 'INTERNAL', 'Failed to fetch comments');
     }
   }
 );

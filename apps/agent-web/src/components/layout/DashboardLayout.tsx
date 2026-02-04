@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAgentSession } from '@/lib/agent/session';
 import { getAgentIdentity, getAgentStats, type AgentIdentity, type AgentStatsSummary } from '@/lib/data/agent';
 import { clearAuthData, ensureValidToken, getAccessToken, logout as apiLogout } from '@/lib/api/auth';
+import { FirstLoginVerificationPrompt } from '@/components/verification/FirstLoginPrompt';
 
 interface NavItem {
   label: string;
@@ -586,7 +587,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </svg>
                 <span className="text-sm font-medium">Your account is not verified. Complete verification to receive travel requests.</span>
               </div>
-              <Link href="/verification">
+              <Link href="/verification/documents">
                 <Button size="sm" variant="outline" className="bg-white text-amber-700 border-amber-300 hover:bg-amber-100">
                   Complete Verification
                 </Button>
@@ -594,7 +595,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
         )}
-        <div className="p-4 lg:p-8">{children}</div>
+        <div className="p-4 lg:p-8">
+          {/* First Login Verification Prompt Modal */}
+          <FirstLoginVerificationPrompt isAgent={!!identity} />
+          {children}
+        </div>
       </main>
 
       {/* Keyboard Shortcuts Modal */}

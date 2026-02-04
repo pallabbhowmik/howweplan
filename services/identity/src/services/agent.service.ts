@@ -123,6 +123,26 @@ export async function getUserIdByAgentProfileId(agentProfileId: string): Promise
 }
 
 /**
+ * Gets agent_id for a user by their user_id.
+ * This is the inverse of getUserIdByAgentProfileId.
+ */
+export async function getAgentIdForUser(userId: string): Promise<string | null> {
+  const db = getDbClient();
+
+  const { data, error } = await db
+    .from('agents')
+    .select('id')
+    .eq('user_id', userId)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data.id;
+}
+
+/**
  * Gets full agent info by their profile ID (from the agents table).
  * Returns combined data from agents table and users table.
  */

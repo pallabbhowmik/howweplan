@@ -18,6 +18,14 @@ import {
   updateAgentProfile,
   submitVerification,
 } from '../services/agent.service.js';
+import * as indiaVerification from '../services/india-verification.service.js';
+import { 
+  IndiaDocumentType, 
+  DOCUMENT_TYPE_INFO, 
+  MINIMUM_REQUIRED_DOCUMENTS,
+  DocumentCategory,
+  BusinessType,
+} from '../types/india-verification.types.js';
 import { EventContext } from '../events/index.js';
 import { IdentityError, AgentProfileNotFoundError } from '../services/errors.js';
 import {
@@ -359,6 +367,397 @@ router.post(
       const { agents, notFound } = await getAgentsByProfileIds(agentIds);
 
       sendSuccess(res, { agents, notFound }, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      throw error;
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOCUMENT VERIFICATION ROUTES (India Compliance)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /agents/me/verification/documents
+ * Get all uploaded documents for the current agent.
+ */
+router.get(
+  '/me/verification/documents',
+  requireAuth,
+  requireAgent,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+
+    try {
+      const documents = await indiaVerification.getDocuments(authReq.identity.sub);
+      const progress = await indiaVerification.getVerificationProgress(authReq.identity.sub);
+      
+      sendSuccess(res, { documents, progress }, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      throw error;
+    }
+  }
+);
+
+/**
+ * GET /agents/me/verification/document-types
+ * Get all available document types with metadata.
+ */
+router.get(
+  '/me/verification/document-types',
+  requireAuth,
+  requireAgent,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+
+    // Group document types by category
+    const groupedTypes: Record<DocumentCategory, typeof DOCUMENT_TYPE_INFO[IndiaDocumentType][]> = {
+      [DocumentCategory.IDENTITY]: [],
+      [DocumentCategory.BUSINESS]: [],
+      [DocumentCategory.PROFESSIONAL]: [],
+      [DocumentCategory.FINANCIAL]: [],
+      [DocumentCategory.ADDRESS]: [],
+      [DocumentCategory.ADDITIONAL]: [],
+    };
+
+    for (const [key, info] of Object.entries(DOCUMENT_TYPE_INFO)) {
+      groupedTypes[info.category].push(info);
+    }
+
+    sendSuccess(res, {
+      documentTypes: DOCUMENT_TYPE_INFO,
+      groupedTypes,
+      requiredDocuments: MINIMUM_REQUIRED_DOCUMENTS,
+    }, authReq.correlationId);
+  }
+);
+
+/**
+ * POST /agents/me/verification/documents
+ * Upload a verification document.
+ */
+router.post(
+  '/me/verification/documents',
+  requireAuth,
+  requireAgent,
+  blockSuspended,
+  validateBody(z.object({
+    documentType: z.string(),
+    documentUrl: z.string().url(),
+    fileName: z.string(),
+    fileSize: z.number().positive(),
+    mimeType: z.string(),
+    extractedData: z.record(z.string()).optional(),
+  })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const body = req.body;
+
+    try {
+      // Validate document type
+      if (!DOCUMENT_TYPE_INFO[body.documentType as IndiaDocumentType]) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'INVALID_DOCUMENT_TYPE', message: 'Invalid document type' },
+          requestId: authReq.correlationId,
+        });
+        return;
+      }
+
+      const document = await indiaVerification.uploadDocument(
+        authReq.identity.sub,
+        body.documentType as IndiaDocumentType,
+        body.documentUrl,
+        body.fileName,
+        body.fileSize,
+        body.mimeType,
+        body.extractedData
+      );
+
+      sendSuccess(res, document, authReq.correlationId, 201);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      console.error('Document upload error:', error);
+      res.status(500).json({
+        success: false,
+        error: { code: 'UPLOAD_FAILED', message: error instanceof Error ? error.message : 'Upload failed' },
+        requestId: authReq.correlationId,
+      });
+    }
+  }
+);
+
+/**
+ * DELETE /agents/me/verification/documents/:documentId
+ * Delete a verification document (only if not approved).
+ */
+router.delete(
+  '/me/verification/documents/:documentId',
+  requireAuth,
+  requireAgent,
+  blockSuspended,
+  validateParams(z.object({ documentId: z.string().uuid() })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { documentId } = req.params;
+
+    try {
+      await indiaVerification.deleteDocument(authReq.identity.sub, documentId);
+      sendSuccess(res, { deleted: true }, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      res.status(400).json({
+        success: false,
+        error: { code: 'DELETE_FAILED', message: error instanceof Error ? error.message : 'Delete failed' },
+        requestId: authReq.correlationId,
+      });
+    }
+  }
+);
+
+/**
+ * POST /agents/me/verification/submit
+ * Submit all documents for review.
+ */
+router.post(
+  '/me/verification/submit',
+  requireAuth,
+  requireAgent,
+  blockSuspended,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+
+    try {
+      const eventContext = createEventContext(req);
+      await indiaVerification.submitForReview(authReq.identity.sub, eventContext);
+      
+      const progress = await indiaVerification.getVerificationProgress(authReq.identity.sub);
+      sendSuccess(res, { submitted: true, progress }, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      res.status(400).json({
+        success: false,
+        error: { code: 'SUBMIT_FAILED', message: error instanceof Error ? error.message : 'Submit failed' },
+        requestId: authReq.correlationId,
+      });
+    }
+  }
+);
+
+/**
+ * GET /agents/me/verification/comments
+ * Get all verification comments/notifications.
+ */
+router.get(
+  '/me/verification/comments',
+  requireAuth,
+  requireAgent,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+
+    try {
+      const comments = await indiaVerification.getAllComments(authReq.identity.sub);
+      const unreadCount = comments.filter(c => !c.isRead).length;
+      
+      sendSuccess(res, { comments, unreadCount }, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      throw error;
+    }
+  }
+);
+
+/**
+ * GET /agents/me/verification/comments/unread
+ * Get unread verification comments/notifications.
+ */
+router.get(
+  '/me/verification/comments/unread',
+  requireAuth,
+  requireAgent,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+
+    try {
+      const comments = await indiaVerification.getUnreadComments(authReq.identity.sub);
+      
+      sendSuccess(res, { comments, count: comments.length }, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      throw error;
+    }
+  }
+);
+
+/**
+ * POST /agents/me/verification/comments/:commentId/read
+ * Mark a comment as read.
+ */
+router.post(
+  '/me/verification/comments/:commentId/read',
+  requireAuth,
+  requireAgent,
+  validateParams(z.object({ commentId: z.string().uuid() })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { commentId } = req.params;
+
+    try {
+      await indiaVerification.markCommentAsRead(authReq.identity.sub, commentId);
+      sendSuccess(res, { marked: true }, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      throw error;
+    }
+  }
+);
+
+/**
+ * POST /agents/me/verification/comments/read-all
+ * Mark all comments as read.
+ */
+router.post(
+  '/me/verification/comments/read-all',
+  requireAuth,
+  requireAgent,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+
+    try {
+      await indiaVerification.markAllCommentsAsRead(authReq.identity.sub);
+      sendSuccess(res, { marked: true }, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      throw error;
+    }
+  }
+);
+
+/**
+ * GET /agents/me/verification/profile
+ * Get verification profile with business info.
+ */
+router.get(
+  '/me/verification/profile',
+  requireAuth,
+  requireAgent,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+
+    try {
+      // First get or create verification profile
+      const { getAgentIdForUser } = await import('../services/agent.service.js');
+      const agentId = await getAgentIdForUser(authReq.identity.sub);
+      
+      if (!agentId) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'AGENT_NOT_FOUND', message: 'Agent profile not found' },
+          requestId: authReq.correlationId,
+        });
+        return;
+      }
+
+      const profile = await indiaVerification.getOrCreateVerificationProfile(authReq.identity.sub, agentId);
+      sendSuccess(res, profile, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      throw error;
+    }
+  }
+);
+
+/**
+ * PATCH /agents/me/verification/profile
+ * Update verification profile business info.
+ */
+router.patch(
+  '/me/verification/profile',
+  requireAuth,
+  requireAgent,
+  blockSuspended,
+  validateBody(z.object({
+    businessType: z.enum(['INDIVIDUAL', 'PROPRIETORSHIP', 'PARTNERSHIP', 'PRIVATE_LIMITED', 'LLP', 'PUBLIC_LIMITED']).optional(),
+    businessName: z.string().max(255).optional(),
+    businessAddress: z.string().max(500).optional(),
+    businessCity: z.string().max(100).optional(),
+    businessState: z.string().max(100).optional(),
+    businessPincode: z.string().max(10).optional(),
+    primaryPhone: z.string().max(20).optional(),
+    secondaryPhone: z.string().max(20).optional(),
+    whatsappNumber: z.string().max(20).optional(),
+    businessEmail: z.string().email().max(255).optional(),
+    websiteUrl: z.string().url().max(255).optional(),
+    panNumber: z.string().length(10).optional(),
+    gstin: z.string().length(15).optional(),
+    iataNumber: z.string().max(20).optional(),
+  })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+
+    try {
+      const profile = await indiaVerification.updateBusinessInfo(authReq.identity.sub, req.body);
+      sendSuccess(res, profile, authReq.correlationId);
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      res.status(400).json({
+        success: false,
+        error: { code: 'UPDATE_FAILED', message: error instanceof Error ? error.message : 'Update failed' },
+        requestId: authReq.correlationId,
+      });
+    }
+  }
+);
+
+/**
+ * POST /agents/me/verification/first-login-shown
+ * Mark first login verification prompt as shown.
+ */
+router.post(
+  '/me/verification/first-login-shown',
+  requireAuth,
+  requireAgent,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+
+    try {
+      await indiaVerification.markFirstLoginPromptShown(authReq.identity.sub);
+      sendSuccess(res, { marked: true }, authReq.correlationId);
     } catch (error) {
       if (error instanceof IdentityError) {
         sendError(res, error, authReq.correlationId);
