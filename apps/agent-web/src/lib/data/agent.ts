@@ -552,7 +552,9 @@ export async function listConversations(agentId: string): Promise<ConversationLi
       state: string;
       createdAt: string;
       updatedAt: string;
-      participants: Array<{ id: string; participantType: 'USER' | 'AGENT' | 'ADMIN' }>;
+      tripDestination: string | null;
+      tripDates: string | null;
+      participants: Array<{ id: string; participantType: 'USER' | 'AGENT' | 'ADMIN'; displayName?: string }>;
       lastMessage: null | { createdAt: string; content: string };
       unreadCount: number;
     }>;
@@ -560,6 +562,17 @@ export async function listConversations(agentId: string): Promise<ConversationLi
 
   return (result.items ?? []).map((c) => {
     const userParticipant = (c.participants ?? []).find((p) => p.participantType === 'USER');
+    const clientName = userParticipant?.displayName || 'Client';
+    
+    // Build destination label from trip info
+    let destinationLabel: string | null = null;
+    if (c.tripDestination) {
+      destinationLabel = c.tripDestination;
+      if (c.tripDates) {
+        destinationLabel += ` • ${c.tripDates}`;
+      }
+    }
+    
     return {
       id: c.id,
       bookingId: c.bookingId ?? null,
@@ -570,9 +583,9 @@ export async function listConversations(agentId: string): Promise<ConversationLi
       lastMessageAt: c.lastMessage?.createdAt ?? null,
       lastMessagePreview: c.lastMessage?.content ? String(c.lastMessage.content).slice(0, 120) : null,
       unreadCount: Number(c.unreadCount ?? 0),
-      clientName: 'Client',
+      clientName,
       clientAvatarUrl: null,
-      destinationLabel: null,
+      destinationLabel,
     };
   });
 }

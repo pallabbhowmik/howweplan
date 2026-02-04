@@ -49,6 +49,17 @@ export async function listUserConversations(userId: string): Promise<Conversatio
     const last = c.lastMessage;
     const participants: any[] = Array.isArray(c.participants) ? c.participants : [];
     const agent = participants.find((p) => p?.participantType === 'AGENT');
+    const agentName = agent?.displayName || 'Agent';
+    
+    // Build destination label from trip info
+    let destinationLabel: string | null = null;
+    if (c.tripDestination) {
+      destinationLabel = c.tripDestination;
+      if (c.tripDates) {
+        destinationLabel += ` • ${c.tripDates}`;
+      }
+    }
+    
     return {
       id: c.id,
       bookingId: c.bookingId ?? null,
@@ -58,9 +69,9 @@ export async function listUserConversations(userId: string): Promise<Conversatio
       lastMessageAt: last?.createdAt ?? null,
       lastMessagePreview: last?.content ? String(last.content).slice(0, 120) : null,
       unreadCount: Number(c.unreadCount ?? 0),
-      agentName: 'Agent',
+      agentName,
       agentAvatarUrl: null,
-      destinationLabel: null,
+      destinationLabel,
     } as ConversationListItem;
   });
 }

@@ -225,8 +225,57 @@ export class ConversationService {
       }
     }
 
+    // Fetch user names
+    const userIds = [...new Set(conversations.map((c) => c.userId))];
+    const userNameMap = new Map<string, string>();
+    if (userIds.length > 0) {
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, first_name, last_name')
+        .in('id', userIds);
+      for (const u of users ?? []) {
+        const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || 'User';
+        userNameMap.set(String(u.id), name);
+      }
+    }
+
+    // Fetch agent names (agents table has first_name, last_name or display_name)
+    const agentIds = [...new Set(conversations.map((c) => c.agentId))];
+    const agentNameMap = new Map<string, string>();
+    if (agentIds.length > 0) {
+      const { data: agents } = await supabase
+        .from('agents')
+        .select('id, first_name, last_name, display_name')
+        .in('id', agentIds);
+      for (const a of agents ?? []) {
+        const name = a.display_name || [a.first_name, a.last_name].filter(Boolean).join(' ') || 'Agent';
+        agentNameMap.set(String(a.id), name);
+      }
+    }
+
+    // Fetch booking/request details for trip info
+    const bookingIds = conversations.map((c) => c.bookingId).filter(Boolean) as string[];
+    const tripInfoMap = new Map<string, { destination: string; dates: string }>();
+    if (bookingIds.length > 0) {
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select('id, destination_city, destination_country, trip_start_date, trip_end_date')
+        .in('id', bookingIds);
+      for (const b of bookings ?? []) {
+        const dest = [b.destination_city, b.destination_country].filter(Boolean).join(', ') || 'Trip';
+        const startDate = b.trip_start_date ? new Date(b.trip_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        const endDate = b.trip_end_date ? new Date(b.trip_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        const dates = startDate && endDate ? `${startDate} - ${endDate}` : '';
+        tripInfoMap.set(String(b.id), { destination: dest, dates });
+      }
+    }
+
     const items: ConversationView[] = conversations.map((c) => {
       const last = lastMessageByConversation.get(c.id) ?? null;
+      const userName = userNameMap.get(c.userId) || 'Client';
+      const agentName = agentNameMap.get(c.agentId) || 'Agent';
+      const tripInfo = c.bookingId ? tripInfoMap.get(c.bookingId) : null;
+      
       return {
         id: c.id,
         bookingId: c.bookingId,
@@ -234,18 +283,20 @@ export class ConversationService {
         contactsRevealed: c.contactsRevealed,
         createdAt: c.createdAt.toISOString(),
         updatedAt: c.updatedAt.toISOString(),
+        tripDestination: tripInfo?.destination ?? null,
+        tripDates: tripInfo?.dates ?? null,
         participants: [
           {
             id: c.userId,
             participantType: 'USER',
-            displayName: '',
+            displayName: userName,
             isOnline: false,
             lastSeenAt: null,
           },
           {
             id: c.agentId,
             participantType: 'AGENT',
-            displayName: '',
+            displayName: agentName,
             isOnline: false,
             lastSeenAt: null,
           },
