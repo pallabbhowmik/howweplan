@@ -709,28 +709,11 @@ async function requestHandler(
 
       logger.info({ requestId, correlationId, destination: request?.destination }, 'Received internal match trigger');
 
-      // First try to get verified agents
-      let { rows: agents } = await query<{ id: string; is_verified: boolean }>(
-        `SELECT id, is_verified FROM agents WHERE is_verified = true AND is_available = true LIMIT 5`
+      // Only match with verified and available agents
+      // Agents must be approved by admin (is_verified=true) and available (is_available=true)
+      const { rows: agents } = await query<{ id: string; is_verified: boolean }>(
+        `SELECT id, is_verified FROM agents WHERE is_verified = true AND is_available = true LIMIT 10`
       );
-
-      // If no verified agents, fall back to any available agents
-      if (agents.length === 0) {
-        logger.warn({ requestId }, 'No verified agents found, trying any available agents');
-        const result = await query<{ id: string; is_verified: boolean }>(
-          `SELECT id, is_verified FROM agents WHERE is_available = true LIMIT 5`
-        );
-        agents = result.rows;
-      }
-
-      // Last resort: get any agents at all
-      if (agents.length === 0) {
-        logger.warn({ requestId }, 'No available agents found, trying any agents');
-        const result = await query<{ id: string; is_verified: boolean }>(
-          `SELECT id, is_verified FROM agents LIMIT 5`
-        );
-        agents = result.rows;
-      }
 
       if (agents.length === 0) {
         logger.error({ requestId }, 'No agents exist in the database!');

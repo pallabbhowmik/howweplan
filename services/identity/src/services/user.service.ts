@@ -298,8 +298,7 @@ export async function registerUser(
     });
 
     // Create agents table entry (for matching service)
-    // New agents are NOT verified but ARE available - they can still be matched
-    // for development/testing. In production, you may want is_verified=false,is_available=false
+    // New agents are NOT verified and NOT available until admin approves them
     const { error: agentError } = await db.from('agents').insert({
       user_id: userId,
       bio: null,
@@ -315,19 +314,15 @@ export async function registerUser(
       completed_bookings: 0,
       response_time_minutes: null,
       is_verified: false,
-      is_available: true, // Available by default so they can receive matches
+      is_available: false, // NOT available until verified by admin
     });
 
     if (agentError) {
       console.error(`Failed to create agents entry for user ${userId}:`, agentError);
       // Don't fail registration, but log the error
-    } else {
-      // Notify matching service to create matches for this new agent with existing open requests
-      // This is a fire-and-forget operation - don't block registration on it
-      onboardNewAgent(userId).catch(err => {
-        console.error(`Failed to onboard new agent ${userId} to matching service:`, err);
-      });
     }
+    // NOTE: New agents don't get matched until they submit verification documents
+    // and are approved by an admin. The onboardNewAgent call happens on approval.
   }
 
   // Create tokens

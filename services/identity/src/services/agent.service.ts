@@ -19,6 +19,46 @@ import {
   InsufficientPermissionsError,
 } from './errors.js';
 import { getUserById } from './user.service.js';
+import { env } from '../env.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INTER-SERVICE COMMUNICATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Notifies the matching service that an agent has been approved.
+ * This triggers the creation of matches with existing open travel requests.
+ */
+async function notifyMatchingServiceOfApproval(userId: string): Promise<void> {
+  const matchingUrl = env.MATCHING_SERVICE_URL;
+  const internalSecret = env.INTERNAL_SERVICE_SECRET || env.EVENT_BUS_API_KEY;
+
+  if (!matchingUrl || matchingUrl === 'http://localhost:3013') {
+    console.log(`Skipping matching notification for ${userId} - no MATCHING_SERVICE_URL configured`);
+    return;
+  }
+
+  try {
+    const response = await fetch(`${matchingUrl}/internal/agent-onboard`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Service-Secret': internalSecret || '',
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Matching service notification failed for ${userId}:`, response.status, errorText);
+    } else {
+      const result = await response.json();
+      console.log(`Agent ${userId} onboarded to matching after approval:`, result);
+    }
+  } catch (err) {
+    console.error(`Failed to notify matching service of agent approval:`, err);
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPE MAPPERS
@@ -384,6 +424,10 @@ export async function submitVerification(
 /**
  * Approves an agent's verification.
  * Per business rules: all admin actions require a reason.
+ * This also:
+ * 1. Sets is_verified=true and is_available=true in the agents table
+ * 2. Updates the user account status to ACTIVE
+ * 3. Triggers matching with existing open travel requests
  */
 export async function approveVerification(
   userId: string,
@@ -414,6 +458,32 @@ export async function approveVerification(
     throw new Error(`Failed to approve verification: ${error?.message ?? 'Unknown error'}`);
   }
 
+  // CRITICAL: Update the agents table to mark agent as verified and available
+  const { error: agentUpdateError } = await db
+    .from('agents')
+    .update({
+      is_verified: true,
+      is_available: true,
+    })
+    .eq('user_id', userId);
+
+  if (agentUpdateError) {
+    console.error(`Failed to update agents table for user ${userId}:`, agentUpdateError);
+  }
+
+  // Update user account status to ACTIVE
+  const { error: userUpdateError } = await db
+    .from('users')
+    .update({
+      status: 'ACTIVE',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId);
+
+  if (userUpdateError) {
+    console.error(`Failed to update user status for ${userId}:`, userUpdateError);
+  }
+
   // Update verification documents
   await db
     .from('verification_documents')
@@ -423,6 +493,12 @@ export async function approveVerification(
     })
     .eq('user_id', userId)
     .is('reviewed_at', null);
+
+  // Trigger matching service to create matches for this newly verified agent
+  // Fire-and-forget - don't block the response
+  notifyMatchingServiceOfApproval(userId).catch(err => {
+    console.error(`Failed to notify matching service of agent approval:`, err);
+  });
 
   // Emit events
   await EventFactory.agentVerificationApproved(
@@ -487,6 +563,19 @@ export async function rejectVerification(
 
   if (error || !data) {
     throw new Error(`Failed to reject verification: ${error?.message ?? 'Unknown error'}`);
+  }
+
+  // Ensure agent remains not available for matching
+  const { error: agentUpdateError } = await db
+    .from('agents')
+    .update({
+      is_verified: false,
+      is_available: false,
+    })
+    .eq('user_id', userId);
+
+  if (agentUpdateError) {
+    console.error(`Failed to update agents table on rejection for user ${userId}:`, agentUpdateError);
   }
 
   // Update verification documents
@@ -566,6 +655,19 @@ export async function revokeVerification(
 
   if (error || !data) {
     throw new Error(`Failed to revoke verification: ${error?.message ?? 'Unknown error'}`);
+  }
+
+  // CRITICAL: Disable the agent in the agents table so they can't receive new matches
+  const { error: agentUpdateError } = await db
+    .from('agents')
+    .update({
+      is_verified: false,
+      is_available: false,
+    })
+    .eq('user_id', userId);
+
+  if (agentUpdateError) {
+    console.error(`Failed to update agents table on revocation for user ${userId}:`, agentUpdateError);
   }
 
   // Emit events

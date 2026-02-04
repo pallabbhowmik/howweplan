@@ -2016,4 +2016,264 @@ router.post(
   }
 );
 
+// ─────────────────────────────────────────────────────────────────────────────
+// AGENT APPROVAL/REJECTION ROUTES (by agent ID)
+// These routes are used by admin-web for agent management
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * POST /admin/agents/:agentId/approve
+ * Approve an agent's verification by their agent ID.
+ */
+router.post(
+  '/agents/:agentId/approve',
+  validateParams(z.object({ agentId: z.string().uuid() })),
+  validateBody(z.object({
+    reason: z.string().min(10).max(1000),
+    correlationId: z.string().optional(),
+  })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { agentId } = req.params;
+    const body = req.body as { reason: string; correlationId?: string };
+
+    try {
+      const db = getDbClient();
+      
+      // Get user_id from agents table
+      const { data: agentData, error: agentError } = await db
+        .from('agents')
+        .select('user_id')
+        .eq('id', agentId)
+        .single();
+
+      if (agentError || !agentData) {
+        sendApiError(res, authReq.correlationId, 404, 'NOT_FOUND', 'Agent not found');
+        return;
+      }
+
+      const userId = agentData.user_id;
+      const adminContext = createAdminContext(authReq.identity.sub, body);
+      const eventContext = createEventContext(req);
+
+      const profile = await approveVerification(userId, adminContext, eventContext);
+
+      sendSuccess(
+        res,
+        {
+          id: agentId,
+          userId: profile.userId,
+          verificationStatus: profile.verificationStatus,
+          verificationCompletedAt: profile.verificationCompletedAt?.toISOString() ?? null,
+          status: 'approved',
+        },
+        authReq.correlationId
+      );
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      console.error('Agent approval error:', error);
+      sendApiError(res, authReq.correlationId, 500, 'INTERNAL', 'Failed to approve agent');
+    }
+  }
+);
+
+/**
+ * POST /admin/agents/:agentId/reject
+ * Reject an agent's verification by their agent ID.
+ */
+router.post(
+  '/agents/:agentId/reject',
+  validateParams(z.object({ agentId: z.string().uuid() })),
+  validateBody(z.object({
+    reason: z.string().min(10).max(1000),
+    correlationId: z.string().optional(),
+  })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { agentId } = req.params;
+    const body = req.body as { reason: string; correlationId?: string };
+
+    try {
+      const db = getDbClient();
+      
+      // Get user_id from agents table
+      const { data: agentData, error: agentError } = await db
+        .from('agents')
+        .select('user_id')
+        .eq('id', agentId)
+        .single();
+
+      if (agentError || !agentData) {
+        sendApiError(res, authReq.correlationId, 404, 'NOT_FOUND', 'Agent not found');
+        return;
+      }
+
+      const userId = agentData.user_id;
+      const adminContext = createAdminContext(authReq.identity.sub, body);
+      const eventContext = createEventContext(req);
+
+      const profile = await rejectVerification(userId, body.reason, adminContext, eventContext);
+
+      sendSuccess(
+        res,
+        {
+          id: agentId,
+          userId: profile.userId,
+          verificationStatus: profile.verificationStatus,
+          verificationRejectedReason: profile.verificationRejectedReason,
+          status: 'rejected',
+        },
+        authReq.correlationId
+      );
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      console.error('Agent rejection error:', error);
+      sendApiError(res, authReq.correlationId, 500, 'INTERNAL', 'Failed to reject agent');
+    }
+  }
+);
+
+/**
+ * POST /admin/agents/:agentId/suspend
+ * Suspend an agent account by their agent ID.
+ */
+router.post(
+  '/agents/:agentId/suspend',
+  validateParams(z.object({ agentId: z.string().uuid() })),
+  validateBody(z.object({
+    reason: z.string().min(10).max(1000),
+    durationDays: z.number().int().min(1).nullable().optional(),
+    correlationId: z.string().optional(),
+  })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { agentId } = req.params;
+    const body = req.body as { reason: string; durationDays?: number | null; correlationId?: string };
+
+    try {
+      const db = getDbClient();
+      
+      // Get user_id from agents table
+      const { data: agentData, error: agentError } = await db
+        .from('agents')
+        .select('user_id')
+        .eq('id', agentId)
+        .single();
+
+      if (agentError || !agentData) {
+        sendApiError(res, authReq.correlationId, 404, 'NOT_FOUND', 'Agent not found');
+        return;
+      }
+
+      const userId = agentData.user_id;
+
+      // Update user status to SUSPENDED
+      await db
+        .from('users')
+        .update({
+          status: 'SUSPENDED',
+          is_active: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
+
+      // Disable agent availability
+      await db
+        .from('agents')
+        .update({
+          is_available: false,
+        })
+        .eq('id', agentId);
+
+      sendSuccess(
+        res,
+        {
+          id: agentId,
+          userId,
+          status: 'suspended',
+        },
+        authReq.correlationId
+      );
+    } catch (error) {
+      console.error('Agent suspension error:', error);
+      sendApiError(res, authReq.correlationId, 500, 'INTERNAL', 'Failed to suspend agent');
+    }
+  }
+);
+
+/**
+ * POST /admin/agents/:agentId/reactivate
+ * Reactivate a suspended agent account.
+ */
+router.post(
+  '/agents/:agentId/reactivate',
+  validateParams(z.object({ agentId: z.string().uuid() })),
+  validateBody(z.object({
+    reason: z.string().min(10).max(1000),
+    correlationId: z.string().optional(),
+  })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { agentId } = req.params;
+    const body = req.body as { reason: string; correlationId?: string };
+
+    try {
+      const db = getDbClient();
+      
+      // Get user_id and verification status
+      const { data: agentData, error: agentError } = await db
+        .from('agents')
+        .select('user_id, is_verified')
+        .eq('id', agentId)
+        .single();
+
+      if (agentError || !agentData) {
+        sendApiError(res, authReq.correlationId, 404, 'NOT_FOUND', 'Agent not found');
+        return;
+      }
+
+      const userId = agentData.user_id;
+
+      // Update user status to ACTIVE
+      await db
+        .from('users')
+        .update({
+          status: 'ACTIVE',
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
+
+      // Re-enable agent availability if verified
+      if (agentData.is_verified) {
+        await db
+          .from('agents')
+          .update({
+            is_available: true,
+          })
+          .eq('id', agentId);
+      }
+
+      sendSuccess(
+        res,
+        {
+          id: agentId,
+          userId,
+          status: 'approved',
+        },
+        authReq.correlationId
+      );
+    } catch (error) {
+      console.error('Agent reactivation error:', error);
+      sendApiError(res, authReq.correlationId, 500, 'INTERNAL', 'Failed to reactivate agent');
+    }
+  }
+);
+
 export { router as adminRouter };
