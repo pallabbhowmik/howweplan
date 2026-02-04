@@ -523,6 +523,18 @@ export async function declineMatch(matchId: string, declineReason?: string): Pro
   });
 }
 
+export async function refreshMatches(): Promise<{ success: boolean; matchCount: number; message?: string }> {
+  if (!getAccessToken()) {
+    throw new ApiError('Not authenticated. Please log in.', 401, 'NOT_AUTHENTICATED');
+  }
+
+  const result = await tryFetchJson<{ success: boolean; matchCount: number; message?: string }>(
+    '/api/matching/api/v1/matches/refresh',
+    { method: 'POST' }
+  );
+  return result || { success: false, matchCount: 0 };
+}
+
 export type ConversationListItem = {
   id: string;
   bookingId: string | null;

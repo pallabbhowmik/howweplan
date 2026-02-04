@@ -30,6 +30,7 @@ import {
   Trophy,
   Lightbulb,
   X,
+  RefreshCw,
 } from 'lucide-react';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Progress, Avatar, AvatarFallback } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -39,6 +40,7 @@ import {
   listMatchedRequests,
   acceptMatch,
   declineMatch,
+  refreshMatches,
   ApiError,
   type AgentIdentity,
   type AgentStatsSummary,
@@ -934,6 +936,25 @@ export default function DashboardPage() {
     }
   };
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const handleRefreshMatches = async () => {
+    try {
+      setIsRefreshing(true);
+      const result = await refreshMatches();
+      if (result.success && result.matchCount > 0) {
+        // Reload dashboard data to show new matches
+        await loadDashboardData();
+      } else {
+        alert('No new requests available at this time.');
+      }
+    } catch (err) {
+      console.error('Failed to refresh matches:', err);
+      alert('Failed to refresh matches. Please try again.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const commissionGrowth = stats && stats.lastMonthCommission > 0
     ? Math.round(((stats.thisMonthCommission - stats.lastMonthCommission) / stats.lastMonthCommission) * 100)
     : 0;
@@ -1168,6 +1189,19 @@ export default function DashboardPage() {
                   <Inbox className="mx-auto h-12 w-12 text-gray-300" />
                   <h3 className="mt-4 text-lg font-medium text-gray-900">No pending requests</h3>
                   <p className="mt-1 text-gray-500">New requests matching your profile will appear here.</p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={handleRefreshMatches}
+                    disabled={isRefreshing}
+                  >
+                    {isRefreshing ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    )}
+                    Check for New Requests
+                  </Button>
                 </div>
               )}
             </CardContent>

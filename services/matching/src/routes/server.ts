@@ -890,6 +890,58 @@ async function requestHandler(
     return;
   }
 
+  // Agent can refresh/request matches with open travel requests
+  if (url === '/api/v1/matches/refresh' && method === 'POST') {
+    const user = requireAgent(getGatewayUser(req), res);
+    if (!user) return;
+
+    try {
+      const agentId = await loadAgentIdForUserId(user.userId);
+      if (!agentId) {
+        sendJson(res, 404, { error: 'Agent not found' });
+        return;
+      }
+
+      logger.info({ agentId, userId: user.userId }, 'Agent requesting match refresh');
+
+      // Get all open travel requests
+      const { rows: openRequests } = await query<{ id: string }>(
+        `SELECT id FROM travel_requests 
+         WHERE state IN ('open', 'matching') 
+         AND (expires_at IS NULL OR expires_at > NOW())
+         LIMIT 100`
+      );
+
+      if (openRequests.length === 0) {
+        sendJson(res, 200, { success: true, matchCount: 0, message: 'No open requests available' });
+        return;
+      }
+
+      // Create matches for each open request
+      let matchCount = 0;
+      for (const request of openRequests) {
+        try {
+          await query(
+            `INSERT INTO agent_matches (id, request_id, agent_id, status, match_score, matched_at)
+             VALUES (gen_random_uuid(), $1, $2, 'pending', 70.0, NOW())
+             ON CONFLICT (request_id, agent_id) DO NOTHING`,
+            [request.id, agentId]
+          );
+          matchCount++;
+        } catch (err) {
+          logger.warn({ requestId: request.id, agentId, err }, 'Failed to create match');
+        }
+      }
+
+      logger.info({ agentId, matchCount, totalRequests: openRequests.length }, 'Refreshed matches for agent');
+      sendJson(res, 200, { success: true, matchCount, message: `Found ${openRequests.length} open requests` });
+    } catch (error) {
+      logger.error({ err: error, userId: user.userId, endpoint: '/api/v1/matches/refresh' }, 'Failed to refresh matches');
+      sendJson(res, 500, { error: 'Failed to refresh matches', details: error instanceof Error ? error.message : 'Database error' });
+    }
+    return;
+  }
+
   const acceptMatchRoute = url.match(/^\/api\/v1\/matches\/([^/]+)\/accept$/);
   if (acceptMatchRoute && method === 'POST') {
     const user = requireAgent(getGatewayUser(req), res);
