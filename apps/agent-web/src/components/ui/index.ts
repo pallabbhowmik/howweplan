@@ -12,6 +12,16 @@ export { Alert, AlertTitle, AlertDescription } from './alert';
 export { Skeleton } from './skeleton';
 export { Label } from './label';
 export { Separator } from './separator';
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuGroup,
+} from './dropdown-menu';
 
 // Enhanced UX Components
 export { QuickActions, RequestQuickActions, ItineraryQuickActions } from './quick-actions';

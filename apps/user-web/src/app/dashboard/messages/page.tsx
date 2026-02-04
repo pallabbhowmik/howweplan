@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Send,
   Search,
-  Phone,
-  Video,
   MoreVertical,
   Smile,
   Paperclip,
@@ -20,11 +18,25 @@ import {
   X,
   Sparkles,
   MessageCircle,
+  User,
+  Flag,
+  Trash2,
+  Archive,
+  Bell,
+  BellOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 import { useUserSession } from '@/lib/user/session';
 import {
@@ -668,17 +680,38 @@ export default function MessagesPage() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-blue-50 text-slate-500 hover:text-blue-600 transition-colors">
-                    <Phone className="h-5 w-5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-blue-50 text-slate-500 hover:text-blue-600 transition-colors">
-                    <Video className="h-5 w-5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-slate-100 text-slate-500 transition-colors">
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-slate-100 text-slate-500 transition-colors">
+                      <MoreVertical className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>Conversation</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="cursor-pointer">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>View Agent Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="cursor-pointer">
+                      <Star className="mr-2 h-4 w-4" />
+                      <span>Mark as Important</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="cursor-pointer">
+                      <BellOff className="mr-2 h-4 w-4" />
+                      <span>Mute Notifications</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="cursor-pointer">
+                      <Archive className="mr-2 h-4 w-4" />
+                      <span>Archive Chat</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                      <Flag className="mr-2 h-4 w-4" />
+                      <span>Report Issue</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {/* Messages Area */}
