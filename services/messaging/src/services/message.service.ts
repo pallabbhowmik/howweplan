@@ -802,11 +802,23 @@ export class MessageService {
 
     const convoUserId = String((convoRow as any).user_id);
     const convoAgentId = String((convoRow as any).agent_id);
-    if (readById !== convoUserId && readById !== convoAgentId) {
+    
+    // Check if actor is a participant - either the user directly or an agent (by user_id lookup)
+    let isParticipant = readById === convoUserId || readById === convoAgentId;
+    let otherSenderType: 'agent' | 'user' = readById === convoUserId ? 'agent' : 'user';
+    
+    if (!isParticipant) {
+      // Check if readById is an agent user whose profile ID matches convoAgentId
+      const isAgentUser = await this.isAgentUserForConversation(supabase, convoAgentId, readById);
+      if (isAgentUser) {
+        isParticipant = true;
+        otherSenderType = 'user'; // Agent is reading, so other sender is user
+      }
+    }
+    
+    if (!isParticipant) {
       throw Errors.NOT_PARTICIPANT();
     }
-
-    const otherSenderType = readById === convoUserId ? 'agent' : 'user';
 
     const { data: target, error: targetErr } = await supabase
       .from('messages')

@@ -193,27 +193,52 @@ export function isTokenExpired(): boolean {
   }
 }
 
+// Singleton promise for in-flight refresh to prevent multiple concurrent refresh attempts
+let refreshInProgress: Promise<boolean> | null = null;
+let lastRefreshAttempt = 0;
+const REFRESH_COOLDOWN_MS = 5000; // Wait 5 seconds between refresh attempts
+
 export async function ensureValidToken(): Promise<boolean> {
   if (!isTokenExpired()) return true;
 
   const storedRefreshToken = getRefreshToken();
   if (!storedRefreshToken) return false;
 
-  try {
-    const response = await refreshToken(storedRefreshToken);
-    storeAuthTokens(response);
-
-    if (typeof document !== 'undefined') {
-      const expires = new Date(Date.now() + response.expiresIn * 1000).toUTCString();
-      const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-      document.cookie = `tc-auth-token=${response.accessToken}; path=/; expires=${expires}; SameSite=Lax${secure}`;
-    }
-
-    return true;
-  } catch {
-    clearAuthData();
-    return false;
+  // Prevent rapid-fire refresh attempts
+  const now = Date.now();
+  if (now - lastRefreshAttempt < REFRESH_COOLDOWN_MS) {
+    // If we recently tried and failed, don't try again immediately
+    if (!getAccessToken()) return false;
   }
+
+  // If a refresh is already in progress, wait for it
+  if (refreshInProgress) {
+    return refreshInProgress;
+  }
+
+  lastRefreshAttempt = now;
+
+  refreshInProgress = (async () => {
+    try {
+      const response = await refreshToken(storedRefreshToken);
+      storeAuthTokens(response);
+
+      if (typeof document !== 'undefined') {
+        const expires = new Date(Date.now() + response.expiresIn * 1000).toUTCString();
+        const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = `tc-auth-token=${response.accessToken}; path=/; expires=${expires}; SameSite=Lax${secure}`;
+      }
+
+      return true;
+    } catch {
+      clearAuthData();
+      return false;
+    } finally {
+      refreshInProgress = null;
+    }
+  })();
+
+  return refreshInProgress;
 }
 
 export async function authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {

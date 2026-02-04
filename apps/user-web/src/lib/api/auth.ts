@@ -297,6 +297,11 @@ export function isTokenExpired(): boolean {
   }
 }
 
+// Singleton promise for in-flight refresh to prevent multiple concurrent refresh attempts
+let refreshInProgress: Promise<boolean> | null = null;
+let lastRefreshAttempt = 0;
+const REFRESH_COOLDOWN_MS = 5000; // Wait 5 seconds between refresh attempts
+
 /**
  * Attempt to refresh the access token if needed
  * Returns true if successful, false otherwise
@@ -311,29 +316,48 @@ export async function ensureValidToken(): Promise<boolean> {
     return false;
   }
   
-  try {
-    const response = await refreshToken(storedRefreshToken);
-    storeAuthTokens(response);
-    
-    // Update the cookie with new access token
-    if (typeof document !== 'undefined') {
-      const expires = new Date(Date.now() + response.expiresIn * 1000).toUTCString();
-      document.cookie = `tc-auth-token=${response.accessToken}; path=/; expires=${expires}; SameSite=Lax`;
-    }
-    
-    return true;
-  } catch (error) {
-    // Don't clear auth data on network errors - user might just be offline
-    if (isNetworkError(error)) {
-      console.debug('[auth] Network error during token refresh - keeping existing tokens');
-      // Return true to allow request to proceed with existing token
-      // The server will return 401 if the token is actually expired
-      return true;
-    }
-    // Only clear auth data on actual auth failures
-    clearAuthData();
-    return false;
+  // Prevent rapid-fire refresh attempts
+  const now = Date.now();
+  if (now - lastRefreshAttempt < REFRESH_COOLDOWN_MS) {
+    // If we recently tried and failed, don't try again immediately
+    if (!getAccessToken()) return false;
   }
+
+  // If a refresh is already in progress, wait for it
+  if (refreshInProgress) {
+    return refreshInProgress;
+  }
+
+  lastRefreshAttempt = now;
+
+  refreshInProgress = (async () => {
+    try {
+      const response = await refreshToken(storedRefreshToken);
+      storeAuthTokens(response);
+      
+      // Update the cookie with new access token
+      if (typeof document !== 'undefined') {
+        const expires = new Date(Date.now() + response.expiresIn * 1000).toUTCString();
+        document.cookie = `tc-auth-token=${response.accessToken}; path=/; expires=${expires}; SameSite=Lax`;
+      }
+      
+      return true;
+    } catch (error) {
+      // Don't clear auth data on network errors - user might just be offline
+      if (isNetworkError(error)) {
+        // Return true to allow request to proceed with existing token
+        // The server will return 401 if the token is actually expired
+        return true;
+      }
+      // Only clear auth data on actual auth failures
+      clearAuthData();
+      return false;
+    } finally {
+      refreshInProgress = null;
+    }
+  })();
+
+  return refreshInProgress;
 }
 
 /**
