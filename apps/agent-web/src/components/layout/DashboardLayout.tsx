@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   LayoutDashboard,
   Inbox,
@@ -19,6 +19,8 @@ import {
   ChevronDown,
   Star,
   DollarSign,
+  Keyboard,
+  Command,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -32,20 +34,21 @@ interface NavItem {
   href: string;
   icon: React.ReactNode;
   badgeKey?: 'requests' | 'messages';
+  shortcut?: string;
 }
 
 const mainNavItems: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
-  { label: 'Requests', href: '/requests', icon: <Inbox className="h-5 w-5" />, badgeKey: 'requests' },
-  { label: 'Itineraries', href: '/itineraries', icon: <FileText className="h-5 w-5" /> },
-  { label: 'Bookings', href: '/bookings', icon: <Calendar className="h-5 w-5" /> },
-  { label: 'Messages', href: '/messages', icon: <MessageSquare className="h-5 w-5" />, badgeKey: 'messages' },
+  { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard className="h-5 w-5" />, shortcut: 'D' },
+  { label: 'Requests', href: '/requests', icon: <Inbox className="h-5 w-5" />, badgeKey: 'requests', shortcut: 'R' },
+  { label: 'Itineraries', href: '/itineraries', icon: <FileText className="h-5 w-5" />, shortcut: 'I' },
+  { label: 'Bookings', href: '/bookings', icon: <Calendar className="h-5 w-5" />, shortcut: 'B' },
+  { label: 'Messages', href: '/messages', icon: <MessageSquare className="h-5 w-5" />, badgeKey: 'messages', shortcut: 'M' },
 ];
 
 const secondaryNavItems: NavItem[] = [
-  { label: 'Earnings', href: '/earnings', icon: <DollarSign className="h-5 w-5" /> },
+  { label: 'Earnings', href: '/earnings', icon: <DollarSign className="h-5 w-5" />, shortcut: 'E' },
   { label: 'Reviews', href: '/reviews', icon: <Star className="h-5 w-5" /> },
-  { label: 'Settings', href: '/settings', icon: <Settings className="h-5 w-5" /> },
+  { label: 'Settings', href: '/settings', icon: <Settings className="h-5 w-5" />, shortcut: 'S' },
 ];
 
 function NavLink({ item, collapsed, badgeCount }: { item: NavItem; collapsed: boolean; badgeCount?: number }) {
@@ -58,7 +61,7 @@ function NavLink({ item, collapsed, badgeCount }: { item: NavItem; collapsed: bo
     <Link
       href={item.href}
       className={cn(
-        'relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+        'group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
         isActive
           ? 'bg-blue-600 text-white shadow-md'
           : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
@@ -69,6 +72,15 @@ function NavLink({ item, collapsed, badgeCount }: { item: NavItem; collapsed: bo
       {!collapsed && (
         <>
           <span className="flex-1">{item.label}</span>
+          {item.shortcut && (
+            <span className={cn(
+              "hidden group-hover:inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded",
+              isActive ? "bg-white/20 text-white/80" : "bg-gray-100 text-gray-400"
+            )}>
+              <Command className="h-2.5 w-2.5" />
+              {item.shortcut}
+            </span>
+          )}
           {effectiveBadge > 0 && (
             <Badge variant={isActive ? 'secondary' : 'destructive'} className="h-5 min-w-5 px-1.5 text-xs">
               {effectiveBadge}
@@ -398,6 +410,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { agent, agents, setAgentById } = useAgentSession();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showShortcutsHint, setShowShortcutsHint] = useState(false);
 
   const [identity, setIdentity] = useState<AgentIdentity | null>(null);
   const [stats, setStats] = useState<AgentStatsSummary>({
@@ -413,6 +426,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       messages: stats.unreadMessages,
     };
   }, [stats.pendingMatches, stats.unreadMessages]);
+
+  // Keyboard shortcuts
+  const handleKeyboardShortcut = useCallback((e: KeyboardEvent) => {
+    // Only trigger with Cmd/Ctrl key
+    if (!e.metaKey && !e.ctrlKey) return;
+    
+    // Don't trigger when typing in input fields
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+
+    const key = e.key.toUpperCase();
+    const allNavItems = [...mainNavItems, ...secondaryNavItems];
+    const matchedItem = allNavItems.find(item => item.shortcut === key);
+    
+    if (matchedItem) {
+      e.preventDefault();
+      router.push(matchedItem.href);
+    }
+    
+    // Show shortcuts help with Cmd+/
+    if (e.key === '/') {
+      e.preventDefault();
+      setShowShortcutsHint(prev => !prev);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyboardShortcut);
+    return () => window.removeEventListener('keydown', handleKeyboardShortcut);
+  }, [handleKeyboardShortcut]);
 
   useEffect(() => {
     let cancelled = false;
@@ -535,6 +578,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       >
         <div className="p-4 lg:p-8">{children}</div>
       </main>
+
+      {/* Keyboard Shortcuts Modal */}
+      {showShortcutsHint && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowShortcutsHint(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 animate-in zoom-in-95 fade-in duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Keyboard className="h-5 w-5 text-blue-500" />
+                <h3 className="font-semibold text-gray-900">Keyboard Shortcuts</h3>
+              </div>
+              <button onClick={() => setShowShortcutsHint(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {[...mainNavItems, ...secondaryNavItems].filter(i => i.shortcut).map((item) => (
+                <div key={item.href} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-500">{item.icon}</span>
+                    <span className="text-sm text-gray-700">{item.label}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs font-mono bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                    <Command className="h-3 w-3" />
+                    {item.shortcut}
+                  </div>
+                </div>
+              ))}
+              <div className="flex items-center justify-between py-2 border-t border-gray-200 mt-2">
+                <span className="text-sm text-gray-500">Toggle this menu</span>
+                <div className="flex items-center gap-1 text-xs font-mono bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  <Command className="h-3 w-3" />
+                  /
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-4 text-center">
+              Press any shortcut to navigate quickly
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

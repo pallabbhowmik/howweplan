@@ -24,6 +24,12 @@ import {
   AlertCircle,
   ShieldAlert,
   LogOut,
+  Zap,
+  Gift,
+  Rocket,
+  Trophy,
+  Lightbulb,
+  X,
 } from 'lucide-react';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Progress, Avatar, AvatarFallback } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -508,6 +514,264 @@ function RequestCardSkeleton() {
 }
 
 // ============================================================================
+// WELCOME BANNER
+// ============================================================================
+
+function WelcomeBanner({ 
+  firstName, 
+  pendingCount, 
+  onDismiss 
+}: { 
+  firstName: string; 
+  pendingCount: number; 
+  onDismiss: () => void;
+}) {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  
+  return (
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 p-6 text-white shadow-xl">
+      {/* Background decoration */}
+      <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+      <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+      
+      {/* Close button */}
+      <button 
+        onClick={onDismiss}
+        className="absolute right-4 top-4 rounded-full p-1 hover:bg-white/20 transition-colors"
+      >
+        <X className="h-4 w-4" />
+      </button>
+      
+      <div className="relative">
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles className="h-5 w-5 text-yellow-300" />
+          <span className="text-sm font-medium text-white/80">Welcome to HowWePlan Agent Portal</span>
+        </div>
+        
+        <h2 className="text-2xl font-bold mb-2">
+          {greeting}, {firstName}! 👋
+        </h2>
+        
+        <p className="text-white/80 mb-4 max-w-lg">
+          {pendingCount > 0 
+            ? `You have ${pendingCount} new travel request${pendingCount > 1 ? 's' : ''} waiting for your response. Let's create some amazing trips!`
+            : "Your dashboard is all caught up! Great work keeping your response time low."
+          }
+        </p>
+        
+        <div className="flex flex-wrap gap-3">
+          {pendingCount > 0 && (
+            <Link href="/requests">
+              <Button className="bg-white text-indigo-700 hover:bg-white/90 shadow-lg">
+                <Inbox className="mr-2 h-4 w-4" />
+                View Requests ({pendingCount})
+              </Button>
+            </Link>
+          )}
+          <Link href="/messages">
+            <Button variant="outline" className="border-white/30 text-white hover:bg-white/20">
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Messages
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// QUICK ACTIONS
+// ============================================================================
+
+function QuickActions() {
+  const actions = [
+    {
+      icon: <FileText className="h-5 w-5" />,
+      label: 'Create Itinerary',
+      href: '/itineraries',
+      color: 'from-blue-500 to-blue-600',
+      shortcut: '⌘N',
+    },
+    {
+      icon: <Inbox className="h-5 w-5" />,
+      label: 'View Requests',
+      href: '/requests',
+      color: 'from-purple-500 to-purple-600',
+      shortcut: '⌘R',
+    },
+    {
+      icon: <MessageSquare className="h-5 w-5" />,
+      label: 'Messages',
+      href: '/messages',
+      color: 'from-emerald-500 to-emerald-600',
+      shortcut: '⌘M',
+    },
+    {
+      icon: <DollarSign className="h-5 w-5" />,
+      label: 'Earnings',
+      href: '/earnings',
+      color: 'from-amber-500 to-amber-600',
+      shortcut: '⌘E',
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {actions.map((action) => (
+        <Link key={action.href} href={action.href}>
+          <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 transition-all duration-200 hover:border-gray-300 hover:shadow-md cursor-pointer">
+            <div className={cn(
+              "absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity bg-gradient-to-br",
+              action.color
+            )} />
+            <div className="relative flex items-center gap-3">
+              <div className={cn(
+                "rounded-lg p-2 text-white bg-gradient-to-br",
+                action.color
+              )}>
+                {action.icon}
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900 text-sm">{action.label}</p>
+                <p className="text-xs text-gray-400">{action.shortcut}</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-300 group-hover:text-gray-500 group-hover:translate-x-1 transition-all" />
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
+// ACHIEVEMENT BADGE
+// ============================================================================
+
+function AchievementCard({ stats }: { stats: DashboardStats | null }) {
+  if (!stats) return null;
+  
+  const achievements = [
+    {
+      id: 'fast_responder',
+      icon: <Zap className="h-4 w-4" />,
+      title: 'Fast Responder',
+      description: 'Response rate above 90%',
+      unlocked: (stats.responseRate ?? 0) >= 90,
+      color: 'from-yellow-400 to-orange-500',
+    },
+    {
+      id: 'high_acceptance',
+      icon: <Trophy className="h-4 w-4" />,
+      title: 'Top Performer',
+      description: 'Acceptance rate above 70%',
+      unlocked: (stats.acceptanceRate ?? 0) >= 70,
+      color: 'from-purple-400 to-pink-500',
+    },
+    {
+      id: 'five_star',
+      icon: <Star className="h-4 w-4" />,
+      title: '5-Star Agent',
+      description: 'Average rating above 4.5',
+      unlocked: (stats.rating ?? 0) >= 4.5,
+      color: 'from-amber-400 to-yellow-500',
+    },
+  ];
+  
+  const unlockedAchievements = achievements.filter(a => a.unlocked);
+  
+  if (unlockedAchievements.length === 0) return null;
+  
+  return (
+    <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Gift className="h-4 w-4 text-amber-600" />
+          <span className="text-sm font-semibold text-amber-800">Your Achievements</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {unlockedAchievements.map((achievement) => (
+            <div
+              key={achievement.id}
+              className="group relative"
+            >
+              <div className={cn(
+                "flex items-center gap-1.5 rounded-full px-3 py-1 text-white text-xs font-medium bg-gradient-to-r shadow-sm",
+                achievement.color
+              )}>
+                {achievement.icon}
+                {achievement.title}
+              </div>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                  {achievement.description}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================================
+// DAILY TIP
+// ============================================================================
+
+function DailyTip() {
+  const tips = [
+    {
+      icon: <Clock className="h-4 w-4" />,
+      tip: 'Agents who respond within 4 hours see 40% higher acceptance rates.',
+    },
+    {
+      icon: <FileText className="h-4 w-4" />,
+      tip: 'Adding detailed day-by-day plans increases client confidence by 60%.',
+    },
+    {
+      icon: <MessageSquare className="h-4 w-4" />,
+      tip: 'Proactive communication builds trust. Send updates even when not asked!',
+    },
+    {
+      icon: <Star className="h-4 w-4" />,
+      tip: 'Agents with photos and detailed bios get 35% more requests.',
+    },
+    {
+      icon: <Lightbulb className="h-4 w-4" />,
+      tip: 'Include local experiences and hidden gems to stand out from competitors.',
+    },
+  ];
+  
+  // Pick a tip based on the day
+  const tipIndex = new Date().getDate() % tips.length;
+  const todayTip = tips[tipIndex];
+  
+  return (
+    <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100">
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="rounded-full bg-blue-100 p-2 text-blue-600">
+            {todayTip.icon}
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Daily Tip</span>
+              <Sparkles className="h-3 w-3 text-blue-500" />
+            </div>
+            <p className="text-sm text-blue-800">{todayTip.tip}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================================
 // MAIN DASHBOARD PAGE
 // ============================================================================
 
@@ -517,6 +781,7 @@ export default function DashboardPage() {
   const [agentIdentity, setAgentIdentity] = useState<AgentIdentity | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [requests, setRequests] = useState<RequestCardData[]>([]);
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
   const [bookings, setBookings] = useState<BookingCardData[]>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
@@ -745,15 +1010,27 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Welcome Banner */}
+      {showWelcomeBanner && agentIdentity && (
+        <WelcomeBanner
+          firstName={agentIdentity.firstName}
+          pendingCount={stats?.pendingMatches ?? 0}
+          onDismiss={() => setShowWelcomeBanner(false)}
+        />
+      )}
+
+      {/* Quick Actions */}
+      <QuickActions />
+
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Dashboard</h1>
           <p className="mt-1 text-gray-500">
             {agentIdentity 
-              ? `Welcome back, ${agentIdentity.firstName}! Here's what's happening with your business.`
-              : 'Welcome back! Here\'s what\'s happening with your business.'}
+              ? `Here's what's happening with your business today.`
+              : 'Here\'s what\'s happening with your business.'}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -957,22 +1234,11 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Tips Card */}
-          <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <div className="rounded-full bg-blue-100 p-2">
-                  <Sparkles className="h-4 w-4 text-blue-600" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-blue-900">Pro Tip</h4>
-                  <p className="mt-1 text-sm text-blue-700">
-                    Agents who respond within 4 hours see 40% higher acceptance rates. Keep your response time low!
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Achievement Badges */}
+          <AchievementCard stats={stats} />
+
+          {/* Daily Tip */}
+          <DailyTip />
         </div>
       </div>
     </div>
