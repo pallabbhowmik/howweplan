@@ -239,16 +239,34 @@ export class ConversationService {
       }
     }
 
-    // Fetch agent names (agents table has first_name, last_name or display_name)
+    // Fetch agent names by joining agents with users table (agent names are in users table)
     const agentIds = [...new Set(conversations.map((c) => c.agentId))];
     const agentNameMap = new Map<string, string>();
     if (agentIds.length > 0) {
+      // Get the user_ids for these agents, then look up user names
       const { data: agents } = await supabase
         .from('agents')
-        .select('id, first_name, last_name, display_name')
+        .select('id, user_id, agency_name')
         .in('id', agentIds);
+      
+      const agentUserIds = (agents ?? []).map((a) => a.user_id).filter(Boolean);
+      const agentUserNameMap = new Map<string, string>();
+      
+      if (agentUserIds.length > 0) {
+        const { data: agentUsers } = await supabase
+          .from('users')
+          .select('id, first_name, last_name')
+          .in('id', agentUserIds);
+        for (const u of agentUsers ?? []) {
+          const name = [u.first_name, u.last_name].filter(Boolean).join(' ');
+          agentUserNameMap.set(String(u.id), name);
+        }
+      }
+      
+      // Map agent profile IDs to names
       for (const a of agents ?? []) {
-        const name = a.display_name || [a.first_name, a.last_name].filter(Boolean).join(' ') || 'Agent';
+        const userName = agentUserNameMap.get(String(a.user_id)) || '';
+        const name = userName || a.agency_name || 'Agent';
         agentNameMap.set(String(a.id), name);
       }
     }
