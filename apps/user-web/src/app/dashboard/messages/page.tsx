@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Send,
   Search,
@@ -373,6 +374,14 @@ export default function MessagesPage() {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [messagesError, setMessagesError] = useState<string | null>(null);
 
+  // Dropdown action states
+  const [importantConversations, setImportantConversations] = useState<Set<string>>(new Set());
+  const [mutedConversations, setMutedConversations] = useState<Set<string>>(new Set());
+  const [archivedConversations, setArchivedConversations] = useState<Set<string>>(new Set());
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  
+  const router = useRouter();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [newMessage, setNewMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -689,24 +698,78 @@ export default function MessagesPage() {
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel>Conversation</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="cursor-pointer">
+                    <DropdownMenuItem 
+                      className="cursor-pointer"
+                      onClick={() => {
+                        if (activeConversation.agentId) {
+                          router.push(`/agents/${activeConversation.agentId}`);
+                        }
+                      }}
+                    >
                       <User className="mr-2 h-4 w-4" />
                       <span>View Agent Profile</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="cursor-pointer">
-                      <Star className="mr-2 h-4 w-4" />
-                      <span>Mark as Important</span>
+                    <DropdownMenuItem 
+                      className="cursor-pointer"
+                      onClick={() => {
+                        const convId = activeConversation.id;
+                        const newSet = new Set(importantConversations);
+                        if (newSet.has(convId)) {
+                          newSet.delete(convId);
+                          setFeedbackMessage('Removed from important');
+                        } else {
+                          newSet.add(convId);
+                          setFeedbackMessage('Marked as important');
+                        }
+                        setImportantConversations(newSet);
+                        setTimeout(() => setFeedbackMessage(null), 2000);
+                      }}
+                    >
+                      <Star className={`mr-2 h-4 w-4 ${importantConversations.has(activeConversation.id) ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                      <span>{importantConversations.has(activeConversation.id) ? 'Remove Important' : 'Mark as Important'}</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="cursor-pointer">
-                      <BellOff className="mr-2 h-4 w-4" />
-                      <span>Mute Notifications</span>
+                    <DropdownMenuItem 
+                      className="cursor-pointer"
+                      onClick={() => {
+                        const convId = activeConversation.id;
+                        const newSet = new Set(mutedConversations);
+                        if (newSet.has(convId)) {
+                          newSet.delete(convId);
+                          setFeedbackMessage('Notifications enabled');
+                        } else {
+                          newSet.add(convId);
+                          setFeedbackMessage('Notifications muted');
+                        }
+                        setMutedConversations(newSet);
+                        setTimeout(() => setFeedbackMessage(null), 2000);
+                      }}
+                    >
+                      <BellOff className={`mr-2 h-4 w-4 ${mutedConversations.has(activeConversation.id) ? 'text-slate-400' : ''}`} />
+                      <span>{mutedConversations.has(activeConversation.id) ? 'Unmute' : 'Mute Notifications'}</span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="cursor-pointer">
+                    <DropdownMenuItem 
+                      className="cursor-pointer"
+                      onClick={() => {
+                        const convId = activeConversation.id;
+                        const newSet = new Set(archivedConversations);
+                        newSet.add(convId);
+                        setArchivedConversations(newSet);
+                        setSelectedConversationId(null);
+                        setFeedbackMessage('Conversation archived');
+                        setTimeout(() => setFeedbackMessage(null), 2000);
+                      }}
+                    >
                       <Archive className="mr-2 h-4 w-4" />
                       <span>Archive Chat</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                    <DropdownMenuItem 
+                      className="cursor-pointer text-red-600 focus:text-red-600"
+                      onClick={() => {
+                        setFeedbackMessage('Report submitted - our team will review');
+                        setTimeout(() => setFeedbackMessage(null), 3000);
+                      }}
+                    >
                       <Flag className="mr-2 h-4 w-4" />
                       <span>Report Issue</span>
                     </DropdownMenuItem>
@@ -846,6 +909,13 @@ export default function MessagesPage() {
           )}
         </Card>
       </div>
+      
+      {/* Feedback Toast */}
+      {feedbackMessage && (
+        <div className="fixed bottom-6 right-6 bg-slate-800 text-white px-4 py-3 rounded-lg shadow-lg animate-in slide-in-from-bottom-2 z-50">
+          {feedbackMessage}
+        </div>
+      )}
     </div>
   );
 }

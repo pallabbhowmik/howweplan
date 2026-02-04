@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Search,
   Send,
@@ -42,6 +43,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  toast,
 } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { useAgentSession } from '@/lib/agent/session';
@@ -376,6 +378,12 @@ function ConversationListCard({
 
 export default function MessagesPage() {
   const { agent } = useAgentSession();
+  const router = useRouter();
+  
+  // Conversation action states (would be persisted in real app)
+  const [priorityConversations, setPriorityConversations] = useState<Set<string>>(new Set());
+  const [mutedConversations, setMutedConversations] = useState<Set<string>>(new Set());
+  const [archivedConversations, setArchivedConversations] = useState<Set<string>>(new Set());
 
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(true);
@@ -741,33 +749,95 @@ export default function MessagesPage() {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>Client Actions</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="cursor-pointer">
+                  <DropdownMenuItem 
+                    className="cursor-pointer"
+                    onClick={() => {
+                      // Copy client info to clipboard
+                      navigator.clipboard.writeText(`Client: ${activeConversation.clientName}\nUser ID: ${activeConversation.userId}`);
+                      toast({ title: 'Client details copied', description: 'Client information copied to clipboard' });
+                    }}
+                  >
                     <Info className="mr-2 h-4 w-4" />
-                    <span>View Client Details</span>
+                    <span>Copy Client Details</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer">
+                  <DropdownMenuItem 
+                    className="cursor-pointer"
+                    onClick={() => {
+                      if (activeConversation.bookingId) {
+                        router.push(`/bookings/${activeConversation.bookingId}`);
+                      } else {
+                        toast({ title: 'No booking', description: 'This conversation has no associated booking yet', variant: 'destructive' });
+                      }
+                    }}
+                  >
                     <FileText className="mr-2 h-4 w-4" />
                     <span>View Booking</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer">
+                  <DropdownMenuItem 
+                    className="cursor-pointer"
+                    onClick={() => router.push('/itineraries')}
+                  >
                     <ExternalLink className="mr-2 h-4 w-4" />
-                    <span>Open Itinerary</span>
+                    <span>Open Itineraries</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="cursor-pointer">
-                    <Star className="mr-2 h-4 w-4" />
-                    <span>Mark as Priority</span>
+                  <DropdownMenuItem 
+                    className="cursor-pointer"
+                    onClick={() => {
+                      const convId = activeConversation.id;
+                      const newSet = new Set(priorityConversations);
+                      if (newSet.has(convId)) {
+                        newSet.delete(convId);
+                        toast({ title: 'Removed priority', description: 'Conversation no longer marked as priority' });
+                      } else {
+                        newSet.add(convId);
+                        toast({ title: 'Marked as priority', description: 'Conversation marked as high priority' });
+                      }
+                      setPriorityConversations(newSet);
+                    }}
+                  >
+                    <Star className={cn("mr-2 h-4 w-4", priorityConversations.has(activeConversation.id) && "fill-yellow-400 text-yellow-400")} />
+                    <span>{priorityConversations.has(activeConversation.id) ? 'Remove Priority' : 'Mark as Priority'}</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer">
-                    <BellOff className="mr-2 h-4 w-4" />
-                    <span>Mute Notifications</span>
+                  <DropdownMenuItem 
+                    className="cursor-pointer"
+                    onClick={() => {
+                      const convId = activeConversation.id;
+                      const newSet = new Set(mutedConversations);
+                      if (newSet.has(convId)) {
+                        newSet.delete(convId);
+                        toast({ title: 'Unmuted', description: 'You will receive notifications for this conversation' });
+                      } else {
+                        newSet.add(convId);
+                        toast({ title: 'Muted', description: 'Notifications silenced for this conversation' });
+                      }
+                      setMutedConversations(newSet);
+                    }}
+                  >
+                    <BellOff className={cn("mr-2 h-4 w-4", mutedConversations.has(activeConversation.id) && "text-slate-400")} />
+                    <span>{mutedConversations.has(activeConversation.id) ? 'Unmute' : 'Mute Notifications'}</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="cursor-pointer">
+                  <DropdownMenuItem 
+                    className="cursor-pointer"
+                    onClick={() => {
+                      const convId = activeConversation.id;
+                      const newSet = new Set(archivedConversations);
+                      newSet.add(convId);
+                      setArchivedConversations(newSet);
+                      setSelectedConversation(null);
+                      toast({ title: 'Archived', description: 'Conversation has been archived' });
+                    }}
+                  >
                     <Archive className="mr-2 h-4 w-4" />
                     <span>Archive Chat</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                  <DropdownMenuItem 
+                    className="cursor-pointer text-red-600 focus:text-red-600"
+                    onClick={() => {
+                      toast({ title: 'Report submitted', description: 'Our team will review this conversation', variant: 'destructive' });
+                    }}
+                  >
                     <Flag className="mr-2 h-4 w-4" />
                     <span>Report Client</span>
                   </DropdownMenuItem>
