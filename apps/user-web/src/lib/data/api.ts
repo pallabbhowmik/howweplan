@@ -1116,7 +1116,7 @@ export async function fetchRequestProposals(requestId: string): Promise<Proposal
       agentIds.map(async (agentId) => {
         try {
           // Use the /agents/:agentId/profile endpoint which looks up by agent profile ID
-          const agentResult = await gatewayRequest<any>(`/api/identity/api/v1/agents/${agentId}/profile`);
+          const agentResult = await gatewayRequest<any>(`/api/identity/v1/agents/${agentId}/profile`);
           const agent = agentResult.data || agentResult;
           if (agent) {
             agentDetails[agentId] = {

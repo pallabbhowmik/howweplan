@@ -304,7 +304,12 @@ class DisputesApiClient {
   private timeout: number;
 
   constructor() {
-    this.baseUrl = `${getDisputesBaseUrl()}/api/v1`;
+    // In production, route through gateway with service prefix
+    if (env.NEXT_PUBLIC_ENVIRONMENT === 'production') {
+      this.baseUrl = `${env.NEXT_PUBLIC_API_BASE_URL}/api/disputes/v1`;
+    } else {
+      this.baseUrl = `${getDisputesBaseUrl()}/api/v1`;
+    }
     this.timeout = env.NEXT_PUBLIC_API_TIMEOUT_MS;
   }
 
@@ -505,7 +510,12 @@ class AuditApiClient {
   private timeout: number;
 
   constructor() {
-    this.baseUrl = `${getAuditBaseUrl()}/api/v1`;
+    // In production, route through gateway with service prefix
+    if (env.NEXT_PUBLIC_ENVIRONMENT === 'production') {
+      this.baseUrl = `${env.NEXT_PUBLIC_API_BASE_URL}/api/audit/v1`;
+    } else {
+      this.baseUrl = `${getAuditBaseUrl()}/api/v1`;
+    }
     this.timeout = env.NEXT_PUBLIC_API_TIMEOUT_MS;
   }
 
@@ -654,7 +664,12 @@ class BookingPaymentsApiClient {
   private timeout: number;
 
   constructor() {
-    this.baseUrl = `${getBookingPaymentsBaseUrl()}/api/v1`;
+    // In production, route through gateway with service prefix
+    if (env.NEXT_PUBLIC_ENVIRONMENT === 'production') {
+      this.baseUrl = `${env.NEXT_PUBLIC_API_BASE_URL}/api/booking-payments/v1`;
+    } else {
+      this.baseUrl = `${getBookingPaymentsBaseUrl()}/api/v1`;
+    }
     this.timeout = env.NEXT_PUBLIC_API_TIMEOUT_MS;
   }
 

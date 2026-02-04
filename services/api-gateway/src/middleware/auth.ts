@@ -404,7 +404,7 @@ const PUBLIC_ROUTES = [
 
   // Public health checks (used by dashboards and uptime monitors)
   { method: 'GET', path: '/api/identity/health' },
-  { method: 'GET', path: '/api/identity/api/v1/health' },
+  { method: 'GET', path: '/api/identity/v1/health' },
   { method: 'GET', path: '/api/requests/health' },
   { method: 'GET', path: '/api/requests/api/v1/health' },
   { method: 'GET', path: '/api/itineraries/health' },

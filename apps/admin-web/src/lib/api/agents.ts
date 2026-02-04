@@ -87,14 +87,14 @@ export async function listAgents(params: AgentQueryParams = {}): Promise<Paginat
     queryParams.sortDirection = params.sort.direction;
   }
 
-  return apiClient.get<PaginatedResponse<Agent>>('/admin/agents', { params: queryParams });
+  return apiClient.get<PaginatedResponse<Agent>>('/api/identity/v1/admin/agents', { params: queryParams });
 }
 
 /**
  * Get agent details by ID.
  */
 export async function getAgent(agentId: string): Promise<AgentDetails> {
-  return apiClient.get<AgentDetails>(`/admin/agents/${agentId}`);
+  return apiClient.get<AgentDetails>(`/api/identity/v1/admin/agents/${agentId}`);
 }
 
 /**
@@ -114,7 +114,7 @@ export async function approveAgent(
   };
 
   // Execute action
-  const result = await apiClient.post<Agent>(`/admin/agents/${agentId}/approve`, {
+  const result = await apiClient.post<Agent>(`/api/identity/v1/admin/agents/${agentId}/approve`, {
     reason,
     correlationId: actionBase.correlationId,
   });
@@ -154,7 +154,7 @@ export async function suspendAgent(
   };
 
   // Execute action
-  const result = await apiClient.post<Agent>(`/admin/agents/${agentId}/suspend`, {
+  const result = await apiClient.post<Agent>(`/api/identity/v1/admin/agents/${agentId}/suspend`, {
     reason,
     durationDays,
     correlationId: actionBase.correlationId,
@@ -193,7 +193,7 @@ export async function reactivateAgent(
   };
 
   // Execute action
-  const result = await apiClient.post<Agent>(`/admin/agents/${agentId}/reactivate`, {
+  const result = await apiClient.post<Agent>(`/api/identity/v1/admin/agents/${agentId}/reactivate`, {
     reason,
     correlationId: actionBase.correlationId,
   });
@@ -231,7 +231,7 @@ export async function rejectAgent(
   };
 
   // Execute action
-  const result = await apiClient.post<Agent>(`/admin/agents/${agentId}/reject`, {
+  const result = await apiClient.post<Agent>(`/api/identity/v1/admin/agents/${agentId}/reject`, {
     reason,
     correlationId: actionBase.correlationId,
   });

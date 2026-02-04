@@ -244,13 +244,13 @@ export const identityApi = {
    * Get agent profile by agent profile ID
    */
   getAgentProfile: (agentId: string) =>
-    apiRequest(`/api/identity/api/v1/agents/${agentId}/profile`),
+    apiRequest(`/api/identity/v1/agents/${agentId}/profile`),
 
   /**
    * Get public agent info (first name + photo only)
    */
   getAgentPublic: (agentId: string) =>
-    apiRequest(`/api/identity/api/v1/agents/${agentId}/public`),
+    apiRequest(`/api/identity/v1/agents/${agentId}/public`),
 };
 
 // ============================================================================

@@ -84,7 +84,7 @@ export async function listMatchingOverrides(
     if (params.filters.createdBy) queryParams.createdBy = params.filters.createdBy;
   }
 
-  return apiClient.get<PaginatedResponse<MatchingOverride>>('/admin/matching/overrides', {
+  return apiClient.get<PaginatedResponse<MatchingOverride>>('/api/matching/v1/admin/matching/overrides', {
     params: queryParams,
   });
 }
@@ -93,7 +93,7 @@ export async function listMatchingOverrides(
  * Get matching override details by ID.
  */
 export async function getMatchingOverride(overrideId: string): Promise<MatchingOverrideDetails> {
-  return apiClient.get<MatchingOverrideDetails>(`/admin/matching/overrides/${overrideId}`);
+  return apiClient.get<MatchingOverrideDetails>(`/api/matching/v1/admin/matching/overrides/${overrideId}`);
 }
 
 /**
@@ -121,7 +121,7 @@ export async function createMatchingOverride(
   };
 
   // Execute action
-  const result = await apiClient.post<MatchingOverride>('/admin/matching/overrides', {
+  const result = await apiClient.post<MatchingOverride>('/api/matching/v1/admin/matching/overrides', {
     ...params,
     reason,
     correlationId: actionBase.correlationId,
@@ -166,7 +166,7 @@ export async function cancelMatchingOverride(
 
   // Execute action
   const result = await apiClient.post<MatchingOverride>(
-    `/admin/matching/overrides/${overrideId}/cancel`,
+    `/api/matching/v1/admin/matching/overrides/${overrideId}/cancel`,
     {
       reason,
       correlationId: actionBase.correlationId,
@@ -197,7 +197,7 @@ export async function getPendingTripRequests(
   params: PaginationParams = {}
 ): Promise<PaginatedResponse<TripRequestInfo & { waitingDays: number }>> {
   return apiClient.get<PaginatedResponse<TripRequestInfo & { waitingDays: number }>>(
-    '/admin/matching/pending-requests',
+    '/api/matching/v1/admin/matching/pending-requests',
     { params: buildPaginationParams(params) }
   );
 }
@@ -210,6 +210,6 @@ export async function getAvailableAgents(
   tripRequestId: string
 ): Promise<readonly AgentInfo[]> {
   return apiClient.get<readonly AgentInfo[]>(
-    `/admin/matching/available-agents/${tripRequestId}`
+    `/api/matching/v1/admin/matching/available-agents/${tripRequestId}`
   );
 }
