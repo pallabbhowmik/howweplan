@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { identityApi } from '@/lib/api/client';
 
 interface AgentProfile {
   id: string;
@@ -55,18 +56,7 @@ export default function AgentProfilePage() {
     async function loadAgent() {
       try {
         setLoading(true);
-        const response = await fetch(`/api/identity/api/v1/agents/${agentId}/profile`);
-        
-        if (!response.ok) {
-          if (response.status === 404) {
-            setError('Agent not found');
-          } else {
-            setError('Failed to load agent profile');
-          }
-          return;
-        }
-
-        const result = await response.json();
+        const result: any = await identityApi.getAgentProfile(agentId);
         const data = result.data || result;
         
         setAgent({

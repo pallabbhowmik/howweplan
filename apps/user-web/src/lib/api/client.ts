@@ -22,13 +22,34 @@
  * All data operations MUST go through the Gateway API.
  */
 
-const rawApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
-// Normalize: remove trailing slashes and common API prefixes if present
-// We want API_BASE_URL to be the gateway origin, e.g. http://localhost:3001
-const API_BASE_URL = rawApiBaseUrl
-  .replace(/\/+$/, '') // Remove trailing slashes
-  .replace(/\/api\/v1\/?$/, '') // Remove /api/v1 suffix if someone added it
-  .replace(/\/api\/?$/, ''); // Remove /api suffix if someone added it
+// API Base URL configuration
+// In production: should be set via NEXT_PUBLIC_API_BASE_URL env var (e.g., https://howweplan-irjf.onrender.com)
+// In development: defaults to http://localhost:3001
+const getApiBaseUrl = (): string => {
+  const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  
+  // If env var is set, use it
+  if (envUrl) {
+    return envUrl
+      .replace(/\/+$/, '') // Remove trailing slashes
+      .replace(/\/api\/v1\/?$/, '') // Remove /api/v1 suffix if someone added it
+      .replace(/\/api\/?$/, ''); // Remove /api suffix if someone added it
+  }
+  
+  // Check if we're in browser and on a production domain
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    // If on Vercel production domain, use Render gateway
+    if (hostname.includes('vercel.app') || hostname.includes('howweplan')) {
+      return 'https://howweplan-irjf.onrender.com';
+    }
+  }
+  
+  // Default for local development
+  return 'http://localhost:3001';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 const API_TIMEOUT = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS) || 30000;
 
 // Request deduplication cache to prevent duplicate requests
@@ -218,6 +239,18 @@ export const identityApi = {
       method: 'PUT',
       body: JSON.stringify(settings),
     }),
+
+  /**
+   * Get agent profile by agent profile ID
+   */
+  getAgentProfile: (agentId: string) =>
+    apiRequest(`/api/identity/api/v1/agents/${agentId}/profile`),
+
+  /**
+   * Get public agent info (first name + photo only)
+   */
+  getAgentPublic: (agentId: string) =>
+    apiRequest(`/api/identity/api/v1/agents/${agentId}/public`),
 };
 
 // ============================================================================
