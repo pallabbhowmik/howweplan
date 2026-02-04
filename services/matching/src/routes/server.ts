@@ -923,7 +923,7 @@ async function requestHandler(
       const result = await query<{ id: string; status: string }>(
         `SELECT id, status FROM matches 
          WHERE agent_id = $1 AND request_id = $2 
-         AND status IN ('accepted', 'itinerary_submitted', 'booked')
+         AND status IN ('pending', 'accepted', 'itinerary_submitted', 'booked')
          LIMIT 1`,
         [agentId, requestId]
       );

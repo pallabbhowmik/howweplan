@@ -64,9 +64,9 @@ export function createAgentGetRequestHandler(requestService: RequestService) {
           
           if (response.ok) {
             const matchData = await response.json() as MatchResponse;
-            // Check if match exists and is in an accepted state
+            // Check if match exists and is in an active state (including pending - agents need to see details before accepting)
             if (matchData.success && matchData.data && 
-                ['accepted', 'itinerary_submitted', 'booked'].includes(matchData.data.status)) {
+                ['pending', 'accepted', 'itinerary_submitted', 'booked'].includes(matchData.data.status)) {
               matchVerified = true;
             }
           } else {
@@ -91,7 +91,7 @@ export function createAgentGetRequestHandler(requestService: RequestService) {
         res.status(403).json({ 
           error: { 
             code: 'NO_MATCH', 
-            message: 'You do not have an accepted match for this request' 
+            message: 'You do not have a match for this request. Please check your matches list.' 
           } 
         });
         return;
