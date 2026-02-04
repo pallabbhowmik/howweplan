@@ -1313,13 +1313,15 @@ function SignalsCard({ stage }: { stage: JourneyStage }) {
 function QuickLinksCard({ stage }: { stage: JourneyStage }) {
   const links = stage === 'idea' ? [
     { href: '/explore', label: 'Explore Destinations', icon: Globe },
+    { href: '/compare-agents', label: 'Compare Advisors', icon: Users },
+    { href: '/group-trip', label: 'Group Trip Planning', icon: Users },
     { href: '/how-it-works', label: 'How It Works', icon: Sparkles },
-    { href: '/help', label: 'Help & Support', icon: MessageCircle },
   ] : [
     { href: '/dashboard/requests', label: 'My Requests', icon: FileText },
     { href: '/dashboard/bookings', label: 'My Bookings', icon: Plane },
+    { href: '/trip-countdown', label: 'Trip Countdown', icon: Calendar },
     { href: '/dashboard/messages', label: 'Messages', icon: MessageSquare },
-    { href: '/help', label: 'Get Help', icon: MessageCircle },
+    { href: '/group-trip', label: 'Group Trip Planning', icon: Users },
   ];
 
   return (
