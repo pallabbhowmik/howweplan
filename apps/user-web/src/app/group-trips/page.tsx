@@ -8,14 +8,17 @@ import {
   Ticket,
   MapPin,
   Calendar,
+  ChevronRight,
   Sparkles,
   DollarSign,
+  Crown,
   Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { GroupTripsProvider, useGroupTrips, GroupTrip, TripStatus } from '@/lib/group-trips';
 import { cn } from '@/lib/utils';
@@ -31,8 +34,10 @@ const statusColors: Record<TripStatus, { bg: string; text: string; label: string
 
 function TripCard({ trip }: { trip: GroupTrip }) {
   const confirmedMembers = trip.members.filter(m => m.status === 'confirmed').length;
+  const budgetProgress = trip.budget.total > 0 
+    ? (trip.budget.collected / trip.budget.total) * 100 
+    : 0;
   const statusStyle = statusColors[trip.status];
-  const totalExpenses = trip.expenses.reduce((sum, e) => sum + e.amount, 0);
 
   return (
     <Link href={`/group-trip/${trip.id}`}>
@@ -116,15 +121,16 @@ function TripCard({ trip }: { trip: GroupTrip }) {
             </div>
           </div>
 
-          {/* Expenses */}
-          {totalExpenses > 0 && (
+          {/* Budget Progress */}
+          {trip.budget.total > 0 && (
             <div className="pt-3 border-t border-slate-100">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">Expenses</span>
+              <div className="flex items-center justify-between text-sm mb-1">
+                <span className="text-slate-500">Budget</span>
                 <span className="font-medium text-slate-700">
-                  ${totalExpenses.toLocaleString()}
+                  ${trip.budget.collected.toLocaleString()} / ${trip.budget.total.toLocaleString()}
                 </span>
               </div>
+              <Progress value={budgetProgress} className="h-1.5" />
             </div>
           )}
         </CardContent>
@@ -151,15 +157,11 @@ function TripCardSkeleton() {
 }
 
 function GroupTripsContent() {
-  const { trips, tripsLoading, refreshTrips } = useGroupTrips();
+  const { trips, tripsLoading, refreshTrips, currentUser } = useGroupTrips();
 
   useEffect(() => {
     refreshTrips();
   }, [refreshTrips]);
-
-  const totalExpenses = trips.reduce((sum, t) => 
-    sum + t.expenses.reduce((eSum, e) => eSum + e.amount, 0), 0
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
@@ -199,7 +201,7 @@ function GroupTripsContent() {
             { icon: Users, label: 'My Trips', value: trips.length, color: 'bg-indigo-500' },
             { icon: Clock, label: 'Planning', value: trips.filter(t => t.status === 'planning' || t.status === 'voting').length, color: 'bg-purple-500' },
             { icon: Sparkles, label: 'Booked', value: trips.filter(t => t.status === 'booked' || t.status === 'in_progress').length, color: 'bg-emerald-500' },
-            { icon: DollarSign, label: 'Total Expenses', value: `$${totalExpenses.toLocaleString()}`, color: 'bg-amber-500' },
+            { icon: DollarSign, label: 'Total Expenses', value: `$${trips.reduce((sum, t) => sum + t.budget.collected, 0).toLocaleString()}`, color: 'bg-amber-500' },
           ].map(stat => {
             const Icon = stat.icon;
             return (
@@ -353,7 +355,7 @@ function GroupTripsContent() {
   );
 }
 
-export default function GroupTripPage() {
+export default function GroupTripsPage() {
   return (
     <GroupTripsProvider>
       <GroupTripsContent />
