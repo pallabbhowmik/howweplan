@@ -122,8 +122,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       apiClient.setAuthToken(accessToken);
       // Route: admin-web → API gateway → identity service
-      // Identity exposes the canonical current-user endpoint at /api/v1/users/me.
-      const me = await apiClient.get<IdentityMeResponse>('/api/identity/v1/users/me');
+      // Gateway strips /api/identity, identity service has fallback route at / that matches /users/me
+      const me = await apiClient.get<IdentityMeResponse>('/api/identity/users/me');
 
       const profile: AdminUser = {
         id: me.id,

@@ -702,7 +702,7 @@ export async function getTravelRequestDetails(requestId: string): Promise<Travel
   const userId = req.user_id ?? req.userId;
   if (userId) {
     try {
-      const user = await tryFetchJson<any>(`/api/identity/v1/users/${userId}`);
+      const user = await tryFetchJson<any>(`/api/identity/users/${userId}`);
       if (user) {
         client = {
           firstName: user.first_name ?? user.firstName ?? '',
@@ -1273,7 +1273,7 @@ export async function listAgentItineraries(options: ListItinerariesOptions = {})
       const travelerId = itinerary.travelerId;
       if (travelerId && !itinerary.client?.firstName) {
         try {
-          const user = await tryFetchJson<any>(`/api/identity/v1/users/${travelerId}`);
+          const user = await tryFetchJson<any>(`/api/identity/users/${travelerId}`);
           if (user) {
             return {
               ...itinerary,
@@ -1315,7 +1315,7 @@ export async function getAgentItineraryById(itineraryId: string): Promise<AgentI
   const travelerId = itinerary.travelerId;
   if (travelerId && !itinerary.client?.firstName) {
     try {
-      const user = await tryFetchJson<any>(`/api/identity/v1/users/${travelerId}`);
+      const user = await tryFetchJson<any>(`/api/identity/users/${travelerId}`);
       if (user) {
         return {
           ...itinerary,
