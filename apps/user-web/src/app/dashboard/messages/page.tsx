@@ -302,10 +302,12 @@ function MessageBubble({
 function ConversationListItem({
   conversation,
   isSelected,
+  isImportant,
   onClick,
 }: {
   conversation: ConversationListItem;
   isSelected: boolean;
+  isImportant?: boolean;
   onClick: () => void;
 }) {
   const isOnline = true; // Assume agents are online during business hours
@@ -330,6 +332,9 @@ function ConversationListItem({
           <div className="flex justify-between items-start">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
+                {isImportant && (
+                  <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 flex-shrink-0" />
+                )}
                 <span className={`font-semibold truncate ${conversation.unreadCount > 0 ? 'text-slate-900' : 'text-slate-700'}`}>
                   {conversation.agentName}
                 </span>
@@ -654,6 +659,7 @@ export default function MessagesPage() {
                   key={conv.id}
                   conversation={conv}
                   isSelected={selectedConversationId === conv.id}
+                  isImportant={importantConversations.has(conv.id)}
                   onClick={() => {
                     setSelectedConversationId(conv.id);
                     setShowQuickReplies(true);

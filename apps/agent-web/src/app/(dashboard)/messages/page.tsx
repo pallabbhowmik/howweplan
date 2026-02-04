@@ -316,10 +316,12 @@ function MessageBubble({
 function ConversationListCard({
   conversation,
   isActive,
+  isPriority,
   onClick,
 }: {
   conversation: ConversationListItem;
   isActive: boolean;
+  isPriority?: boolean;
   onClick: () => void;
 }) {
   const initials = getInitials(conversation.clientName);
@@ -344,6 +346,9 @@ function ConversationListCard({
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-0.5">
           <div className="flex items-center gap-2 min-w-0">
+            {isPriority && (
+              <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 flex-shrink-0" />
+            )}
             <p className={cn('font-semibold truncate', conversation.unreadCount > 0 ? 'text-slate-900' : 'text-slate-700')}>
               {conversation.clientName}
             </p>
@@ -683,6 +688,7 @@ export default function MessagesPage() {
                 key={conv.id}
                 conversation={conv}
                 isActive={conv.id === selectedConversation}
+                isPriority={priorityConversations.has(conv.id)}
                 onClick={() => {
                   setSelectedConversation(conv.id);
                   setShowMobileChat(true);
@@ -754,7 +760,7 @@ export default function MessagesPage() {
                     onClick={() => {
                       // Copy client info to clipboard
                       navigator.clipboard.writeText(`Client: ${activeConversation.clientName}\nUser ID: ${activeConversation.userId}`);
-                      toast({ title: 'Client details copied', description: 'Client information copied to clipboard' });
+                      toast.success('Client details copied', 'Client information copied to clipboard');
                     }}
                   >
                     <Info className="mr-2 h-4 w-4" />
@@ -766,7 +772,7 @@ export default function MessagesPage() {
                       if (activeConversation.bookingId) {
                         router.push(`/bookings/${activeConversation.bookingId}`);
                       } else {
-                        toast({ title: 'No booking', description: 'This conversation has no associated booking yet', variant: 'destructive' });
+                        toast.warning('No booking', 'This conversation has no associated booking yet');
                       }
                     }}
                   >
@@ -788,10 +794,10 @@ export default function MessagesPage() {
                       const newSet = new Set(priorityConversations);
                       if (newSet.has(convId)) {
                         newSet.delete(convId);
-                        toast({ title: 'Removed priority', description: 'Conversation no longer marked as priority' });
+                        toast.info('Removed priority', 'Conversation no longer marked as priority');
                       } else {
                         newSet.add(convId);
-                        toast({ title: 'Marked as priority', description: 'Conversation marked as high priority' });
+                        toast.success('Marked as priority', 'Conversation marked as high priority');
                       }
                       setPriorityConversations(newSet);
                     }}
@@ -806,10 +812,10 @@ export default function MessagesPage() {
                       const newSet = new Set(mutedConversations);
                       if (newSet.has(convId)) {
                         newSet.delete(convId);
-                        toast({ title: 'Unmuted', description: 'You will receive notifications for this conversation' });
+                        toast.success('Unmuted', 'You will receive notifications for this conversation');
                       } else {
                         newSet.add(convId);
-                        toast({ title: 'Muted', description: 'Notifications silenced for this conversation' });
+                        toast.info('Muted', 'Notifications silenced for this conversation');
                       }
                       setMutedConversations(newSet);
                     }}
@@ -826,7 +832,7 @@ export default function MessagesPage() {
                       newSet.add(convId);
                       setArchivedConversations(newSet);
                       setSelectedConversation(null);
-                      toast({ title: 'Archived', description: 'Conversation has been archived' });
+                      toast.success('Archived', 'Conversation has been archived');
                     }}
                   >
                     <Archive className="mr-2 h-4 w-4" />
@@ -835,7 +841,7 @@ export default function MessagesPage() {
                   <DropdownMenuItem 
                     className="cursor-pointer text-red-600 focus:text-red-600"
                     onClick={() => {
-                      toast({ title: 'Report submitted', description: 'Our team will review this conversation', variant: 'destructive' });
+                      toast.warning('Report submitted', 'Our team will review this conversation');
                     }}
                   >
                     <Flag className="mr-2 h-4 w-4" />
