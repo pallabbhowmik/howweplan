@@ -327,7 +327,7 @@ function Header({
                 <p className="text-sm text-gray-500 truncate">{display.email}</p>
               </div>
               <div className="py-1">
-                <Link href="/profile" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                <Link href="/settings" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                   <User className="h-4 w-4" />
                   Your Profile
                 </Link>
