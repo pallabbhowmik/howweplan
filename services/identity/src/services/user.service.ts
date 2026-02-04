@@ -29,6 +29,47 @@ import {
 import { env } from '../env.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// INTER-SERVICE COMMUNICATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Notifies the matching service to create matches for a new agent
+ * with all existing open travel requests.
+ * This is a fire-and-forget operation.
+ */
+async function onboardNewAgent(userId: string): Promise<void> {
+  const matchingUrl = env.MATCHING_SERVICE_URL;
+  const internalSecret = env.INTERNAL_SERVICE_SECRET || env.EVENT_BUS_API_KEY;
+  
+  if (!matchingUrl || matchingUrl === 'http://localhost:3013') {
+    // Skip if no matching service URL configured (local dev without matching service)
+    console.log(`Skipping agent onboarding for ${userId} - no MATCHING_SERVICE_URL configured`);
+    return;
+  }
+
+  try {
+    const response = await fetch(`${matchingUrl}/internal/agent-onboard`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Service-Secret': internalSecret || '',
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Agent onboard request failed for ${userId}:`, response.status, errorText);
+    } else {
+      const result = await response.json();
+      console.log(`Agent ${userId} onboarded to matching service:`, result);
+    }
+  } catch (err) {
+    console.error(`Failed to call matching service for agent onboarding:`, err);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // TYPE MAPPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -280,6 +321,12 @@ export async function registerUser(
     if (agentError) {
       console.error(`Failed to create agents entry for user ${userId}:`, agentError);
       // Don't fail registration, but log the error
+    } else {
+      // Notify matching service to create matches for this new agent with existing open requests
+      // This is a fire-and-forget operation - don't block registration on it
+      onboardNewAgent(userId).catch(err => {
+        console.error(`Failed to onboard new agent ${userId} to matching service:`, err);
+      });
     }
   }
 

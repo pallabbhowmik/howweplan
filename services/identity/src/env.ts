@@ -126,6 +126,12 @@ const envSchema = z.object({
   EVENT_BUS_URL: z.string().url('EVENT_BUS_URL must be a valid URL').optional().default(''),
   EVENT_BUS_API_KEY: z.string().optional().default(''),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+
+  // ─────────────────────────────────────────────────────────────
+  // INTER-SERVICE COMMUNICATION
+  // ─────────────────────────────────────────────────────────────
+  MATCHING_SERVICE_URL: z.string().url().optional().default('http://localhost:3013'),
+  INTERNAL_SERVICE_SECRET: z.string().optional().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;

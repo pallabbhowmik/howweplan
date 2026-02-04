@@ -767,6 +767,80 @@ async function requestHandler(
     }
   }
 
+  // Internal endpoint: Create matches for a new agent with all open requests
+  if (url === '/internal/agent-onboard' && method === 'POST') {
+    // Verify internal service secret
+    const serviceSecret = req.headers['x-internal-service-secret'] || req.headers['x-api-key'];
+    const validSecret = env.INTERNAL_JWT_SECRET || env.EVENT_BUS_API_KEY;
+    if (serviceSecret !== validSecret) {
+      logger.warn('Invalid internal service secret for /internal/agent-onboard');
+      sendJson(res, 401, { error: 'Unauthorized' });
+      return;
+    }
+
+    try {
+      const body = await parseJsonBody(req);
+      const { agentId, userId } = body;
+
+      if (!agentId && !userId) {
+        sendJson(res, 400, { error: 'Missing agentId or userId' });
+        return;
+      }
+
+      // Get agent ID from userId if not provided
+      let resolvedAgentId = agentId;
+      if (!resolvedAgentId && userId) {
+        const agentResult = await query<{ id: string }>('SELECT id FROM agents WHERE user_id = $1', [userId]);
+        resolvedAgentId = agentResult.rows[0]?.id;
+        if (!resolvedAgentId) {
+          sendJson(res, 404, { error: 'Agent not found for userId' });
+          return;
+        }
+      }
+
+      logger.info({ agentId: resolvedAgentId, userId }, 'Onboarding new agent - creating matches with open requests');
+
+      // Get all open travel requests (state = 'open' or 'matching')
+      const { rows: openRequests } = await query<{ id: string }>(
+        `SELECT id FROM travel_requests 
+         WHERE state IN ('open', 'matching') 
+         AND (expires_at IS NULL OR expires_at > NOW())
+         LIMIT 100`
+      );
+
+      if (openRequests.length === 0) {
+        logger.info({ agentId: resolvedAgentId }, 'No open requests to match with new agent');
+        sendJson(res, 200, { success: true, matchCount: 0, message: 'No open requests available' });
+        return;
+      }
+
+      // Create matches for each open request
+      let matchCount = 0;
+      for (const request of openRequests) {
+        try {
+          await query(
+            `INSERT INTO agent_matches (id, request_id, agent_id, status, match_score, matched_at)
+             VALUES (gen_random_uuid(), $1, $2, 'pending', 70.0, NOW())
+             ON CONFLICT (request_id, agent_id) DO NOTHING`,
+            [request.id, resolvedAgentId]
+          );
+          matchCount++;
+        } catch (err) {
+          logger.warn({ requestId: request.id, agentId: resolvedAgentId, err }, 'Failed to create match for new agent');
+        }
+      }
+
+      logger.info({ agentId: resolvedAgentId, matchCount, totalRequests: openRequests.length }, 'Created matches for new agent');
+      sendJson(res, 200, { success: true, matchCount });
+      return;
+
+    } catch (error) {
+      logger.error({ err: error }, 'Failed to onboard new agent');
+      sendJson(res, 500, { error: 'Internal server error' });
+      return;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Authenticated API (via API Gateway)
   // ---------------------------------------------------------------------------
