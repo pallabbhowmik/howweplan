@@ -58,6 +58,10 @@ export interface NotificationMetadata {
   bookingId?: string;
   /** Agent ID if applicable */
   agentId?: string;
+  /** Itinerary ID if applicable */
+  itineraryId?: string;
+  /** Request ID if applicable */
+  requestId?: string;
   /** Correlation ID for tracing */
   correlationId: string;
   /** Timestamp when notification was created */
