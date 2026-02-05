@@ -17,8 +17,22 @@ interface RateLimitEntry {
 
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
+// Track cleanup interval for graceful shutdown
+let cleanupIntervalId: NodeJS.Timeout | null = null;
+
+/**
+ * Stop the rate limit cleanup interval.
+ * Call this during graceful shutdown.
+ */
+export function stopRateLimitCleanup(): void {
+  if (cleanupIntervalId) {
+    clearInterval(cleanupIntervalId);
+    cleanupIntervalId = null;
+  }
+}
+
 // Cleanup old entries periodically
-setInterval(() => {
+cleanupIntervalId = setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of rateLimitStore) {
     if (entry.resetAt < now) {

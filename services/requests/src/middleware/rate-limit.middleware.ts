@@ -16,19 +16,35 @@ interface RateLimitEntry {
 // In-memory store (use Redis in production for distributed deployments)
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
+// Track cleanup interval for graceful shutdown
+let cleanupIntervalId: NodeJS.Timeout | null = null;
+
+/**
+ * Stop the rate limit cleanup interval.
+ * Call this during graceful shutdown.
+ */
+export function stopRateLimitCleanup(): void {
+  if (cleanupIntervalId) {
+    clearInterval(cleanupIntervalId);
+    cleanupIntervalId = null;
+  }
+}
+
 export function createRateLimitMiddleware(logger: Logger) {
   const windowMs = config.rateLimit.windowMs;
   const maxRequests = config.rateLimit.maxRequests;
 
-  // Cleanup old entries periodically
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of rateLimitStore.entries()) {
-      if (entry.resetTime < now) {
-        rateLimitStore.delete(key);
+  // Cleanup old entries periodically (only start once)
+  if (!cleanupIntervalId) {
+    cleanupIntervalId = setInterval(() => {
+      const now = Date.now();
+      for (const [key, entry] of rateLimitStore.entries()) {
+        if (entry.resetTime < now) {
+          rateLimitStore.delete(key);
+        }
       }
-    }
-  }, windowMs);
+    }, windowMs);
+  }
 
   return (req: Request, res: Response, next: NextFunction): void => {
     // Use user ID if authenticated, otherwise IP

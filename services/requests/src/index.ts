@@ -147,9 +147,18 @@ async function main() {
     logger.info(`Server listening on port ${config.app.port}`);
   });
 
+  // Track intervals for cleanup
+  let expiryProcessorInterval: NodeJS.Timeout | null = null;
+
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, shutting down gracefully`);
+    
+    // Clear expiry processor interval
+    if (expiryProcessorInterval) {
+      clearInterval(expiryProcessorInterval);
+      expiryProcessorInterval = null;
+    }
     
     server.close(async () => {
       logger.info('HTTP server closed');
@@ -172,7 +181,7 @@ async function main() {
   const startExpiryProcessor = () => {
     const EXPIRY_CHECK_INTERVAL = 60 * 1000; // 1 minute
     
-    setInterval(async () => {
+    expiryProcessorInterval = setInterval(async () => {
       try {
         const count = await requestService.processExpiredRequests();
         if (count > 0) {

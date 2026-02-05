@@ -151,12 +151,15 @@ async function start(): Promise<void> {
     });
   });
 
+  // Track intervals for cleanup
+  let expiryProcessorInterval: NodeJS.Timeout | null = null;
+
   // Start expiry processor for automatic itinerary expiration
   const startExpiryProcessor = () => {
     const EXPIRY_CHECK_INTERVAL = env.EXPIRY_CHECK_INTERVAL_MINUTES * 60 * 1000;
     const services = (app as Express & { services: { disclosureService: DisclosureService } }).services;
     
-    setInterval(async () => {
+    expiryProcessorInterval = setInterval(async () => {
       try {
         // Note: In production, this would use the itinerary service directly
         // For now, we log that the check would happen
@@ -186,6 +189,12 @@ async function start(): Promise<void> {
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, shutting down gracefully...`);
+
+    // Clear expiry processor interval
+    if (expiryProcessorInterval) {
+      clearInterval(expiryProcessorInterval);
+      expiryProcessorInterval = null;
+    }
 
     server.close(async () => {
       logger.info('HTTP server closed');

@@ -26,7 +26,21 @@ const idempotencyStore = new Map<string, IdempotencyRecord>();
 // Clean up old records periodically (24 hour TTL)
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 
-setInterval(() => {
+// Track cleanup interval for graceful shutdown
+let idempotencyCleanupInterval: NodeJS.Timeout | null = null;
+
+/**
+ * Stop the idempotency cleanup interval.
+ * Call this during graceful shutdown.
+ */
+export function stopIdempotencyCleanup(): void {
+  if (idempotencyCleanupInterval) {
+    clearInterval(idempotencyCleanupInterval);
+    idempotencyCleanupInterval = null;
+  }
+}
+
+idempotencyCleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [key, record] of idempotencyStore.entries()) {
     if (now - record.createdAt > IDEMPOTENCY_TTL_MS) {

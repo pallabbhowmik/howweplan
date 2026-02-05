@@ -19,13 +19,25 @@ interface IdempotencyEntry {
 class IdempotencyStore {
   private readonly store: Map<string, IdempotencyEntry>;
   private readonly ttlSeconds: number;
+  private cleanupIntervalId: NodeJS.Timeout | null = null;
 
   constructor() {
     this.store = new Map();
     this.ttlSeconds = config.limits.idempotencyTtlSeconds;
 
     // Periodic cleanup of expired entries
-    setInterval(() => this.cleanup(), 60000);
+    this.cleanupIntervalId = setInterval(() => this.cleanup(), 60000);
+  }
+
+  /**
+   * Stop the cleanup interval.
+   * Call this during graceful shutdown.
+   */
+  stop(): void {
+    if (this.cleanupIntervalId) {
+      clearInterval(this.cleanupIntervalId);
+      this.cleanupIntervalId = null;
+    }
   }
 
   /**

@@ -18,6 +18,7 @@ export class RateLimiterService {
   private readonly limits: Map<NotificationChannel, number>;
   private readonly windows: Map<string, RateLimitEntry>;
   private readonly windowDurationMs = 60 * 60 * 1000; // 1 hour
+  private cleanupIntervalId: NodeJS.Timeout | null = null;
 
   constructor() {
     this.limits = new Map([
@@ -29,7 +30,18 @@ export class RateLimiterService {
     this.windows = new Map();
 
     // Clean up expired entries periodically
-    setInterval(() => this.cleanup(), this.windowDurationMs);
+    this.cleanupIntervalId = setInterval(() => this.cleanup(), this.windowDurationMs);
+  }
+
+  /**
+   * Stop the cleanup interval.
+   * Call this during graceful shutdown.
+   */
+  stop(): void {
+    if (this.cleanupIntervalId) {
+      clearInterval(this.cleanupIntervalId);
+      this.cleanupIntervalId = null;
+    }
   }
 
   /**

@@ -57,8 +57,22 @@ class InMemoryIdempotencyStore {
 
 const store = new InMemoryIdempotencyStore();
 
+// Track cleanup interval for graceful shutdown
+let idempotencyCleanupInterval: NodeJS.Timeout | null = null;
+
+/**
+ * Stop the idempotency cleanup interval.
+ * Call this during graceful shutdown.
+ */
+export function stopIdempotencyCleanup(): void {
+  if (idempotencyCleanupInterval) {
+    clearInterval(idempotencyCleanupInterval);
+    idempotencyCleanupInterval = null;
+  }
+}
+
 // Cleanup every minute
-setInterval(() => store.cleanup(), 60000);
+idempotencyCleanupInterval = setInterval(() => store.cleanup(), 60000);
 
 const TTL_SECONDS = 86400; // 24 hours
 

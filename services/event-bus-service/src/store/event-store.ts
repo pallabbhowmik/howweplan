@@ -91,6 +91,36 @@ export class InMemoryEventStore implements EventStorageBackend {
     // Eviction (only for in-memory)
     if (this.eventOrder.length > this.maxEvents) {
       const oldestId = this.eventOrder.shift()!;
+      const oldEvent = this.events.get(oldestId);
+      
+      // Clean up indexes
+      if (oldEvent) {
+        const domain = oldEvent.event_type.split('.')[0] as EventDomain;
+        const domainIds = this.eventsByDomain.get(domain);
+        if (domainIds) {
+          const idx = domainIds.indexOf(oldestId);
+          if (idx !== -1) domainIds.splice(idx, 1);
+          if (domainIds.length === 0) this.eventsByDomain.delete(domain);
+        }
+        
+        const corrIds = this.eventsByCorrelation.get(oldEvent.correlation_id);
+        if (corrIds) {
+          const idx = corrIds.indexOf(oldestId);
+          if (idx !== -1) corrIds.splice(idx, 1);
+          if (corrIds.length === 0) this.eventsByCorrelation.delete(oldEvent.correlation_id);
+        }
+        
+        const aggregateId = this.extractAggregateId(oldEvent);
+        if (aggregateId) {
+          const aggIds = this.eventsByAggregate.get(aggregateId);
+          if (aggIds) {
+            const idx = aggIds.indexOf(oldestId);
+            if (idx !== -1) aggIds.splice(idx, 1);
+            if (aggIds.length === 0) this.eventsByAggregate.delete(aggregateId);
+          }
+        }
+      }
+      
       this.events.delete(oldestId);
     }
     

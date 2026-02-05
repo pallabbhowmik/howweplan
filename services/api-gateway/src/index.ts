@@ -25,7 +25,7 @@ import { rbacMiddleware } from './middleware/rbac';
 import { adaptiveRateLimiter, authRateLimiter, globalRateLimiter } from './middleware/rateLimiter';
 import { sanitizeInput, requestSizeLimiter, requireJson } from './middleware/validation';
 import { circuitBreaker, circuitBreakerMiddleware, circuitBreakerResponseHandler } from './middleware/circuitBreaker';
-import { cacheMiddleware, getCacheStats, clearCache, invalidateCachePattern } from './middleware/cache';
+import { cacheMiddleware, getCacheStats, clearCache, invalidateCachePattern, cacheStore } from './middleware/cache';
 import { wsManager } from './websocket';
 
 // Extend Express Request type
@@ -688,6 +688,11 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 // SERVER STARTUP
 // =============================================================================
 
+// Track intervals for graceful shutdown
+let keepAliveInterval: NodeJS.Timeout | null = null;
+let keepAliveInitialTimeout: NodeJS.Timeout | null = null;
+let keyFetchRetryInterval: NodeJS.Timeout | null = null;
+
 // Periodic key refresh/retry
 function scheduleKeyFetchRetry() {
   if (config.jwt.publicKey) return;
@@ -697,9 +702,12 @@ function scheduleKeyFetchRetry() {
     event: 'jwt_public_key_background_retry_started',
   });
 
-  const interval = setInterval(async () => {
+  keyFetchRetryInterval = setInterval(async () => {
     if (config.jwt.publicKey) {
-      clearInterval(interval);
+      if (keyFetchRetryInterval) {
+        clearInterval(keyFetchRetryInterval);
+        keyFetchRetryInterval = null;
+      }
       return;
     }
     
@@ -723,7 +731,10 @@ function scheduleKeyFetchRetry() {
             timestamp: new Date().toISOString(),
             event: 'jwt_public_key_loaded_background',
           });
-          clearInterval(interval);
+          if (keyFetchRetryInterval) {
+            clearInterval(keyFetchRetryInterval);
+            keyFetchRetryInterval = null;
+          }
         }
       }
     } catch (err) {
@@ -848,14 +859,17 @@ function startServiceKeepAlive(): void {
   };
 
   // Initial ping after 30 seconds (let services start up first)
-  setTimeout(() => {
+  const initialTimeout = setTimeout(() => {
     pingServices().catch(console.error);
     
     // Then ping every 10 minutes
-    setInterval(() => {
+    keepAliveInterval = setInterval(() => {
       pingServices().catch(console.error);
     }, PING_INTERVAL_MS);
   }, 30000);
+
+  // Store timeout for cleanup
+  keepAliveInitialTimeout = initialTimeout;
 
   logger.info({
     timestamp: new Date().toISOString(),
@@ -864,6 +878,64 @@ function startServiceKeepAlive(): void {
     services: Object.keys(config.services),
   });
 }
+
+// =============================================================================
+// GRACEFUL SHUTDOWN
+// =============================================================================
+
+function setupGracefulShutdown(): void {
+  const shutdown = async (signal: string) => {
+    logger.info({
+      timestamp: new Date().toISOString(),
+      event: 'shutdown_started',
+      signal,
+    });
+
+    // Clear all intervals and timeouts
+    if (keepAliveInterval) {
+      clearInterval(keepAliveInterval);
+      keepAliveInterval = null;
+    }
+    if (keepAliveInitialTimeout) {
+      clearTimeout(keepAliveInitialTimeout);
+      keepAliveInitialTimeout = null;
+    }
+    if (keyFetchRetryInterval) {
+      clearInterval(keyFetchRetryInterval);
+      keyFetchRetryInterval = null;
+    }
+
+    // Destroy cache store
+    cacheStore.destroy();
+
+    // Close WebSocket connections
+    wsManager.shutdown();
+
+    // Close HTTP server
+    httpServer.close(() => {
+      logger.info({
+        timestamp: new Date().toISOString(),
+        event: 'shutdown_complete',
+      });
+      process.exit(0);
+    });
+
+    // Force exit after 10 seconds
+    setTimeout(() => {
+      logger.error({
+        timestamp: new Date().toISOString(),
+        event: 'shutdown_forced',
+      });
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
+// Initialize shutdown handlers
+setupGracefulShutdown();
 
 start().catch((err) => {
   logger.error({

@@ -149,7 +149,21 @@ export class RateLimitService {
 // Singleton instance
 export const rateLimitService = new RateLimitService();
 
+// Track cleanup interval for graceful shutdown
+let rateLimitCleanupInterval: NodeJS.Timeout | null = null;
+
+/**
+ * Stop the rate limit cleanup interval.
+ * Call this during graceful shutdown.
+ */
+export function stopRateLimitCleanup(): void {
+  if (rateLimitCleanupInterval) {
+    clearInterval(rateLimitCleanupInterval);
+    rateLimitCleanupInterval = null;
+  }
+}
+
 // Cleanup expired entries every minute
-setInterval(() => {
+rateLimitCleanupInterval = setInterval(() => {
   rateLimitService.cleanup();
 }, 60 * 1000);

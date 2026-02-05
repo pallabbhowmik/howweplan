@@ -13,7 +13,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import { env } from './env.js';
 import { createApiRouter } from './api/index.js';
-import { rateLimit } from './middleware/index.js';
+import { rateLimit, stopRateLimitCleanup } from './middleware/index.js';
 import { IdentityError } from './services/errors.js';
 import { closeDbConnection } from './services/database.js';
 import { shutdownEventEmitter } from './events/index.js';
@@ -144,6 +144,10 @@ const server = app.listen(env.PORT, () => {
 
 async function gracefulShutdown(signal: string): Promise<void> {
   console.log(`\nReceived ${signal}. Starting graceful shutdown...`);
+
+  // Stop rate limit cleanup interval
+  stopRateLimitCleanup();
+  console.log('Rate limit cleanup stopped');
 
   // Stop accepting new connections
   server.close(async () => {
