@@ -2156,7 +2156,7 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
     const { agentId } = req.params;
-    const body = req.body as { reason: string; durationDays?: number | null; correlationId?: string };
+    // body is validated by middleware, reason stored for audit in future
 
     try {
       const db = getDbClient();
@@ -2223,7 +2223,7 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
     const { agentId } = req.params;
-    const body = req.body as { reason: string; correlationId?: string };
+    // body is validated by middleware, reason stored for audit in future
 
     try {
       const db = getDbClient();
@@ -2369,7 +2369,7 @@ router.post(
   })),
   async (req: Request, res: Response): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
-    const { documentId } = req.params;
+    const { documentId } = req.params as { documentId: string };
     const body = req.body as { notes?: string };
 
     try {
@@ -2377,14 +2377,14 @@ router.post(
       const { data: admin } = await db
         .from('users')
         .select('first_name, last_name')
-        .eq('id', authReq.identity.sub)
+        .eq('id', authReq.identity!.sub)
         .single();
 
       const adminName = admin ? `${admin.first_name || ''} ${admin.last_name || ''}`.trim() || 'Admin' : 'Admin';
 
       const document = await indiaVerification.approveDocument(
         documentId,
-        authReq.identity.sub,
+        authReq.identity!.sub,
         adminName,
         body.notes
       );
@@ -2410,7 +2410,7 @@ router.post(
   })),
   async (req: Request, res: Response): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
-    const { documentId } = req.params;
+    const { documentId } = req.params as { documentId: string };
     const body = req.body as { reason: string };
 
     try {
@@ -2418,14 +2418,14 @@ router.post(
       const { data: admin } = await db
         .from('users')
         .select('first_name, last_name')
-        .eq('id', authReq.identity.sub)
+        .eq('id', authReq.identity!.sub)
         .single();
 
       const adminName = admin ? `${admin.first_name || ''} ${admin.last_name || ''}`.trim() || 'Admin' : 'Admin';
 
       const document = await indiaVerification.rejectDocument(
         documentId,
-        authReq.identity.sub,
+        authReq.identity!.sub,
         adminName,
         body.reason
       );
@@ -2452,7 +2452,7 @@ router.post(
   })),
   async (req: Request, res: Response): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
-    const { documentId } = req.params;
+    const { documentId } = req.params as { documentId: string };
     const body = req.body as { reason: string; deadlineDays: number };
 
     try {
@@ -2460,14 +2460,14 @@ router.post(
       const { data: admin } = await db
         .from('users')
         .select('first_name, last_name')
-        .eq('id', authReq.identity.sub)
+        .eq('id', authReq.identity!.sub)
         .single();
 
       const adminName = admin ? `${admin.first_name || ''} ${admin.last_name || ''}`.trim() || 'Admin' : 'Admin';
 
       const document = await indiaVerification.requestReupload(
         documentId,
-        authReq.identity.sub,
+        authReq.identity!.sub,
         adminName,
         body.reason,
         body.deadlineDays

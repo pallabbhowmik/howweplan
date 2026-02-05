@@ -6,11 +6,10 @@
  */
 
 import { getDbClient } from './database.js';
-import { EventFactory, EventContext } from '../events/index.js';
+import { EventContext } from '../events/index.js';
 import { UserRole } from '../types/identity.types.js';
 import {
   IndiaDocumentType,
-  DocumentCategory,
   DocumentStatus,
   DOCUMENT_TYPE_INFO,
   MINIMUM_REQUIRED_DOCUMENTS,
@@ -234,7 +233,7 @@ export async function getVerificationProgress(userId: string): Promise<Verificat
  * Submit all documents for review.
  * Validates that all required documents are uploaded.
  */
-export async function submitForReview(userId: string, eventContext?: EventContext): Promise<void> {
+export async function submitForReview(userId: string, _eventContext?: EventContext): Promise<void> {
   const db = getDbClient();
 
   const progress = await getVerificationProgress(userId);
@@ -523,8 +522,6 @@ export async function requestAdditionalDocument(
   adminName: string,
   reason: string
 ): Promise<void> {
-  const db = getDbClient();
-
   // Add comment for agent notification
   await addComment(
     userId,

@@ -24,7 +24,6 @@ import {
   DOCUMENT_TYPE_INFO, 
   MINIMUM_REQUIRED_DOCUMENTS,
   DocumentCategory,
-  BusinessType,
 } from '../types/india-verification.types.js';
 import { EventContext } from '../events/index.js';
 import { IdentityError, AgentProfileNotFoundError } from '../services/errors.js';
@@ -428,7 +427,7 @@ router.get(
       [DocumentCategory.ADDITIONAL]: [],
     };
 
-    for (const [key, info] of Object.entries(DOCUMENT_TYPE_INFO)) {
+    for (const [, info] of Object.entries(DOCUMENT_TYPE_INFO)) {
       groupedTypes[info.category].push(info);
     }
 
@@ -510,10 +509,10 @@ router.delete(
   validateParams(z.object({ documentId: z.string().uuid() })),
   async (req: Request, res: Response): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
-    const { documentId } = req.params;
+    const { documentId } = req.params as { documentId: string };
 
     try {
-      await indiaVerification.deleteDocument(authReq.identity.sub, documentId);
+      await indiaVerification.deleteDocument(authReq.identity!.sub, documentId);
       sendSuccess(res, { deleted: true }, authReq.correlationId);
     } catch (error) {
       if (error instanceof IdentityError) {
@@ -623,10 +622,10 @@ router.post(
   validateParams(z.object({ commentId: z.string().uuid() })),
   async (req: Request, res: Response): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
-    const { commentId } = req.params;
+    const { commentId } = req.params as { commentId: string };
 
     try {
-      await indiaVerification.markCommentAsRead(authReq.identity.sub, commentId);
+      await indiaVerification.markCommentAsRead(authReq.identity!.sub, commentId);
       sendSuccess(res, { marked: true }, authReq.correlationId);
     } catch (error) {
       if (error instanceof IdentityError) {
