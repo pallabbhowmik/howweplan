@@ -903,6 +903,157 @@ router.get(
   }
 );
 
+/**
+ * GET /admin/agents/:agentId
+ * Get a single agent by ID with full details.
+ */
+router.get(
+  '/agents/:agentId',
+  validateParams(z.object({ agentId: uuidSchema })),
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const { agentId } = req.params as { agentId: string };
+
+    try {
+      const db = getDbClient();
+
+      // First try to find agent by agents.id
+      let { data: agentRow, error: agentErr } = await db
+        .from('agents')
+        .select('id, user_id, rating, completed_bookings, created_at, updated_at')
+        .eq('id', agentId)
+        .single();
+
+      // If not found by agent ID, try by user_id
+      if (agentErr || !agentRow) {
+        const { data: agentByUserId, error: err2 } = await db
+          .from('agents')
+          .select('id, user_id, rating, completed_bookings, created_at, updated_at')
+          .eq('user_id', agentId)
+          .single();
+        if (err2 || !agentByUserId) {
+          sendApiError(res, authReq.correlationId, 404, 'AGENT_NOT_FOUND', 'Agent not found');
+          return;
+        }
+        agentRow = agentByUserId;
+      }
+
+      const userId = agentRow.user_id;
+      const realAgentId = agentRow.id;
+
+      // Get user details
+      const { data: userRow, error: userErr } = await db
+        .from('users')
+        .select('id, email, first_name, last_name, avatar_url, is_active, is_banned, created_at, updated_at')
+        .eq('id', userId)
+        .single();
+      if (userErr || !userRow) {
+        sendApiError(res, authReq.correlationId, 404, 'USER_NOT_FOUND', 'User not found for agent');
+        return;
+      }
+
+      // Derive status
+      let derivedStatus: string;
+      if (userRow.is_banned) {
+        derivedStatus = 'suspended';
+      } else if (userRow.is_active) {
+        derivedStatus = 'approved';
+      } else {
+        derivedStatus = 'pending_approval';
+      }
+
+      // Get recent bookings
+      const { data: bookings } = await db
+        .from('bookings')
+        .select('id, state, total_price, created_at')
+        .eq('agent_id', realAgentId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      // Get recent disputes
+      const { data: disputes } = await db
+        .from('disputes')
+        .select('id, status, category, created_at')
+        .eq('agent_id', realAgentId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      // Get dispute count
+      const { count: disputeCount } = await db
+        .from('disputes')
+        .select('*', { count: 'exact', head: true })
+        .eq('agent_id', realAgentId);
+
+      // Get total bookings
+      const { count: totalBookings } = await db
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('agent_id', realAgentId);
+
+      // Get audit history
+      const { data: auditRows } = await db
+        .from('audit_events')
+        .select('action, metadata, occurred_at')
+        .eq('resource_type', 'agent')
+        .eq('resource_id', realAgentId)
+        .order('occurred_at', { ascending: false })
+        .limit(10);
+
+      const recentBookings = (bookings ?? []).map((b) => ({
+        id: b.id,
+        status: b.state ?? 'unknown',
+        amount: b.total_price ?? 0,
+        createdAt: new Date(b.created_at).toISOString(),
+      }));
+
+      const recentDisputes = (disputes ?? []).map((d) => ({
+        id: d.id,
+        status: d.status ?? 'unknown',
+        category: d.category ?? 'other',
+        createdAt: new Date(d.created_at).toISOString(),
+      }));
+
+      const auditHistory = (auditRows ?? []).map((a) => ({
+        action: a.action ?? 'unknown',
+        adminEmail: (a.metadata as any)?.adminEmail ?? 'system',
+        reason: (a.metadata as any)?.reason ?? '',
+        timestamp: new Date(a.occurred_at).toISOString(),
+      }));
+
+      sendSuccess(
+        res,
+        {
+          id: realAgentId,
+          email: userRow.email,
+          firstName: userRow.first_name,
+          lastName: userRow.last_name,
+          photoUrl: userRow.avatar_url,
+          status: derivedStatus,
+          applicationDate: new Date(userRow.created_at).toISOString(),
+          approvalDate: null,
+          suspensionDate: null,
+          totalBookings: totalBookings ?? 0,
+          completedBookings: agentRow.completed_bookings ?? 0,
+          disputeCount: disputeCount ?? 0,
+          averageRating: agentRow.rating ?? null,
+          createdAt: agentRow.created_at,
+          updatedAt: agentRow.updated_at,
+          recentBookings,
+          recentDisputes,
+          auditHistory,
+        },
+        authReq.correlationId
+      );
+    } catch (error) {
+      if (error instanceof IdentityError) {
+        sendError(res, error, authReq.correlationId);
+        return;
+      }
+      sendApiError(res, authReq.correlationId, 500, 'INTERNAL', 'Failed to get agent details');
+    }
+  }
+);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Disputes
 // ─────────────────────────────────────────────────────────────────────────────

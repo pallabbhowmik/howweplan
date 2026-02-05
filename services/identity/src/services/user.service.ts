@@ -196,6 +196,96 @@ export async function getUserWithProfile(userId: string): Promise<UserWithProfil
   };
 }
 
+/**
+ * Gets or creates a user from gateway-forwarded auth info.
+ * Used for Supabase-authenticated users who may not have a record in the users table.
+ * Creates the user if they don't exist, returns existing user if they do.
+ */
+export async function getOrCreateUserFromGateway(
+  userId: string,
+  email: string,
+  role: string
+): Promise<UserWithProfile> {
+  const db = getDbClient();
+
+  // First try to find existing user
+  let userWithProfile = await getUserWithProfile(userId);
+  
+  if (userWithProfile) {
+    return userWithProfile;
+  }
+
+  // User doesn't exist, create them from gateway info
+  const normalizedRole = (role || 'user').toLowerCase() as UserRole;
+  const validRole = (Object.values(UserRole) as string[]).includes(normalizedRole)
+    ? normalizedRole
+    : UserRole.USER;
+
+  // Extract name from email if available
+  const emailParts = (email || 'unknown@example.com').split('@')[0].split(/[._-]/);
+  const firstName = emailParts[0]?.charAt(0).toUpperCase() + (emailParts[0]?.slice(1) || '');
+  const lastName = emailParts[1]?.charAt(0).toUpperCase() + (emailParts[1]?.slice(1) || '');
+
+  const now = new Date().toISOString();
+  
+  const { data: insertedUser, error: insertError } = await db
+    .from('users')
+    .insert({
+      id: userId,
+      email: email.toLowerCase(),
+      role: validRole,
+      status: AccountStatus.ACTIVE,
+      first_name: firstName || 'User',
+      last_name: lastName || '',
+      email_verified_at: now, // Supabase users are email-verified
+      created_at: now,
+      updated_at: now,
+    })
+    .select('id, email, role, status, first_name, last_name, photo_url, email_verified_at, created_at, updated_at')
+    .single();
+
+  if (insertError) {
+    // If insert fails (e.g., race condition), try fetching again
+    userWithProfile = await getUserWithProfile(userId);
+    if (userWithProfile) {
+      return userWithProfile;
+    }
+    // If still not found, throw error
+    throw new Error(`Failed to create user: ${insertError.message}`);
+  }
+
+  const user = mapDbRowToUser(insertedUser);
+
+  // If user is an agent, create agent profile
+  if (user.role === UserRole.AGENT) {
+    await db
+      .from('agent_profiles')
+      .insert({
+        user_id: userId,
+        verification_status: AgentVerificationStatus.NOT_SUBMITTED,
+        created_at: now,
+        updated_at: now,
+      })
+      .single();
+
+    // Also create agents table entry if it doesn't exist
+    await db
+      .from('agents')
+      .insert({
+        id: userId,
+        user_id: userId,
+        created_at: now,
+        updated_at: now,
+      })
+      .single();
+  }
+
+  return {
+    ...user,
+    agentProfile: null,
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // USER REGISTRATION
 // ─────────────────────────────────────────────────────────────────────────────

@@ -16,6 +16,7 @@ import {
 import {
   getUserById,
   getUserWithProfile,
+  getOrCreateUserFromGateway,
   updateUserProfile,
   getUserSettings,
   updateUserSettings,
@@ -81,15 +82,31 @@ const userIdParamSchema = z.object({
 /**
  * GET /users/me
  * Get the current user's profile.
+ * Auto-creates user from gateway auth info if they don't exist (for Supabase-authenticated users).
  */
 router.get('/me', requireAuth, async (req: Request, res: Response): Promise<void> => {
   const authReq = req as AuthenticatedRequest;
 
   try {
-    const userWithProfile = await getUserWithProfile(authReq.identity.sub);
+    // Get email and role from gateway-forwarded headers for auto-creation
+    const gatewayEmail = req.headers['x-user-email'] as string | undefined;
+    const gatewayRole = req.headers['x-user-role'] as string | undefined;
 
-    if (!userWithProfile) {
-      throw new UserNotFoundError(authReq.identity.sub);
+    // Use getOrCreateUserFromGateway which will auto-create if needed
+    let userWithProfile;
+    if (gatewayEmail) {
+      // User came through gateway with auth info - use auto-create
+      userWithProfile = await getOrCreateUserFromGateway(
+        authReq.identity.sub,
+        gatewayEmail,
+        gatewayRole || authReq.identity.role
+      );
+    } else {
+      // Direct call without gateway headers - try to get existing user
+      userWithProfile = await getUserWithProfile(authReq.identity.sub);
+      if (!userWithProfile) {
+        throw new UserNotFoundError(authReq.identity.sub);
+      }
     }
 
     sendSuccess(
