@@ -240,7 +240,7 @@ async function addComment(token: string, agentId: string, comment: string, docum
 
 export default function VerificationReviewPage() {
   const queryClient = useQueryClient();
-  const { token } = useAuth();
+  const { getAccessToken, isAuthenticated } = useAuth();
   const [page, setPage] = useState(1);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
@@ -255,28 +255,43 @@ export default function VerificationReviewPage() {
   // Fetch pending verifications
   const { data: pendingData, isLoading: isPendingLoading, refetch: refetchPending } = useQuery({
     queryKey: ['pending-verifications', page],
-    queryFn: () => fetchPendingVerifications(token!, page),
-    enabled: !!token,
+    queryFn: async () => {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Not authenticated');
+      return fetchPendingVerifications(token, page);
+    },
+    enabled: isAuthenticated,
   });
 
   // Fetch selected agent's documents
   const { data: agentData, isLoading: isAgentLoading, refetch: refetchAgent } = useQuery({
     queryKey: ['agent-documents', selectedAgentId],
-    queryFn: () => fetchAgentDocuments(token!, selectedAgentId!),
-    enabled: !!token && !!selectedAgentId,
+    queryFn: async () => {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Not authenticated');
+      return fetchAgentDocuments(token, selectedAgentId!);
+    },
+    enabled: isAuthenticated && !!selectedAgentId,
   });
 
   // Fetch agent comments
   const { data: commentsData } = useQuery({
     queryKey: ['agent-comments', selectedAgentId],
-    queryFn: () => fetchAgentComments(token!, selectedAgentId!),
-    enabled: !!token && !!selectedAgentId,
+    queryFn: async () => {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Not authenticated');
+      return fetchAgentComments(token, selectedAgentId!);
+    },
+    enabled: isAuthenticated && !!selectedAgentId,
   });
 
   // Mutations
   const approveMutation = useMutation({
-    mutationFn: ({ documentId, notes }: { documentId: string; notes?: string }) =>
-      approveDocument(token!, documentId, notes),
+    mutationFn: async ({ documentId, notes }: { documentId: string; notes?: string }) => {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Not authenticated');
+      return approveDocument(token, documentId, notes);
+    },
     onSuccess: () => {
       refetchPending();
       if (selectedAgentId) refetchAgent();
@@ -286,8 +301,11 @@ export default function VerificationReviewPage() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: ({ documentId, reason }: { documentId: string; reason: string }) =>
-      rejectDocument(token!, documentId, reason),
+    mutationFn: async ({ documentId, reason }: { documentId: string; reason: string }) => {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Not authenticated');
+      return rejectDocument(token, documentId, reason);
+    },
     onSuccess: () => {
       refetchPending();
       if (selectedAgentId) refetchAgent();
@@ -297,8 +315,11 @@ export default function VerificationReviewPage() {
   });
 
   const reuploadMutation = useMutation({
-    mutationFn: ({ documentId, reason }: { documentId: string; reason: string }) =>
-      requestReupload(token!, documentId, reason),
+    mutationFn: async ({ documentId, reason }: { documentId: string; reason: string }) => {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Not authenticated');
+      return requestReupload(token, documentId, reason);
+    },
     onSuccess: () => {
       refetchPending();
       if (selectedAgentId) refetchAgent();
@@ -308,8 +329,11 @@ export default function VerificationReviewPage() {
   });
 
   const commentMutation = useMutation({
-    mutationFn: ({ agentId, comment, documentId }: { agentId: string; comment: string; documentId?: string }) =>
-      addComment(token!, agentId, comment, documentId),
+    mutationFn: async ({ agentId, comment, documentId }: { agentId: string; comment: string; documentId?: string }) => {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Not authenticated');
+      return addComment(token, agentId, comment, documentId);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-comments', selectedAgentId] });
       setCommentText('');

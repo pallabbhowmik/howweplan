@@ -53,6 +53,7 @@ interface AuthContextValue extends AuthState {
   readonly getActionContext: () => AdminActionContext;
   readonly hasPermission: (permission: string) => boolean;
   readonly refreshSession: () => Promise<void>;
+  readonly getAccessToken: () => Promise<string | null>;
 }
 
 // ============================================================================
@@ -283,6 +284,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, []);
 
+  // Get current access token
+  const getAccessToken = useCallback(async (): Promise<string | null> => {
+    try {
+      const session = await getSession();
+      return session?.access_token ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const value: AuthContextValue = {
     ...state,
     signIn: handleSignIn,
@@ -290,6 +301,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     getActionContext,
     hasPermission,
     refreshSession,
+    getAccessToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
