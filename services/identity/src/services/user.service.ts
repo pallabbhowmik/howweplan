@@ -223,8 +223,10 @@ export async function getOrCreateUserFromGateway(
 
   // Extract name from email if available
   const emailParts = (email || 'unknown@example.com').split('@')[0].split(/[._-]/);
-  const firstName = emailParts[0]?.charAt(0).toUpperCase() + (emailParts[0]?.slice(1) || '');
-  const lastName = emailParts[1]?.charAt(0).toUpperCase() + (emailParts[1]?.slice(1) || '');
+  const firstPart = emailParts[0] || 'user';
+  const secondPart = emailParts[1] || '';
+  const firstName = firstPart.charAt(0).toUpperCase() + firstPart.slice(1);
+  const lastName = secondPart ? secondPart.charAt(0).toUpperCase() + secondPart.slice(1) : '';
 
   const now = new Date().toISOString();
   
