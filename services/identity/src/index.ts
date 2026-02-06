@@ -18,13 +18,18 @@ import { IdentityError } from './services/errors.js';
 import { closeDbConnection } from './services/database.js';
 import { shutdownEventEmitter } from './events/index.js';
 
-if (process.env.NODE_ENV === 'production') {
-  const noop = () => undefined;
-  console.log = noop;
-  console.info = noop;
-  console.warn = noop;
-  console.error = noop;
-  console.debug = noop;
+// Silence console in production AFTER startup to allow seeing startup errors
+let consoleEnabled = true;
+function silenceConsoleInProduction(): void {
+  if (process.env.NODE_ENV === 'production' && consoleEnabled) {
+    consoleEnabled = false;
+    const noop = () => undefined;
+    console.log = noop;
+    console.info = noop;
+    console.warn = noop;
+    console.debug = noop;
+    // Keep console.error for critical errors
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -136,6 +141,9 @@ const server = app.listen(env.PORT, () => {
 ║  Environment: ${env.NODE_ENV.padEnd(43)}║
 ╚════════════════════════════════════════════════════════════╝
   `);
+  
+  // Silence verbose logging after successful startup in production
+  silenceConsoleInProduction();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
