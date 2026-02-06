@@ -19,6 +19,26 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 
 // Track cleanup interval for graceful shutdown
 let cleanupIntervalId: NodeJS.Timeout | null = null;
+let isInitialized = false;
+
+/**
+ * Initialize the rate limit cleanup interval.
+ * Called automatically when the middleware is first used.
+ */
+function initializeRateLimitCleanup(): void {
+  if (isInitialized) return;
+  isInitialized = true;
+  
+  // Cleanup old entries periodically
+  cleanupIntervalId = setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of rateLimitStore) {
+      if (entry.resetAt < now) {
+        rateLimitStore.delete(key);
+      }
+    }
+  }, 60000); // Clean up every minute
+}
 
 /**
  * Stop the rate limit cleanup interval.
@@ -29,17 +49,8 @@ export function stopRateLimitCleanup(): void {
     clearInterval(cleanupIntervalId);
     cleanupIntervalId = null;
   }
+  isInitialized = false;
 }
-
-// Cleanup old entries periodically
-cleanupIntervalId = setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of rateLimitStore) {
-    if (entry.resetAt < now) {
-      rateLimitStore.delete(key);
-    }
-  }
-}, 60000); // Clean up every minute
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RATE LIMITING
@@ -64,6 +75,9 @@ export function rateLimit(
   maxRequests: number = env.RATE_LIMIT_MAX_REQUESTS,
   windowMs: number = env.RATE_LIMIT_WINDOW_MS
 ) {
+  // Initialize cleanup interval on first use
+  initializeRateLimitCleanup();
+  
   return (req: Request, res: Response, next: NextFunction): void => {
     const key = getRateLimitKey(req);
     const now = Date.now();

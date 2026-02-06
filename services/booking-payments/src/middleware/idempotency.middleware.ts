@@ -30,6 +30,22 @@ const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 let idempotencyCleanupInterval: NodeJS.Timeout | null = null;
 
 /**
+ * Initialize the idempotency cleanup interval.
+ * Called automatically when the middleware is first used.
+ */
+function initializeIdempotencyCleanup(): void {
+  if (idempotencyCleanupInterval) return;
+  idempotencyCleanupInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [key, record] of idempotencyStore.entries()) {
+      if (now - record.createdAt > IDEMPOTENCY_TTL_MS) {
+        idempotencyStore.delete(key);
+      }
+    }
+  }, 60 * 60 * 1000); // Clean up every hour
+}
+
+/**
  * Stop the idempotency cleanup interval.
  * Call this during graceful shutdown.
  */
@@ -39,15 +55,6 @@ export function stopIdempotencyCleanup(): void {
     idempotencyCleanupInterval = null;
   }
 }
-
-idempotencyCleanupInterval = setInterval(() => {
-  const now = Date.now();
-  for (const [key, record] of idempotencyStore.entries()) {
-    if (now - record.createdAt > IDEMPOTENCY_TTL_MS) {
-      idempotencyStore.delete(key);
-    }
-  }
-}, 60 * 60 * 1000); // Clean up every hour
 
 /**
  * Generate a fingerprint for the request body
@@ -61,6 +68,9 @@ function generateFingerprint(body: unknown): string {
  * Middleware to handle idempotent payment requests
  */
 export function idempotencyMiddleware(): RequestHandler {
+  // Initialize cleanup interval on first use
+  initializeIdempotencyCleanup();
+  
   return (req: Request, res: Response, next: NextFunction): void => {
     // Only apply to mutation methods
     if (!['POST', 'PUT', 'PATCH'].includes(req.method)) {

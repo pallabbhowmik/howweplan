@@ -153,6 +153,18 @@ export const rateLimitService = new RateLimitService();
 let rateLimitCleanupInterval: NodeJS.Timeout | null = null;
 
 /**
+ * Initialize the rate limit cleanup interval.
+ * Should be called during service startup.
+ */
+export function initializeRateLimitCleanup(): void {
+  if (rateLimitCleanupInterval) return;
+  // Cleanup expired entries every minute
+  rateLimitCleanupInterval = setInterval(() => {
+    rateLimitService.cleanup();
+  }, 60 * 1000);
+}
+
+/**
  * Stop the rate limit cleanup interval.
  * Call this during graceful shutdown.
  */
@@ -162,8 +174,3 @@ export function stopRateLimitCleanup(): void {
     rateLimitCleanupInterval = null;
   }
 }
-
-// Cleanup expired entries every minute
-rateLimitCleanupInterval = setInterval(() => {
-  rateLimitService.cleanup();
-}, 60 * 1000);

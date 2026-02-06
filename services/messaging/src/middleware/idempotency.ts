@@ -55,6 +55,15 @@ const store = new InMemoryIdempotencyStore();
 let idempotencyCleanupInterval: NodeJS.Timeout | null = null;
 
 /**
+ * Initialize the idempotency cleanup interval.
+ * Called automatically when the middleware is first used.
+ */
+function initializeIdempotencyCleanup(): void {
+  if (idempotencyCleanupInterval) return;
+  idempotencyCleanupInterval = setInterval(() => store.cleanup(), 60000);
+}
+
+/**
  * Stop the idempotency cleanup interval.
  * Call this during graceful shutdown.
  */
@@ -65,8 +74,6 @@ export function stopIdempotencyCleanup(): void {
   }
 }
 
-idempotencyCleanupInterval = setInterval(() => store.cleanup(), 60000);
-
 const TTL_SECONDS = 86400;
 
 function generateFingerprint(body: unknown): string {
@@ -76,6 +83,9 @@ function generateFingerprint(body: unknown): string {
 }
 
 export function idempotencyMiddleware(): RequestHandler {
+  // Initialize cleanup interval on first use
+  initializeIdempotencyCleanup();
+  
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (!['POST', 'PUT', 'PATCH'].includes(req.method)) {
       return next();
