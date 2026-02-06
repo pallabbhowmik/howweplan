@@ -68,10 +68,16 @@ function sendSuccess<T>(res: Response, data: T, correlationId: string, statusCod
 /**
  * Sends an error response.
  */
-function sendError(res: Response, error: IdentityError, correlationId: string): void {
-  res.status(error.statusCode).json({
+function sendError(res: Response, error: IdentityError | Error, correlationId: string): void {
+  const statusCode = error instanceof IdentityError ? error.statusCode : 500;
+  const errorData =
+    error instanceof IdentityError
+      ? error.toJSON()
+      : { code: 'INTERNAL_ERROR', message: error.message };
+
+  res.status(statusCode).json({
     success: false,
-    error: error.toJSON(),
+    error: errorData,
     requestId: correlationId,
     timestamp: new Date().toISOString(),
   });
@@ -124,11 +130,7 @@ router.get(
         authReq.correlationId
       );
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -164,11 +166,7 @@ router.patch(
         authReq.correlationId
       );
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -208,11 +206,7 @@ router.post(
         201
       );
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -241,11 +235,7 @@ router.get(
 
       sendSuccess(res, agentInfo, authReq.correlationId);
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -277,11 +267,7 @@ router.get(
 
       sendSuccess(res, publicIdentity, authReq.correlationId);
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -326,11 +312,7 @@ router.get(
 
       sendSuccess(res, fullIdentity, authReq.correlationId);
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -367,11 +349,7 @@ router.post(
 
       sendSuccess(res, { agents, notFound }, authReq.correlationId);
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -397,11 +375,7 @@ router.get(
       
       sendSuccess(res, { documents, progress }, authReq.correlationId);
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -577,11 +551,7 @@ router.get(
       
       sendSuccess(res, { comments, unreadCount }, authReq.correlationId);
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -602,11 +572,7 @@ router.get(
       
       sendSuccess(res, { comments, count: comments.length }, authReq.correlationId);
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -628,11 +594,7 @@ router.post(
       await indiaVerification.markCommentAsRead(authReq.identity!.sub, commentId);
       sendSuccess(res, { marked: true }, authReq.correlationId);
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -652,11 +614,7 @@ router.post(
       await indiaVerification.markAllCommentsAsRead(authReq.identity.sub);
       sendSuccess(res, { marked: true }, authReq.correlationId);
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -689,11 +647,7 @@ router.get(
       const profile = await indiaVerification.getOrCreateVerificationProfile(authReq.identity.sub, agentId);
       sendSuccess(res, profile, authReq.correlationId);
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -758,11 +712,7 @@ router.post(
       await indiaVerification.markFirstLoginPromptShown(authReq.identity.sub);
       sendSuccess(res, { marked: true }, authReq.correlationId);
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
