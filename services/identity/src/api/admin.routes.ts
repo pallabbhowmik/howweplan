@@ -87,10 +87,16 @@ function sendSuccess<T>(res: Response, data: T, correlationId: string, statusCod
 /**
  * Sends an error response.
  */
-function sendError(res: Response, error: IdentityError, correlationId: string): void {
-  res.status(error.statusCode).json({
+function sendError(res: Response, error: IdentityError | Error, correlationId: string): void {
+  const statusCode = error instanceof IdentityError ? error.statusCode : 500;
+  const errorData =
+    error instanceof IdentityError
+      ? error.toJSON()
+      : { code: 'INTERNAL_ERROR', message: error.message };
+
+  res.status(statusCode).json({
     success: false,
-    error: error.toJSON(),
+    error: errorData,
     requestId: correlationId,
     timestamp: new Date().toISOString(),
   });
@@ -294,11 +300,7 @@ router.get(
         authReq.correlationId
       );
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -351,11 +353,7 @@ router.get(
         authReq.correlationId
       );
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -396,11 +394,7 @@ router.patch(
         authReq.correlationId
       );
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -456,11 +450,7 @@ router.get(
         authReq.correlationId
       );
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -495,11 +485,7 @@ router.post(
         authReq.correlationId
       );
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -544,11 +530,7 @@ router.post(
         authReq.correlationId
       );
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -585,11 +567,7 @@ router.post(
         authReq.correlationId
       );
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );

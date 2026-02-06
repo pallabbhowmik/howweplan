@@ -82,10 +82,16 @@ function sendSuccess<T>(res: Response, data: T, correlationId: string, statusCod
 /**
  * Sends an error response.
  */
-function sendError(res: Response, error: IdentityError, correlationId: string): void {
-  res.status(error.statusCode).json({
+function sendError(res: Response, error: IdentityError | Error, correlationId: string): void {
+  const statusCode = error instanceof IdentityError ? error.statusCode : 500;
+  const errorData =
+    error instanceof IdentityError
+      ? error.toJSON()
+      : { code: 'INTERNAL_ERROR', message: error.message };
+
+  res.status(statusCode).json({
     success: false,
-    error: error.toJSON(),
+    error: errorData,
     requestId: correlationId,
     timestamp: new Date().toISOString(),
   });
@@ -197,11 +203,7 @@ router.post(
         201
       );
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -247,11 +249,7 @@ router.post(
         authReq.correlationId
       );
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -305,11 +303,7 @@ router.post(
         authReq.correlationId
       );
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -331,11 +325,7 @@ router.post('/logout', requireAuth, async (req: Request, res: Response): Promise
 
     sendSuccess(res, { message: 'Logged out successfully' }, authReq.correlationId);
   } catch (error) {
-    if (error instanceof IdentityError) {
-      sendError(res, error, authReq.correlationId);
-      return;
-    }
-    throw error;
+    sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
   }
 });
 
@@ -363,11 +353,7 @@ router.post(
 
       sendSuccess(res, { message: 'Password changed successfully' }, authReq.correlationId);
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -502,11 +488,7 @@ router.post(
 
       sendSuccess(res, { message: 'Password has been reset successfully. Please log in with your new password.' }, authReq.correlationId);
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
@@ -570,11 +552,7 @@ router.post(
 
       sendSuccess(res, { message: 'Email verified successfully.' }, authReq.correlationId);
     } catch (error) {
-      if (error instanceof IdentityError) {
-        sendError(res, error, authReq.correlationId);
-        return;
-      }
-      throw error;
+      sendError(res, error instanceof Error ? error : new Error(String(error)), authReq.correlationId);
     }
   }
 );
