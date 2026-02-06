@@ -260,11 +260,18 @@ CREATE POLICY "Admins can insert history"
 -- GRANT PERMISSIONS
 -- ============================================================================
 
+-- Grant permissions to authenticated role
 GRANT SELECT, INSERT, UPDATE ON verification_documents TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON verification_comments TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON agent_verification_profiles TO authenticated;
 GRANT SELECT ON verification_history TO authenticated;
 GRANT INSERT ON verification_history TO authenticated;
+
+-- Grant full permissions to service_role (for backend services using service role key)
+GRANT ALL ON verification_documents TO service_role;
+GRANT ALL ON verification_comments TO service_role;
+GRANT ALL ON agent_verification_profiles TO service_role;
+GRANT ALL ON verification_history TO service_role;
 
 -- ============================================================================
 -- COMMENTS
