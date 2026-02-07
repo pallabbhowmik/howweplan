@@ -125,6 +125,30 @@ function requireAgent(user: GatewayUser | null, res: ServerResponse): GatewayUse
   return user;
 }
 
+function requireAdmin(user: GatewayUser | null, res: ServerResponse): GatewayUser | null {
+  if (!user) {
+    logger.warn({ event: 'auth_failed', reason: 'no_user_headers', message: 'Missing X-User-Id or X-User-Role headers' });
+    sendJson(res, 401, { 
+      error: 'Unauthorized', 
+      code: 'AUTH_NO_HEADERS',
+      details: 'Missing authentication headers. The API Gateway should forward X-User-Id and X-User-Role headers.' 
+    });
+    return null;
+  }
+  if (String(user.role).toLowerCase() !== 'admin') {
+    logger.warn({ 
+      event: 'auth_forbidden', 
+      userId: user.userId, 
+      role: user.role, 
+      email: user.email,
+      message: `User role is '${user.role}' but 'admin' is required` 
+    });
+    sendJson(res, 403, { error: 'Forbidden', details: `Role '${user.role}' cannot access admin endpoints. Required: 'admin'` });
+    return null;
+  }
+  return user;
+}
+
 async function parseJsonBody(req: IncomingMessage): Promise<any> {
   return new Promise((resolve, reject) => {
     let body = '';
@@ -1058,6 +1082,293 @@ async function requestHandler(
     } catch (error) {
       logger.error({ err: error, agentId, userId, requestId, endpoint: '/api/v1/matches/verify' }, 'Failed to verify match');
       sendJson(res, 500, { success: false, error: 'Failed to verify match' });
+    }
+    return;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Admin API Endpoints
+  // ---------------------------------------------------------------------------
+
+  // GET /api/matching/v1/admin/matching/overrides - List matching overrides
+  if (url === '/api/matching/v1/admin/matching/overrides' && method === 'GET') {
+    const user = requireAdmin(getGatewayUser(req), res);
+    if (!user) return;
+
+    try {
+      const searchParams = parsedUrl?.searchParams;
+      const page = Math.max(Number(searchParams?.get('page') ?? '1'), 1);
+      const pageSize = Math.min(Math.max(Number(searchParams?.get('pageSize') ?? '25'), 1), 100);
+      const isActive = searchParams?.get('isActive');
+
+      // TODO: Implement matching_overrides table and query
+      // For now, return empty results to prevent 404
+      logger.info({ 
+        userId: user.userId, 
+        page, 
+        pageSize, 
+        isActive 
+      }, 'Admin fetching matching overrides (not implemented - returning empty)');
+
+      sendJson(res, 200, {
+        items: [],
+        pagination: {
+          page,
+          pageSize,
+          total: 0,
+          totalPages: 0,
+        },
+      });
+    } catch (error) {
+      logger.error({ err: error, userId: user.userId }, 'Failed to fetch matching overrides');
+      sendJson(res, 500, { error: 'Failed to fetch matching overrides' });
+    }
+    return;
+  }
+
+  // GET /api/matching/v1/admin/matching/overrides/:id - Get override details
+  if (url.match(/^\/api\/matching\/v1\/admin\/matching\/overrides\/[a-f0-9-]+$/) && method === 'GET') {
+    const user = requireAdmin(getGatewayUser(req), res);
+    if (!user) return;
+
+    try {
+      const overrideId = url.split('/').pop();
+      
+      // TODO: Implement matching_overrides table and query
+      logger.info({ userId: user.userId, overrideId }, 'Admin fetching override details (not implemented)');
+
+      sendJson(res, 404, { error: 'Override not found' });
+    } catch (error) {
+      logger.error({ err: error, userId: user.userId }, 'Failed to fetch override details');
+      sendJson(res, 500, { error: 'Failed to fetch override details' });
+    }
+    return;
+  }
+
+  // POST /api/matching/v1/admin/matching/overrides - Create new override
+  if (url === '/api/matching/v1/admin/matching/overrides' && method === 'POST') {
+    const user = requireAdmin(getGatewayUser(req), res);
+    if (!user) return;
+
+    try {
+      const body = await parseJsonBody(req);
+      const { type, tripRequestId, agentId, expiresAt, reason } = body;
+
+      if (!type || !tripRequestId || !reason) {
+        sendJson(res, 400, { error: 'Missing required fields: type, tripRequestId, reason' });
+        return;
+      }
+
+      // TODO: Implement matching_overrides table and insert
+      logger.info({ 
+        userId: user.userId, 
+        type, 
+        tripRequestId, 
+        agentId, 
+        reason 
+      }, 'Admin creating matching override (not implemented)');
+
+      // Return a mock response for now
+      const mockOverride = {
+        id: `mock-${Date.now()}`,
+        type,
+        tripRequestId,
+        agentId: agentId || null,
+        expiresAt: expiresAt || null,
+        createdBy: user.userId,
+        reason,
+        createdAt: new Date().toISOString(),
+        isActive: true,
+      };
+
+      sendJson(res, 201, mockOverride);
+    } catch (error) {
+      logger.error({ err: error, userId: user.userId }, 'Failed to create matching override');
+      sendJson(res, 500, { error: 'Failed to create matching override' });
+    }
+    return;
+  }
+
+  // POST /api/matching/v1/admin/matching/overrides/:id/cancel - Cancel override
+  if (url.match(/^\/api\/matching\/v1\/admin\/matching\/overrides\/[a-f0-9-]+\/cancel$/) && method === 'POST') {
+    const user = requireAdmin(getGatewayUser(req), res);
+    if (!user) return;
+
+    try {
+      const pathParts = url.split('/');
+      const overrideId = pathParts[pathParts.length - 2];
+      const body = await parseJsonBody(req);
+      const { reason } = body;
+
+      if (!reason) {
+        sendJson(res, 400, { error: 'Missing required field: reason' });
+        return;
+      }
+
+      // TODO: Implement matching_overrides table and update
+      logger.info({ 
+        userId: user.userId, 
+        overrideId, 
+        reason 
+      }, 'Admin cancelling matching override (not implemented)');
+
+      // Return a mock response for now
+      sendJson(res, 200, {
+        id: overrideId,
+        isActive: false,
+        cancelledAt: new Date().toISOString(),
+        cancelledBy: user.userId,
+      });
+    } catch (error) {
+      logger.error({ err: error, userId: user.userId }, 'Failed to cancel matching override');
+      sendJson(res, 500, { error: 'Failed to cancel matching override' });
+    }
+    return;
+  }
+
+  // GET /api/matching/v1/admin/matching/pending-requests - Get pending trip requests
+  if (url === '/api/matching/v1/admin/matching/pending-requests' && method === 'GET') {
+    const user = requireAdmin(getGatewayUser(req), res);
+    if (!user) return;
+
+    try {
+      const searchParams = parsedUrl?.searchParams;
+      const page = Math.max(Number(searchParams?.get('page') ?? '1'), 1);
+      const pageSize = Math.min(Math.max(Number(searchParams?.get('pageSize') ?? '50'), 1), 100);
+      const offset = (page - 1) * pageSize;
+
+      logger.info({ 
+        userId: user.userId, 
+        page, 
+        pageSize 
+      }, 'Admin fetching pending trip requests');
+
+      // Query travel_requests that are open/pending with few or no matches
+      const { rows: requests } = await query<{
+        id: string;
+        title: string;
+        destination: unknown;
+        departure_date: string;
+        return_date: string;
+        state: string;
+        created_at: string;
+        user_id: string;
+        match_count: string;
+      }>(
+        `
+        SELECT 
+          tr.id,
+          tr.title,
+          tr.destination,
+          tr.departure_date::text as departure_date,
+          tr.return_date::text as return_date,
+          tr.state,
+          tr.created_at::text as created_at,
+          tr.user_id,
+          COUNT(am.id)::text as match_count,
+          EXTRACT(day FROM NOW() - tr.created_at)::int as waiting_days
+        FROM travel_requests tr
+        LEFT JOIN agent_matches am ON am.request_id = tr.id
+        WHERE tr.state IN ('open', 'matching')
+          AND (tr.expires_at IS NULL OR tr.expires_at > NOW())
+        GROUP BY tr.id, tr.title, tr.destination, tr.departure_date, tr.return_date, 
+                 tr.state, tr.created_at, tr.user_id
+        HAVING COUNT(am.id) < 3
+        ORDER BY tr.created_at DESC
+        LIMIT $1 OFFSET $2
+        `,
+        [pageSize, offset]
+      );
+
+      const { rows: countResult } = await query<{ count: string }>(
+        `
+        SELECT COUNT(DISTINCT tr.id)::text as count
+        FROM travel_requests tr
+        LEFT JOIN agent_matches am ON am.request_id = tr.id
+        WHERE tr.state IN ('open', 'matching')
+          AND (tr.expires_at IS NULL OR tr.expires_at > NOW())
+        GROUP BY tr.id
+        HAVING COUNT(am.id) < 3
+        `
+      );
+
+      const total = parseInt(countResult[0]?.count || '0');
+      const totalPages = Math.ceil(total / pageSize);
+
+      const items = requests.map(r => ({
+        id: r.id,
+        title: r.title,
+        destination: r.destination,
+        startDate: r.departure_date,
+        endDate: r.return_date,
+        status: r.state,
+        userId: r.user_id,
+        waitingDays: Math.floor((Date.now() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24)),
+        matchCount: parseInt(r.match_count),
+      }));
+
+      sendJson(res, 200, {
+        items,
+        pagination: {
+          page,
+          pageSize,
+          total,
+          totalPages,
+        },
+      });
+    } catch (error) {
+      logger.error({ err: error, userId: user.userId }, 'Failed to fetch pending trip requests');
+      sendJson(res, 500, { error: 'Failed to fetch pending trip requests' });
+    }
+    return;
+  }
+
+  // GET /api/matching/v1/admin/matching/available-agents/:tripRequestId - Get available agents
+  if (url.match(/^\/api\/matching\/v1\/admin\/matching\/available-agents\/[a-f0-9-]+$/) && method === 'GET') {
+    const user = requireAdmin(getGatewayUser(req), res);
+    if (!user) return;
+
+    try {
+      const tripRequestId = url.split('/').pop();
+
+      logger.info({ 
+        userId: user.userId, 
+        tripRequestId 
+      }, 'Admin fetching available agents for trip request');
+
+      // Query available and verified agents
+      const { rows: agents } = await query<{
+        user_id: string;
+        email: string;
+        first_name: string;
+        last_name: string;
+      }>(
+        `
+        SELECT 
+          u.id as user_id,
+          u.email,
+          u.first_name,
+          u.last_name
+        FROM agents a
+        JOIN users u ON u.id = a.user_id
+        WHERE a.is_verified = true 
+          AND a.is_available = true
+        LIMIT 50
+        `,
+        []
+      );
+
+      const items = agents.map(a => ({
+        id: a.user_id,
+        email: a.email,
+        firstName: a.first_name,
+        lastName: a.last_name,
+      }));
+
+      sendJson(res, 200, items);
+    } catch (error) {
+      logger.error({ err: error, userId: user.userId }, 'Failed to fetch available agents');
+      sendJson(res, 500, { error: 'Failed to fetch available agents' });
     }
     return;
   }

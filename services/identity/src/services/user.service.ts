@@ -208,14 +208,27 @@ export async function getOrCreateUserFromGateway(
 ): Promise<UserWithProfile> {
   const db = getDbClient();
 
-  // First try to find existing user
+  // First try to find existing user by ID
   let userWithProfile = await getUserWithProfile(userId);
   
   if (userWithProfile) {
     return userWithProfile;
   }
 
-  // User doesn't exist, create them from gateway info
+  // Not found by ID, check if user exists with this email (possible ID mismatch)
+  const userByEmail = await getUserByEmail(email);
+  if (userByEmail) {
+    // User exists with same email but different ID
+    // This can happen if Supabase user ID doesn't match our DB user ID
+    // Return the existing user to avoid duplicate email constraint violation
+    console.warn(`User ID mismatch: Gateway userId=${userId}, but DB userId=${userByEmail.id} for email=${email}. Returning existing user.`);
+    const profile = await getUserWithProfile(userByEmail.id);
+    if (profile) {
+      return profile;
+    }
+  }
+
+  // User doesn't exist at all, create them from gateway info
   const normalizedRole = (role || 'user').toLowerCase() as UserRole;
   const validRole = (Object.values(UserRole) as string[]).includes(normalizedRole)
     ? normalizedRole
@@ -248,10 +261,19 @@ export async function getOrCreateUserFromGateway(
     .single();
 
   if (insertError) {
-    // If insert fails (e.g., race condition), try fetching again
+    // If insert fails due to duplicate, try fetching again by both ID and email
     userWithProfile = await getUserWithProfile(userId);
     if (userWithProfile) {
       return userWithProfile;
+    }
+    // Check by email as well (race condition might have created it with same email)
+    const existingByEmail = await getUserByEmail(email);
+    if (existingByEmail) {
+      const profile = await getUserWithProfile(existingByEmail.id);
+      if (profile) {
+        console.warn(`Concurrent creation detected: returning existing user by email after insert failed`);
+        return profile;
+      }
     }
     // If still not found, throw error
     throw new Error(`Failed to create user: ${insertError.message}`);
