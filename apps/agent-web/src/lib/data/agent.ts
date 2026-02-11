@@ -1296,6 +1296,11 @@ export type AgentItinerary = {
     title: string;
     description?: string;
     activities: string[];
+    photos?: Array<{
+      dataUrl: string;
+      caption?: string;
+      category?: 'hotel' | 'location' | 'activity' | 'food' | 'transport' | 'view' | 'other';
+    }>;
   }>;
   version: number;
   termsAndConditions?: string;
@@ -1442,6 +1447,17 @@ export type CreateItineraryInput = {
     exclusions?: string[];
     paymentTerms?: string;
   };
+  dayPlans?: Array<{
+    dayNumber: number;
+    title: string;
+    description?: string;
+    activities: string[];
+    photos?: Array<{
+      dataUrl: string;
+      caption?: string;
+      category?: 'hotel' | 'location' | 'activity' | 'food' | 'transport' | 'view' | 'other';
+    }>;
+  }>;
   termsAndConditions?: string;
   cancellationPolicy?: string;
   internalNotes?: string;
@@ -1491,6 +1507,11 @@ export type UpdateItineraryInput = {
     title: string;
     description?: string;
     activities: string[];
+    photos?: Array<{
+      dataUrl: string;
+      caption?: string;
+      category?: 'hotel' | 'location' | 'activity' | 'food' | 'transport' | 'view' | 'other';
+    }>;
   }>;
   termsAndConditions?: string;
   cancellationPolicy?: string;

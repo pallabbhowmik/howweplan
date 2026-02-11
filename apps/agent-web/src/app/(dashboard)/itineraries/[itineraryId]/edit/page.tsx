@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -18,6 +18,10 @@ import {
   RefreshCw,
   GripVertical,
   Clock,
+  ImagePlus,
+  X,
+  Lock,
+  Camera,
 } from 'lucide-react';
 import {
   Button,
@@ -47,16 +51,24 @@ import {
   type UpdateItineraryInput,
   type UpdateProposalInput,
 } from '@/lib/data/agent';
+import { compressImage, formatFileSize, estimatePhotosSize, type CompressedImage } from '@/lib/utils/image-compression';
 
 // ============================================================================
 // TYPES
 // ============================================================================
+
+interface DayPhoto {
+  dataUrl: string;
+  caption?: string;
+  category: 'hotel' | 'location' | 'activity' | 'food' | 'transport' | 'view' | 'other';
+}
 
 interface DayPlan {
   dayNumber: number;
   title: string;
   description: string;
   activities: string[];
+  photos: DayPhoto[];
 }
 
 interface FormState {
@@ -120,11 +132,22 @@ function generateDayPlans(numberOfDays: number, existingDays: DayPlan[] = []): D
         title: `Day ${i}`,
         description: '',
         activities: [''],
+        photos: [],
       });
     }
   }
   return days;
 }
+
+const PHOTO_CATEGORIES: Array<{ value: DayPhoto['category']; label: string; emoji: string }> = [
+  { value: 'hotel', label: 'Hotel', emoji: '🏨' },
+  { value: 'location', label: 'Location', emoji: '📍' },
+  { value: 'activity', label: 'Activity', emoji: '🎯' },
+  { value: 'food', label: 'Food', emoji: '🍽️' },
+  { value: 'transport', label: 'Transport', emoji: '🚗' },
+  { value: 'view', label: 'View', emoji: '🌄' },
+  { value: 'other', label: 'Other', emoji: '📸' },
+];
 
 // ============================================================================
 // MAIN COMPONENT
@@ -141,6 +164,8 @@ export default function EditItineraryPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [itinerary, setItinerary] = useState<AgentItinerary | null>(null);
+  const [uploadingDay, setUploadingDay] = useState<number | null>(null);
+  const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   const [form, setForm] = useState<FormState>({
     title: '',
@@ -217,6 +242,11 @@ export default function EditItineraryPage() {
                 title: dp.title || `Day ${dp.dayNumber}`,
                 description: dp.description || '',
                 activities: dp.activities || [],
+                photos: (dp.photos || []).map(p => ({
+                  dataUrl: p.dataUrl,
+                  caption: p.caption || '',
+                  category: (p.category || 'other') as DayPhoto['category'],
+                })),
               }))
             : (data.items || []).reduce((acc: DayPlan[], item) => {
                 const dayNum = item.dayNumber || 1;
@@ -229,6 +259,7 @@ export default function EditItineraryPage() {
                     title: `Day ${dayNum}`,
                     description: '',
                     activities: [item.title],
+                    photos: [],
                   });
                 }
                 return acc;
@@ -306,6 +337,7 @@ export default function EditItineraryPage() {
           title: day.title,
           description: day.description || undefined,
           activities: day.activities.filter(a => a.trim()),
+          photos: day.photos.length > 0 ? day.photos : undefined,
         })),
         termsAndConditions: form.termsAndConditions || undefined,
         cancellationPolicy: form.cancellationPolicy || undefined,
@@ -368,6 +400,7 @@ export default function EditItineraryPage() {
   }
 
   const isSubmitted = ['submitted', 'under_review'].includes(itinerary?.status?.toLowerCase() || '');
+  const isFinalized = ['approved', 'completed', 'rejected', 'cancelled', 'archived'].includes(itinerary?.status?.toLowerCase() || '');
   const commissionRate = agent?.commissionRate ?? 0.1;
   const commissionAmount = Math.max(0, Math.round(form.totalPrice * commissionRate));
   const payoutAmount = Math.max(0, form.totalPrice - commissionAmount);
@@ -438,6 +471,29 @@ export default function EditItineraryPage() {
             <p className="font-semibold text-red-800">Error</p>
             <p className="text-sm text-red-600">{error}</p>
           </div>
+        </div>
+      )}
+
+      {/* Finalized Lock Banner */}
+      {isFinalized && (
+        <div className="bg-slate-100 border-2 border-slate-300 rounded-xl p-6 flex items-center gap-4">
+          <div className="h-12 w-12 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
+            <Lock className="h-6 w-6 text-slate-500" />
+          </div>
+          <div>
+            <p className="font-semibold text-slate-800 text-lg">This itinerary is finalized</p>
+            <p className="text-slate-600 mt-1">
+              The plan has been {itinerary?.status?.toLowerCase()} and can no longer be edited. 
+              You can view it in read-only mode.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/itineraries/${itineraryId}`)}
+            className="ml-auto shrink-0"
+          >
+            View Itinerary
+          </Button>
         </div>
       )}
 
@@ -713,6 +769,157 @@ export default function EditItineraryPage() {
                           Add Activity
                         </Button>
                       </div>
+
+                      {/* Photos Section */}
+                      <div className="space-y-3 pt-2 border-t border-gray-100">
+                        <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                          <Camera className="h-4 w-4 text-violet-500" />
+                          Photos
+                          <span className="text-xs text-gray-400 font-normal">
+                            ({day.photos.length}/6 • {formatFileSize(estimatePhotosSize(day.photos.map(p => p.dataUrl)))})
+                          </span>
+                        </Label>
+
+                        {/* Photo Grid */}
+                        {day.photos.length > 0 && (
+                          <div className="grid grid-cols-3 gap-3">
+                            {day.photos.map((photo, photoIndex) => (
+                              <div key={photoIndex} className="relative group rounded-lg overflow-hidden border-2 border-gray-100 hover:border-violet-300 transition-colors">
+                                <img
+                                  src={photo.dataUrl}
+                                  alt={photo.caption || `Day ${day.dayNumber} photo ${photoIndex + 1}`}
+                                  className="w-full h-24 object-cover"
+                                />
+                                {/* Category badge */}
+                                <div className="absolute top-1 left-1">
+                                  <span className="text-xs bg-black/60 text-white px-1.5 py-0.5 rounded-full backdrop-blur-sm">
+                                    {PHOTO_CATEGORIES.find(c => c.value === photo.category)?.emoji || '📸'} {photo.category}
+                                  </span>
+                                </div>
+                                {/* Remove button */}
+                                {!isFinalized && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newDays = [...form.days];
+                                      newDays[dayIndex].photos = day.photos.filter((_, i) => i !== photoIndex);
+                                      setForm({ ...form, days: newDays });
+                                    }}
+                                    className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                )}
+                                {/* Caption input */}
+                                {!isFinalized && (
+                                  <input
+                                    type="text"
+                                    value={photo.caption || ''}
+                                    onChange={(e) => {
+                                      const newDays = [...form.days];
+                                      newDays[dayIndex].photos[photoIndex].caption = e.target.value;
+                                      setForm({ ...form, days: newDays });
+                                    }}
+                                    placeholder="Caption..."
+                                    className="w-full text-xs px-2 py-1 bg-gray-50 border-t focus:outline-none focus:bg-white"
+                                  />
+                                )}
+                                {/* Category selector */}
+                                {!isFinalized && (
+                                  <select
+                                    value={photo.category}
+                                    onChange={(e) => {
+                                      const newDays = [...form.days];
+                                      newDays[dayIndex].photos[photoIndex].category = e.target.value as DayPhoto['category'];
+                                      setForm({ ...form, days: newDays });
+                                    }}
+                                    className="w-full text-xs px-2 py-1 bg-gray-50 border-t focus:outline-none"
+                                  >
+                                    {PHOTO_CATEGORIES.map(cat => (
+                                      <option key={cat.value} value={cat.value}>
+                                        {cat.emoji} {cat.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Upload button */}
+                        {!isFinalized && day.photos.length < 6 && (
+                          <>
+                            <input
+                              ref={(el) => { fileInputRefs.current[dayIndex] = el; }}
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              className="hidden"
+                              onChange={async (e) => {
+                                const files = e.target.files;
+                                if (!files || files.length === 0) return;
+                                
+                                const remaining = 6 - day.photos.length;
+                                const filesToProcess = Array.from(files).slice(0, remaining);
+                                
+                                setUploadingDay(dayIndex);
+                                try {
+                                  const compressed = await Promise.all(
+                                    filesToProcess.map(file => compressImage(file, {
+                                      maxWidth: 1200,
+                                      maxHeight: 900,
+                                      quality: 0.7,
+                                      maxSizeBytes: 150 * 1024,
+                                    }))
+                                  );
+                                  
+                                  const newPhotos: DayPhoto[] = compressed.map(img => ({
+                                    dataUrl: img.dataUrl,
+                                    caption: '',
+                                    category: 'other' as const,
+                                  }));
+
+                                  const newDays = [...form.days];
+                                  newDays[dayIndex].photos = [...day.photos, ...newPhotos];
+                                  setForm({ ...form, days: newDays });
+                                } catch (err) {
+                                  setError(err instanceof Error ? err.message : 'Failed to compress image');
+                                } finally {
+                                  setUploadingDay(null);
+                                  // Reset file input
+                                  if (fileInputRefs.current[dayIndex]) {
+                                    fileInputRefs.current[dayIndex]!.value = '';
+                                  }
+                                }
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={uploadingDay === dayIndex}
+                              className="text-violet-600 border-violet-200 hover:bg-violet-50 hover:border-violet-300"
+                              onClick={() => fileInputRefs.current[dayIndex]?.click()}
+                            >
+                              {uploadingDay === dayIndex ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                  Compressing...
+                                </>
+                              ) : (
+                                <>
+                                  <ImagePlus className="h-4 w-4 mr-1" />
+                                  Add Photos ({6 - day.photos.length} remaining)
+                                </>
+                              )}
+                            </Button>
+                            <p className="text-xs text-gray-400">
+                              Photos are auto-compressed to ~150KB each. Add hotel, location, activity photos to make your proposal stand out.
+                            </p>
+                          </>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -946,6 +1153,7 @@ export default function EditItineraryPage() {
         </Card>
 
         {/* Submit Buttons */}
+        {!isFinalized && (
         <div className="flex items-center justify-end gap-4 pt-4 pb-8">
           <Button
             type="button"
@@ -974,6 +1182,7 @@ export default function EditItineraryPage() {
             )}
           </Button>
         </div>
+        )}
       </form>
     </div>
   );

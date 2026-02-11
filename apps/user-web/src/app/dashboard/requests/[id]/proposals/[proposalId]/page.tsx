@@ -81,6 +81,11 @@ interface DayPlan {
   title: string;
   description?: string;
   activities: string[];
+  photos?: Array<{
+    dataUrl: string;
+    caption?: string;
+    category?: 'hotel' | 'location' | 'activity' | 'food' | 'transport' | 'view' | 'other';
+  }>;
 }
 
 // =============================================================================
@@ -698,6 +703,43 @@ export default function ProposalDetailPage() {
                           <p className="text-muted-foreground italic text-center py-2">
                             No activities planned for this day yet.
                           </p>
+                        )}
+
+                        {/* Photo Gallery */}
+                        {dayPlan.photos && dayPlan.photos.length > 0 && (
+                          <div className="mt-6 pt-4 border-t">
+                            <h4 className="font-medium text-gray-700 flex items-center gap-2 mb-3">
+                              <Camera className="h-4 w-4" />
+                              Photos
+                            </h4>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                              {dayPlan.photos.map((photo, photoIdx) => {
+                                const categoryLabels: Record<string, string> = {
+                                  hotel: '🏨 Hotel', location: '📍 Location', activity: '🎯 Activity',
+                                  food: '🍽️ Food', transport: '🚗 Transport', view: '🌄 View', other: '📷 Other',
+                                };
+                                return (
+                                  <div key={photoIdx} className="relative rounded-xl overflow-hidden border shadow-sm group">
+                                    <img
+                                      src={photo.dataUrl}
+                                      alt={photo.caption || `Day ${dayPlan.dayNumber} photo ${photoIdx + 1}`}
+                                      className="w-full h-44 object-cover transition-transform group-hover:scale-105"
+                                    />
+                                    <div className="absolute top-2 left-2">
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-black/50 text-white backdrop-blur-sm">
+                                        {categoryLabels[photo.category || 'other'] || '📷 Other'}
+                                      </span>
+                                    </div>
+                                    {photo.caption && (
+                                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-3">
+                                        <p className="text-xs text-white">{photo.caption}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
                         )}
                       </CardContent>
                     </Card>

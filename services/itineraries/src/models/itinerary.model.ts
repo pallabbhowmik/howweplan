@@ -62,6 +62,12 @@ export const dayPlanSchema = z.object({
   title: z.string().max(200),
   description: z.string().max(2000).optional(),
   activities: z.array(z.string().max(500)).max(20).default([]),
+  /** Compressed photo data URLs (base64 WebP/JPEG, max ~150KB each) */
+  photos: z.array(z.object({
+    dataUrl: z.string(),
+    caption: z.string().max(200).optional(),
+    category: z.enum(['hotel', 'location', 'activity', 'food', 'transport', 'view', 'other']).default('other'),
+  })).max(6).default([]),
 });
 
 export type DayPlan = z.infer<typeof dayPlanSchema>;
@@ -127,6 +133,7 @@ export const createItinerarySchema = z.object({
   overview: tripOverviewSchema,
   pricing: pricingInfoSchema.optional(),
   items: z.array(createItineraryItemSchema).default([]),
+  dayPlans: z.array(dayPlanSchema).max(365).optional(),
   termsAndConditions: z.string().max(10000).optional(),
   cancellationPolicy: z.string().max(5000).optional(),
   internalNotes: z.string().max(5000).optional(),

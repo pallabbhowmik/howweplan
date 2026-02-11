@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -34,6 +34,8 @@ import {
   ChevronRight,
   Copy,
   Eye,
+  ImagePlus,
+  X,
 } from 'lucide-react';
 import {
   Button,
@@ -64,17 +66,35 @@ import {
 } from '@/lib/data/agent';
 import { TemplatePicker, type ItineraryTemplate } from '@/components/templates';
 import { recordTemplateUsage } from '@/lib/data/templates';
+import { compressImages, type CompressedImage } from '@/lib/utils/image-compression';
 
 // ============================================================================
 // TYPES
 // ============================================================================
+
+interface DayPhoto {
+  dataUrl: string;
+  caption?: string;
+  category: 'hotel' | 'location' | 'activity' | 'food' | 'transport' | 'view' | 'other';
+}
 
 interface DayPlan {
   dayNumber: number;
   title: string;
   description: string;
   activities: string[];
+  photos: DayPhoto[];
 }
+
+const PHOTO_CATEGORIES = [
+  { value: 'hotel', label: '🏨 Hotel' },
+  { value: 'location', label: '📍 Location' },
+  { value: 'activity', label: '🎯 Activity' },
+  { value: 'food', label: '🍽️ Food' },
+  { value: 'transport', label: '🚗 Transport' },
+  { value: 'view', label: '🌄 View' },
+  { value: 'other', label: '📷 Other' },
+] as const;
 
 interface FormState {
   title: string;
@@ -498,6 +518,9 @@ function DayPlanCard({
   onRemove: () => void;
   canRemove: boolean;
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
   const addActivity = () => {
     onChange({ ...day, activities: [...day.activities, ''] });
   };
@@ -510,6 +533,46 @@ function DayPlanCard({
 
   const removeActivity = (index: number) => {
     onChange({ ...day, activities: day.activities.filter((_, i) => i !== index) });
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    const remaining = 6 - (day.photos?.length || 0);
+    if (remaining <= 0) return;
+    setUploading(true);
+    try {
+      const compressed = await compressImages(
+        Array.from(files).slice(0, remaining)
+      );
+      const newPhotos: DayPhoto[] = compressed.map((img) => ({
+        dataUrl: img.dataUrl,
+        caption: '',
+        category: 'other' as const,
+      }));
+      onChange({ ...day, photos: [...(day.photos || []), ...newPhotos] });
+    } catch (err) {
+      console.error('Photo compression failed:', err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    onChange({ ...day, photos: day.photos.filter((_, i) => i !== index) });
+  };
+
+  const updatePhotoCaption = (index: number, caption: string) => {
+    const photos = [...day.photos];
+    photos[index] = { ...photos[index], caption };
+    onChange({ ...day, photos });
+  };
+
+  const updatePhotoCategory = (index: number, category: DayPhoto['category']) => {
+    const photos = [...day.photos];
+    photos[index] = { ...photos[index], category };
+    onChange({ ...day, photos });
   };
 
   return (
@@ -567,6 +630,91 @@ function DayPlanCard({
             ))}
           </div>
         </div>
+
+        {/* Photo Upload Section */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <Label className="flex items-center gap-2">
+              <Camera className="h-4 w-4" />
+              Photos
+              <span className="text-xs text-gray-400 font-normal">({day.photos?.length || 0}/6)</span>
+            </Label>
+          </div>
+
+          {/* Existing Photos Grid */}
+          {day.photos && day.photos.length > 0 && (
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              {day.photos.map((photo, photoIdx) => (
+                <div key={photoIdx} className="relative group rounded-lg overflow-hidden border bg-gray-50">
+                  <img src={photo.dataUrl} alt={photo.caption || ''} className="w-full h-28 object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(photoIdx)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                  <div className="p-1.5 space-y-1">
+                    <input
+                      type="text"
+                      placeholder="Caption..."
+                      value={photo.caption || ''}
+                      onChange={(e) => updatePhotoCaption(photoIdx, e.target.value)}
+                      className="w-full text-xs border rounded px-1.5 py-0.5"
+                      maxLength={200}
+                    />
+                    <select
+                      value={photo.category}
+                      onChange={(e) => updatePhotoCategory(photoIdx, e.target.value as DayPhoto['category'])}
+                      className="w-full text-xs border rounded px-1 py-0.5"
+                    >
+                      {PHOTO_CATEGORIES.map((cat) => (
+                        <option key={cat.value} value={cat.value}>{cat.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Upload Button */}
+          {(day.photos?.length || 0) < 6 && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full border-dashed"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Compressing...
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus className="h-4 w-4 mr-2" />
+                    Add Photos ({6 - (day.photos?.length || 0)} remaining)
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-gray-400 mt-1">
+                Max 6 photos per day. Auto-compressed to reduce size.
+              </p>
+            </>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
@@ -607,7 +755,7 @@ function NewItineraryPageContent() {
     termsAndConditions: '',
     cancellationPolicy: '',
     internalNotes: '',
-    days: [{ dayNumber: 1, title: '', description: '', activities: [''] }],
+    days: [{ dayNumber: 1, title: '', description: '', activities: [''], photos: [] }],
   });
 
   // Load request details
@@ -670,7 +818,7 @@ function NewItineraryPageContent() {
         // Add more days
         const newDays = [...form.days];
         for (let i = form.days.length; i < numberOfDays; i++) {
-          newDays.push({ dayNumber: i + 1, title: '', description: '', activities: [''] });
+          newDays.push({ dayNumber: i + 1, title: '', description: '', activities: [''], photos: [] });
         }
         setForm((prev) => ({ ...prev, days: newDays }));
       }
@@ -691,7 +839,7 @@ function NewItineraryPageContent() {
   const addDay = () => {
     setForm((prev) => ({
       ...prev,
-      days: [...prev.days, { dayNumber: prev.days.length + 1, title: '', description: '', activities: [''] }],
+      days: [...prev.days, { dayNumber: prev.days.length + 1, title: '', description: '', activities: [''], photos: [] }],
     }));
   };
 
@@ -718,6 +866,7 @@ function NewItineraryPageContent() {
           title: day.title || '',
           description: day.notes || day.description || '', // Support both 'notes' and 'description'
           activities: activityNames,
+          photos: [],
         });
       });
     }
@@ -795,6 +944,17 @@ function NewItineraryPageContent() {
         termsAndConditions: form.termsAndConditions,
         cancellationPolicy: form.cancellationPolicy,
         internalNotes: form.internalNotes,
+        dayPlans: form.days.map((day) => ({
+          dayNumber: day.dayNumber,
+          title: day.title,
+          description: day.description,
+          activities: day.activities.filter(Boolean),
+          photos: (day.photos || []).map((p) => ({
+            dataUrl: p.dataUrl,
+            caption: p.caption || undefined,
+            category: p.category,
+          })),
+        })),
       };
 
       const result = await createItinerary(input);

@@ -25,6 +25,9 @@ import {
   Share2,
   Eye,
   MessageSquare,
+  Lock,
+  Camera,
+  ImageIcon,
 } from 'lucide-react';
 import {
   Button,
@@ -278,6 +281,22 @@ export default function ItineraryDetailPage() {
   // Determine if we have day plans to display
   const hasDayPlans = dayPlans.length > 0;
 
+  // Finalization check
+  const isFinalized = ['approved', 'completed', 'rejected', 'cancelled', 'archived'].includes(
+    itinerary.status?.toLowerCase() || ''
+  );
+
+  // Photo category labels
+  const PHOTO_CATEGORY_LABELS: Record<string, string> = {
+    hotel: '🏨 Hotel',
+    location: '📍 Location',
+    activity: '🎯 Activity',
+    food: '🍽️ Food',
+    transport: '🚗 Transport',
+    view: '🌄 View',
+    other: '📷 Other',
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
@@ -370,6 +389,21 @@ export default function ItineraryDetailPage() {
         )}>
           {actionMessage.type === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
           {actionMessage.text}
+        </div>
+      )}
+
+      {/* Finalization Lock Banner */}
+      {isFinalized && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center gap-3">
+          <Lock className="h-5 w-5 text-amber-600 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-800">
+              This itinerary is finalized
+            </p>
+            <p className="text-xs text-amber-600">
+              Status: {statusConfig.label}. No further edits can be made.
+            </p>
+          </div>
         </div>
       )}
 
@@ -699,6 +733,37 @@ export default function ItineraryDetailPage() {
                           </div>
                         ) : (
                           <p className="text-gray-500 italic">No activities planned for this day.</p>
+                        )}
+
+                        {/* Photo Gallery */}
+                        {(dayPlan as any).photos && (dayPlan as any).photos.length > 0 && (
+                          <div className="mt-6 pt-4 border-t">
+                            <h4 className="font-medium text-gray-700 flex items-center gap-2 mb-3">
+                              <Camera className="h-4 w-4" />
+                              Photos ({(dayPlan as any).photos.length})
+                            </h4>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                              {(dayPlan as any).photos.map((photo: any, photoIdx: number) => (
+                                <div key={photoIdx} className="group relative rounded-lg overflow-hidden border bg-gray-50">
+                                  <img
+                                    src={photo.dataUrl}
+                                    alt={photo.caption || `Day ${dayPlan.dayNumber} photo ${photoIdx + 1}`}
+                                    className="w-full h-40 object-cover"
+                                  />
+                                  <div className="absolute top-2 left-2">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-black/60 text-white backdrop-blur-sm">
+                                      {PHOTO_CATEGORY_LABELS[photo.category] || '📷 Other'}
+                                    </span>
+                                  </div>
+                                  {photo.caption && (
+                                    <div className="p-2 bg-white">
+                                      <p className="text-xs text-gray-600 truncate">{photo.caption}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </CardContent>
                     </Card>
