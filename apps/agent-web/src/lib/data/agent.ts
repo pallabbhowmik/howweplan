@@ -907,6 +907,7 @@ export async function listAgentBookings(options?: {
                 firstName: user.first_name ?? user.firstName ?? 'Client',
                 lastName: user.last_name ?? user.lastName ?? '',
                 email: user.email ?? '',
+                avatarUrl: user.avatar_url ?? user.avatarUrl ?? null,
               },
             };
           }
@@ -921,6 +922,7 @@ export async function listAgentBookings(options?: {
           firstName: 'Client',
           lastName: '',
           email: '',
+          avatarUrl: null,
         },
       };
     })
@@ -998,6 +1000,7 @@ export async function getAgentBookingById(bookingId: string): Promise<AgentBooki
           firstName: user.first_name ?? user.firstName ?? 'Client',
           lastName: user.last_name ?? user.lastName ?? '',
           email: user.email ?? '',
+          avatarUrl: user.avatar_url ?? user.avatarUrl ?? null,
         };
       }
     } catch {
@@ -1011,6 +1014,7 @@ export async function getAgentBookingById(bookingId: string): Promise<AgentBooki
       firstName: 'Client',
       lastName: '',
       email: '',
+      avatarUrl: null,
     };
   }
 
