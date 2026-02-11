@@ -212,7 +212,6 @@ export default function DisputesPage() {
   const copyDisputeLink = useCallback((disputeId: string) => {
     const link = `${window.location.origin}/dashboard/disputes?id=${disputeId}`;
     navigator.clipboard.writeText(link).then(() => {
-      console.log('Link copied');
     });
   }, []);
 

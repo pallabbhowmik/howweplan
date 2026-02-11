@@ -178,7 +178,6 @@ export async function addToWishlist(input: WishlistCreateInput): Promise<Wishlis
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : '';
     if (message.includes('already in wishlist')) {
-      console.log('Item already in wishlist');
       return null;
     }
     console.error('Error adding to wishlist:', err);

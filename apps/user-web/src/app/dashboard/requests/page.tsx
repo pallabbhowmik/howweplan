@@ -24,7 +24,10 @@ import { useUserSession } from '@/lib/user/session';
 import { fetchUserRequests, type TravelRequest } from '@/lib/data/api';
 import { useDebounce } from '@/lib/utils/debounce';
 
+import { usePageTitle } from '@/hooks/use-page-title';
+
 export default function RequestsPage() {
+  usePageTitle('My Requests');
   const { user, loading: userLoading } = useUserSession();
   const [requests, setRequests] = useState<TravelRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,14 +80,48 @@ export default function RequestsPage() {
 
   if (userLoading || loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-xl opacity-30 animate-pulse" />
-            <Loader2 className="relative h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+      <div className="space-y-6 p-6 animate-pulse">
+        {/* Hero skeleton */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="h-8 w-48 bg-slate-200 rounded mb-2" />
+            <div className="h-4 w-72 bg-slate-100 rounded" />
           </div>
-          <p className="text-slate-500 font-medium">Loading your requests...</p>
+          <div className="h-10 w-40 bg-blue-100 rounded-lg" />
         </div>
+        {/* Stats skeleton */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-xl border p-4">
+              <div className="h-3 w-16 bg-slate-200 rounded mb-2" />
+              <div className="h-7 w-10 bg-slate-300 rounded" />
+            </div>
+          ))}
+        </div>
+        {/* Search + filter skeleton */}
+        <div className="flex gap-3">
+          <div className="h-10 flex-1 bg-slate-100 rounded-lg" />
+          <div className="h-10 w-24 bg-slate-100 rounded-lg" />
+          <div className="h-10 w-24 bg-slate-100 rounded-lg" />
+        </div>
+        {/* Request card skeletons */}
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="bg-white rounded-xl border p-5 flex gap-4">
+            <div className="w-1 rounded-full bg-slate-200 self-stretch" />
+            <div className="flex-1 space-y-3">
+              <div className="flex justify-between">
+                <div className="h-5 w-40 bg-slate-200 rounded" />
+                <div className="h-5 w-20 bg-slate-100 rounded-full" />
+              </div>
+              <div className="flex gap-4">
+                <div className="h-4 w-28 bg-slate-100 rounded" />
+                <div className="h-4 w-20 bg-slate-100 rounded" />
+                <div className="h-4 w-24 bg-slate-100 rounded" />
+              </div>
+              <div className="h-4 w-32 bg-slate-100 rounded" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

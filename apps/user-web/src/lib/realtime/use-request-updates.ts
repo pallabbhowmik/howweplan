@@ -138,15 +138,12 @@ export function useRequestUpdates(options: UseRequestUpdatesOptions): UseRequest
         wsUrl.searchParams.set('userId', userId);
       }
 
-      console.log('[RequestUpdates] Connecting WebSocket:', wsUrl.toString());
-      
       const ws = new WebSocket(wsUrl.toString());
       wsRef.current = ws;
 
       ws.onopen = () => {
         if (!mountedRef.current) return;
         
-        console.log('[RequestUpdates] WebSocket connected');
         setIsConnected(true);
         setIsPolling(false);
         setError(null);
@@ -205,7 +202,6 @@ export function useRequestUpdates(options: UseRequestUpdatesOptions): UseRequest
       ws.onclose = (event) => {
         if (!mountedRef.current) return;
         
-        console.log('[RequestUpdates] WebSocket closed:', event.code, event.reason);
         setIsConnected(false);
         wsRef.current = null;
 
@@ -222,14 +218,11 @@ export function useRequestUpdates(options: UseRequestUpdatesOptions): UseRequest
             WS_RECONNECT_MAX_DELAY
           );
           
-          console.log(`[RequestUpdates] Reconnecting in ${delay}ms (attempt ${reconnectAttemptRef.current + 1})`);
-          
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectAttemptRef.current++;
             
             // Fall back to polling after 3 failed attempts
             if (reconnectAttemptRef.current > 3) {
-              console.log('[RequestUpdates] Falling back to polling');
               startPolling();
             } else {
               connectWebSocket();
@@ -248,7 +241,6 @@ export function useRequestUpdates(options: UseRequestUpdatesOptions): UseRequest
   const startPolling = useCallback(() => {
     if (!enabled || !requestId || pollIntervalRef.current) return;
 
-    console.log('[RequestUpdates] Starting polling fallback');
     setIsPolling(true);
 
     const poll = async () => {
@@ -315,7 +307,6 @@ export function useRequestUpdates(options: UseRequestUpdatesOptions): UseRequest
     if (enabled && requestId) {
       // Skip WebSocket if disabled (e.g., Render.com free tier doesn't support it)
       if (!WEBSOCKET_ENABLED) {
-        console.log('[RequestUpdates] WebSocket disabled, using polling');
         startPolling();
         return;
       }
@@ -326,7 +317,6 @@ export function useRequestUpdates(options: UseRequestUpdatesOptions): UseRequest
       // If WebSocket doesn't connect within 5 seconds, fall back to polling
       const fallbackTimeout = setTimeout(() => {
         if (!isConnected && !isPolling) {
-          console.log('[RequestUpdates] WebSocket timeout, starting polling');
           startPolling();
         }
       }, 5000);

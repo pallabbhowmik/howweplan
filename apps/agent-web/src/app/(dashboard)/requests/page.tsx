@@ -485,7 +485,6 @@ export default function RequestsPage() {
     agentId: agent.agentId,
     enabled: true,
     onUpdate: (event) => {
-      console.log('[Requests] Realtime update received:', event);
       // Refresh request data when we receive an update
       loadRequests();
     },
@@ -679,11 +678,30 @@ export default function RequestsPage() {
 
       {/* Results */}
       {loading ? (
-        <Card>
-          <CardContent className="py-16 text-center text-gray-500">
-            <p>Loading matched requests…</p>
-          </CardContent>
-        </Card>
+        <div className="space-y-4 animate-pulse">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-5">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="space-y-2 flex-1">
+                    <div className="h-5 w-44 bg-slate-200 rounded" />
+                    <div className="h-3 w-32 bg-slate-100 rounded" />
+                  </div>
+                  <div className="h-6 w-20 bg-slate-100 rounded-full" />
+                </div>
+                <div className="flex gap-4 mb-3">
+                  <div className="h-4 w-28 bg-slate-100 rounded" />
+                  <div className="h-4 w-20 bg-slate-100 rounded" />
+                  <div className="h-4 w-24 bg-slate-100 rounded" />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <div className="h-9 w-24 bg-slate-100 rounded-md" />
+                  <div className="h-9 w-24 bg-blue-100 rounded-md" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : error ? (
         <Card>
           <CardContent className="py-16 text-center">

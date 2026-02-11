@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Settings,
   Bell,
@@ -69,7 +69,10 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
   );
 }
 
+import { usePageTitle } from '@/hooks/use-page-title';
+
 export default function SettingsPage() {
+  usePageTitle('Settings');
   const { user, loading: userLoading } = useUserSession();
   const [saving, setSaving] = useState(false);
   const [savedSection, setSavedSection] = useState<string | null>(null);
@@ -114,6 +117,12 @@ export default function SettingsPage() {
     confirm: false,
   });
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  
+  // Account deletion modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Load user settings on mount
   useEffect(() => {
@@ -252,24 +261,27 @@ export default function SettingsPage() {
     showToast('All other devices have been signed out', 'success');
   };
 
-  const handleDeleteAccount = () => {
-    const confirmed = window.confirm(
-      'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.'
-    );
-    if (confirmed) {
-      const doubleConfirmed = window.confirm(
-        'This is your final warning. Type "DELETE" in the next prompt to confirm account deletion.'
-      );
-      if (doubleConfirmed) {
-        const input = window.prompt('Type DELETE to confirm:');
-        if (input === 'DELETE') {
-          showToast('Account deletion requested. You will receive a confirmation email.', 'success');
-        } else {
-          showToast('Account deletion cancelled.', 'error');
-        }
-      }
+  const handleDeleteAccount = useCallback(() => {
+    setShowDeleteModal(true);
+    setDeleteStep(1);
+    setDeleteConfirmText('');
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (deleteStep === 1) {
+      setDeleteStep(2);
+      return;
     }
-  };
+    if (deleteConfirmText !== 'DELETE') return;
+    setIsDeleting(true);
+    // In production, call the account deletion API
+    await new Promise(r => setTimeout(r, 500));
+    showToast('Account deletion requested. You will receive a confirmation email.', 'success');
+    setShowDeleteModal(false);
+    setIsDeleting(false);
+    setDeleteStep(1);
+    setDeleteConfirmText('');
+  }, [deleteStep, deleteConfirmText]);
 
   if (userLoading || loadingSettings) {
     return (
@@ -983,6 +995,88 @@ export default function SettingsPage() {
           onClose={() => setToast(null)} 
         />
       )}
+
+      {/* Account Deletion Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !isDeleting && setShowDeleteModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-0 overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-red-600 to-rose-600 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <Trash2 className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Delete Account</h3>
+                  <p className="text-sm text-red-100">This action is permanent and irreversible</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="px-6 py-5">
+              {deleteStep === 1 ? (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                    <div className="text-sm text-red-800">
+                      <p className="font-semibold mb-1">You will permanently lose:</p>
+                      <ul className="list-disc list-inside space-y-1 text-red-700">
+                        <li>All your travel requests and proposals</li>
+                        <li>Booking history and payment records</li>
+                        <li>Messages and conversations</li>
+                        <li>Wishlist items and preferences</li>
+                        <li>Account and login credentials</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    Are you absolutely sure you want to proceed? This cannot be undone.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-700">
+                    Type <span className="font-mono font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">DELETE</span> below to confirm permanent account deletion:
+                  </p>
+                  <Input
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="Type DELETE to confirm"
+                    className="font-mono text-center text-lg tracking-widest border-red-200 focus:border-red-400 focus:ring-red-200"
+                    autoFocus
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 pb-6 flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { setShowDeleteModal(false); setDeleteStep(1); setDeleteConfirmText(''); }}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleDeleteConfirm}
+                disabled={deleteStep === 2 && deleteConfirmText !== 'DELETE' || isDeleting}
+              >
+                {isDeleting ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</>
+                ) : deleteStep === 1 ? (
+                  'Yes, I want to delete'
+                ) : (
+                  'Permanently Delete Account'
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1032,7 +1126,7 @@ function ToggleItem({
   const colors = colorClasses[color];
 
   return (
-    <div className="group/toggle flex items-center justify-between py-3 px-4 rounded-xl hover:bg-slate-50 transition-all cursor-pointer" onClick={onToggle}>
+    <div className="group/toggle flex items-center justify-between py-3 px-4 rounded-xl hover:bg-slate-50 transition-all cursor-pointer" role="switch" aria-checked={enabled} tabIndex={0} onClick={onToggle} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}>
       <div className="flex items-center gap-3">
         <div className={`p-2.5 rounded-xl transition-colors ${colors.iconBg} ${colors.iconText}`}>
           {icon}

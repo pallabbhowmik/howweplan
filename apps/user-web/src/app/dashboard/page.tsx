@@ -113,7 +113,10 @@ function getTimeAgo(dateString: string): string {
 // MAIN COMPONENT
 // ============================================================================
 
+import { usePageTitle } from '@/hooks/use-page-title';
+
 export default function DashboardPage() {
+  usePageTitle('Dashboard');
   const router = useRouter();
   const { user, loading: userLoading, error: userError } = useUserSession();
   const [requests, setRequests] = useState<TravelRequest[]>([]);

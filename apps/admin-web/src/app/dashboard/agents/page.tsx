@@ -777,9 +777,12 @@ function AgentRow({
         slaStatus.status === 'warning' && "border-l-4 border-l-yellow-500"
       )}
       onClick={onSelect}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); } }}
     >
       <div className="flex items-center gap-4">
-        <div onClick={(e) => { e.stopPropagation(); onCheck(); }} className="cursor-pointer">
+        <div role="checkbox" aria-checked={isChecked} tabIndex={0} onClick={(e) => { e.stopPropagation(); onCheck(); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onCheck(); } }} className="cursor-pointer">
           {isChecked ? (
             <CheckSquare className="h-5 w-5 text-primary" />
           ) : (

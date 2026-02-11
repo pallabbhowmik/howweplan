@@ -623,7 +623,7 @@ function NotificationItem({
   }
 
   return (
-    <div className={className} onClick={onClick}>
+    <div className={className} role="button" tabIndex={0} onClick={onClick} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } }}>
       {content}
     </div>
   );

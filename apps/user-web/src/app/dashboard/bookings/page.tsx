@@ -26,7 +26,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useUserSession } from '@/lib/user/session';
 import { fetchUserBookings, type Booking } from '@/lib/data/api';
 
+import { usePageTitle } from '@/hooks/use-page-title';
+
 export default function BookingsPage() {
+  usePageTitle('Bookings');
   const { user, loading: userLoading } = useUserSession();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);

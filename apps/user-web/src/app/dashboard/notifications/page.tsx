@@ -42,7 +42,10 @@ type NotificationFilter = 'all' | 'unread' | 'proposals' | 'messages' | 'booking
 
 const POLL_INTERVAL = 30000; // 30 seconds for real-time updates
 
+import { usePageTitle } from '@/hooks/use-page-title';
+
 export default function NotificationsPage() {
+  usePageTitle('Notifications');
   const { user, loading: userLoading } = useUserSession();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +69,6 @@ export default function NotificationsPage() {
         );
         if (newNotifications.length > 0 && !silent) {
           // Could trigger a toast or sound here
-          console.log(`${newNotifications.length} new notification(s)`);
         }
         return data;
       });

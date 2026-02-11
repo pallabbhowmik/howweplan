@@ -153,9 +153,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
         error: null,
       });
     } catch (error) {
-      console.error('Failed to load admin profile from API, using mock data:', error);
+      console.error('Failed to load admin profile from API:', error);
       
+      // Only allow mock fallback in development mode
+      if (process.env.NODE_ENV !== 'development') {
+        setState({
+          isAuthenticated: false,
+          isLoading: false,
+          admin: null,
+          sessionId: null,
+          error: 'Failed to authenticate. Please contact your system administrator.',
+        });
+        return;
+      }
+
       // Development fallback: use mock admin profile
+      console.warn('[DEV MODE] Using mock admin profile — this will NOT work in production');
       const mockProfile: AdminUser = {
         id: 'a0000000-0000-0000-0000-000000000001',
         email: email || 'admin@howweplan.com',
@@ -183,14 +196,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const handleSignIn = useCallback(async (email: string, password: string) => {
     setState((prev: AuthState) => ({ ...prev, isLoading: true, error: null }));
 
-    // Development mode: allow mock credentials
+    // Development mode: allow mock credentials (never in production)
     const isDev = process.env.NODE_ENV === 'development';
-    const validDevCredentials = 
-      (email === 'admin@howweplan.com' && password === 'TripAdmin@2025') ||
-      (email === 'admin@demo.com' && password === 'admin123');
+    const devAdminEmail = process.env.NEXT_PUBLIC_DEV_ADMIN_EMAIL || 'admin@howweplan.com';
+    const devAdminPassword = process.env.NEXT_PUBLIC_DEV_ADMIN_PASSWORD || 'TripAdmin@2025';
+    const validDevCredentials = isDev && (
+      (email === devAdminEmail && password === devAdminPassword) ||
+      (email === 'admin@demo.com' && password === 'admin123')
+    );
 
     if (isDev && validDevCredentials) {
       // Use mock authentication for development
+      console.warn('[DEV MODE] Using mock admin credentials');
       const mockProfile: AdminUser = {
         id: 'a0000000-0000-0000-0000-000000000001',
         email: email,

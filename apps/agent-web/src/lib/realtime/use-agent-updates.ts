@@ -129,15 +129,12 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions): UseAgentUpdate
         wsUrl.searchParams.set('requestId', requestId);
       }
 
-      console.log('[AgentUpdates] Connecting WebSocket:', wsUrl.toString());
-      
       const ws = new WebSocket(wsUrl.toString());
       wsRef.current = ws;
 
       ws.onopen = () => {
         if (!mountedRef.current) return;
         
-        console.log('[AgentUpdates] WebSocket connected');
         setIsConnected(true);
         setIsPolling(false);
         setError(null);
@@ -196,7 +193,6 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions): UseAgentUpdate
       ws.onclose = (event) => {
         if (!mountedRef.current) return;
         
-        console.log('[AgentUpdates] WebSocket closed:', event.code, event.reason);
         setIsConnected(false);
         wsRef.current = null;
 
@@ -213,14 +209,11 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions): UseAgentUpdate
             WS_RECONNECT_MAX_DELAY
           );
           
-          console.log(`[AgentUpdates] Reconnecting in ${delay}ms (attempt ${reconnectAttemptRef.current + 1})`);
-          
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectAttemptRef.current++;
             
             // Fall back to polling after 3 failed attempts
             if (reconnectAttemptRef.current > 3) {
-              console.log('[AgentUpdates] Falling back to polling');
               startPolling();
             } else {
               connectWebSocket();
@@ -239,7 +232,6 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions): UseAgentUpdate
   const startPolling = useCallback(() => {
     if (!enabled || !agentId || pollIntervalRef.current) return;
 
-    console.log('[AgentUpdates] Starting polling fallback');
     setIsPolling(true);
 
     const poll = async () => {
@@ -309,7 +301,6 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions): UseAgentUpdate
     if (enabled && agentId) {
       // Skip WebSocket if disabled (e.g., Render.com free tier doesn't support it)
       if (!WEBSOCKET_ENABLED) {
-        console.log('[AgentUpdates] WebSocket disabled, using polling');
         startPolling();
         return;
       }
@@ -320,7 +311,6 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions): UseAgentUpdate
       // If WebSocket doesn't connect within 5 seconds, fall back to polling
       const fallbackTimeout = setTimeout(() => {
         if (!isConnected && !isPolling) {
-          console.log('[AgentUpdates] WebSocket timeout, starting polling');
           startPolling();
         }
       }, 5000);

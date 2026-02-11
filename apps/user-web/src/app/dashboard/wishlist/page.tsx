@@ -49,7 +49,10 @@ interface TabConfig {
 // WISHLIST PAGE COMPONENT
 // ============================================================================
 
+import { usePageTitle } from '@/hooks/use-page-title';
+
 export default function WishlistPage() {
+  usePageTitle('Wishlist');
   const router = useRouter();
   
   // Data state
@@ -72,6 +75,10 @@ export default function WishlistPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+  const [editingItem, setEditingItem] = useState<WishlistItem | null>(null);
+  const [editNotes, setEditNotes] = useState('');
+  const [editPriority, setEditPriority] = useState(0);
 
   // ============================================================================
   // DATA FETCHING
@@ -207,9 +214,32 @@ export default function WishlistPage() {
   }, []);
 
   const handleEditItem = useCallback((item: WishlistItem) => {
-    // TODO: Open edit modal
-    console.log('Edit item:', item);
+    setEditingItem(item);
+    setEditNotes(item.notes || '');
+    setEditPriority(item.priority || 0);
   }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingItem) return;
+    setUpdatingId(editingItem.id);
+    try {
+      const updated = await updateWishlistItem(editingItem.id, {
+        notes: editNotes || undefined,
+        priority: editPriority,
+      });
+      if (updated) {
+        setItems(prev => prev.map(i =>
+          i.id === editingItem.id ? { ...i, notes: editNotes || undefined, priority: editPriority } : i
+        ));
+      }
+    } catch (err) {
+      console.error('Error updating item:', err);
+      setError('Failed to update item.');
+    } finally {
+      setUpdatingId(null);
+      setEditingItem(null);
+    }
+  }, [editingItem, editNotes, editPriority]);
 
   const handleToggleNotify = useCallback(async (item: WishlistItem) => {
     setUpdatingId(item.id);
@@ -240,13 +270,12 @@ export default function WishlistPage() {
   }, [router]);
 
   const handleClearAll = useCallback(async () => {
-    if (!confirm('Are you sure you want to clear all wishlist items?')) return;
-    
     const itemsToDelete = activeTab === 'all' 
       ? items 
       : items.filter(item => item.itemType === activeTab);
     
     setIsLoading(true);
+    setShowClearAllConfirm(false);
     try {
       await Promise.all(itemsToDelete.map(item => removeWishlistItem(item.id)));
       await loadWishlist();
@@ -337,7 +366,7 @@ export default function WishlistPage() {
                 </button>
                 {filteredItems.length > 0 && (
                   <button
-                    onClick={handleClearAll}
+                    onClick={() => setShowClearAllConfirm(true)}
                     className="flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
                   >
                     <Trash2 size={16} />
@@ -601,6 +630,94 @@ export default function WishlistPage() {
           </div>
         )}
       </div>
+
+      {/* Clear All Confirmation Dialog */}
+      {showClearAllConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowClearAllConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-full">
+                <Trash2 className="h-5 w-5 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Clear Wishlist</h3>
+            </div>
+            <p className="text-sm text-slate-600 mb-6">
+              Are you sure you want to remove {activeTab !== 'all' 
+                ? `all ${tabConfigs.find(t => t.type === activeTab)?.label?.toLowerCase()} items` 
+                : `all ${items.length} wishlist items`}? This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowClearAllConfirm(false)}
+                className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 font-medium text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearAll}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium text-sm transition-colors"
+              >
+                Clear All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Item Modal */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditingItem(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-slate-900 mb-1">Edit Wishlist Item</h3>
+            <p className="text-sm text-slate-500 mb-5 truncate">{editingItem.itemName}</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Notes</label>
+                <textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Add personal notes about this item..."
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Priority (0-10)</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0}
+                    max={10}
+                    value={editPriority}
+                    onChange={(e) => setEditPriority(Number(e.target.value))}
+                    className="flex-1 accent-blue-600"
+                  />
+                  <span className="text-sm font-mono font-bold text-slate-700 w-6 text-center">{editPriority}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setEditingItem(null)}
+                className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 font-medium text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={updatingId === editingItem.id}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium text-sm transition-colors disabled:opacity-50"
+              >
+                {updatingId === editingItem.id ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

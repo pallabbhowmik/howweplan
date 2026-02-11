@@ -635,8 +635,13 @@ async function requestHandler(
     return;
   }
 
-  // Debug endpoint to show received headers - helps diagnose gateway issues
+  // Debug endpoint to show received headers — admin-only in production
   if (url === '/debug/headers' && method === 'GET') {
+    const user = getGatewayUser(req);
+    if (process.env.NODE_ENV === 'production' && !user) {
+      sendJson(res, 401, { error: 'Unauthorized' });
+      return;
+    }
     const relevantHeaders = {
       'x-user-id': req.headers['x-user-id'] ?? 'NOT SET',
       'x-user-role': req.headers['x-user-role'] ?? 'NOT SET',
@@ -653,8 +658,13 @@ async function requestHandler(
     return;
   }
 
-  // Debug endpoint to check agent status
+  // Debug endpoint to check agent status — admin-only in production
   if (url === '/debug/agents' && method === 'GET') {
+    const user = getGatewayUser(req);
+    if (process.env.NODE_ENV === 'production' && !user) {
+      sendJson(res, 401, { error: 'Unauthorized' });
+      return;
+    }
     try {
       const { rows: stats } = await query<{ 
         total: string; 

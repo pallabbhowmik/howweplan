@@ -120,10 +120,8 @@ export async function startConversation(
   agentId: string,
   bookingId?: string | null
 ): Promise<{ conversationId: string }> {
-  console.log('[startConversation] Creating conversation - userId:', userId, 'agentId:', agentId, 'bookingId:', bookingId);
   try {
     const response: any = await gwCreateConversation(userId, agentId, bookingId);
-    console.log('[startConversation] Response:', response);
     const conversation = response?.data ?? response;
     if (!conversation?.id) {
       console.error('[startConversation] No conversation ID in response:', response);

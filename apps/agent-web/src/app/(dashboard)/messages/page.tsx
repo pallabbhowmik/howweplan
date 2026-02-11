@@ -530,7 +530,6 @@ export default function MessagesPage() {
           filter: `conversation_id=eq.${selectedConversation}`,
         },
         (payload) => {
-          console.log('[agent-web] Realtime message received:', payload);
           const row: any = payload.new;
           const next: ConversationMessage = {
             id: row.id,
@@ -547,7 +546,6 @@ export default function MessagesPage() {
         }
       )
       .subscribe((status) => {
-        console.log('[agent-web] Realtime subscription status:', status);
       });
 
     return () => {
@@ -713,9 +711,17 @@ export default function MessagesPage() {
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {conversationsLoading ? (
-            <div className="p-8 text-center">
-              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-              <p className="text-sm text-slate-500">Loading conversations…</p>
+            <div className="p-3 space-y-3 animate-pulse">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-xl">
+                  <div className="w-10 h-10 rounded-full bg-slate-200 flex-shrink-0" />
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="h-4 w-24 bg-slate-200 rounded" />
+                    <div className="h-3 w-36 bg-slate-100 rounded" />
+                  </div>
+                  <div className="h-3 w-10 bg-slate-100 rounded" />
+                </div>
+              ))}
             </div>
           ) : conversationsError ? (
             <div className="p-4 text-center">
@@ -898,10 +904,29 @@ export default function MessagesPage() {
               className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-slate-50/50 to-white relative"
             >
               {messagesLoading ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                    <p className="text-sm text-slate-500">Loading messages…</p>
+                <div className="space-y-4 p-4 animate-pulse">
+                  {/* Incoming message skeleton */}
+                  <div className="flex gap-2 max-w-[70%]">
+                    <div className="w-8 h-8 rounded-full bg-slate-200 flex-shrink-0" />
+                    <div className="space-y-2">
+                      <div className="h-16 w-48 bg-slate-200 rounded-2xl rounded-tl-sm" />
+                      <div className="h-3 w-12 bg-slate-100 rounded" />
+                    </div>
+                  </div>
+                  {/* Outgoing message skeleton */}
+                  <div className="flex justify-end">
+                    <div className="space-y-2 items-end flex flex-col">
+                      <div className="h-12 w-56 bg-indigo-100 rounded-2xl rounded-tr-sm" />
+                      <div className="h-3 w-12 bg-slate-100 rounded" />
+                    </div>
+                  </div>
+                  {/* Another incoming */}
+                  <div className="flex gap-2 max-w-[70%]">
+                    <div className="w-8 h-8 rounded-full bg-slate-200 flex-shrink-0" />
+                    <div className="space-y-2">
+                      <div className="h-20 w-64 bg-slate-200 rounded-2xl rounded-tl-sm" />
+                      <div className="h-3 w-12 bg-slate-100 rounded" />
+                    </div>
                   </div>
                 </div>
               ) : messagesError ? (

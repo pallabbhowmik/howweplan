@@ -58,11 +58,24 @@ export default function ContactPage() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setIsSubmitting(false);
-    setIsSubmitted(true);
+    try {
+      // Store contact submission in localStorage as a fallback
+      // until a dedicated contact-form microservice is available
+      const submission = {
+        ...formData,
+        submittedAt: new Date().toISOString(),
+        id: crypto.randomUUID(),
+      };
+      const existing = JSON.parse(localStorage.getItem('contact_submissions') || '[]');
+      existing.push(submission);
+      localStorage.setItem('contact_submissions', JSON.stringify(existing));
+      
+      setIsSubmitted(true);
+    } catch (error) {
+      console.error('Failed to submit contact form:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const categories = [

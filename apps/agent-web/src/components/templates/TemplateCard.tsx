@@ -36,6 +36,7 @@ const budgetColors: Record<string, string> = {
 export function TemplateCard({ template, onSelect, onUpdate, compact = false }: TemplateCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isFavorite, setIsFavorite] = useState(template.isFavorite);
+  const [confirmAction, setConfirmAction] = useState<'archive' | 'delete' | null>(null);
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -66,29 +67,28 @@ export function TemplateCard({ template, onSelect, onUpdate, compact = false }: 
 
   const handleArchive = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Archive this template?')) return;
-    setIsLoading(true);
-    try {
-      await archiveTemplate(template.id);
-      onUpdate?.();
-    } catch (error) {
-      console.error('Failed to archive:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    setConfirmAction('archive');
   };
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Permanently delete this template? This cannot be undone.')) return;
+    setConfirmAction('delete');
+  };
+
+  const executeConfirmedAction = async () => {
     setIsLoading(true);
     try {
-      await deleteTemplate(template.id);
+      if (confirmAction === 'archive') {
+        await archiveTemplate(template.id);
+      } else if (confirmAction === 'delete') {
+        await deleteTemplate(template.id);
+      }
       onUpdate?.();
     } catch (error) {
-      console.error('Failed to delete:', error);
+      console.error(`Failed to ${confirmAction}:`, error);
     } finally {
       setIsLoading(false);
+      setConfirmAction(null);
     }
   };
 
@@ -129,7 +129,7 @@ export function TemplateCard({ template, onSelect, onUpdate, compact = false }: 
   return (
     <div
       onClick={() => onSelect?.(template)}
-      className={`p-4 border rounded-lg cursor-pointer transition-all hover:border-blue-400 hover:shadow-md ${
+      className={`relative p-4 border rounded-lg cursor-pointer transition-all hover:border-blue-400 hover:shadow-md ${
         isLoading ? 'opacity-50' : ''
       }`}
     >
@@ -231,6 +231,54 @@ export function TemplateCard({ template, onSelect, onUpdate, compact = false }: 
           <span>Last: {new Date(template.lastUsedAt).toLocaleDateString()}</span>
         )}
       </div>
+
+      {/* Inline confirmation overlay */}
+      {confirmAction && (
+        <div
+          className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center p-4 z-10"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
+            confirmAction === 'delete' ? 'bg-red-100' : 'bg-amber-100'
+          }`}>
+            {confirmAction === 'delete' ? (
+              <Trash2 className="w-5 h-5 text-red-600" />
+            ) : (
+              <Archive className="w-5 h-5 text-amber-600" />
+            )}
+          </div>
+          <p className="text-sm font-medium text-gray-900 text-center">
+            {confirmAction === 'delete'
+              ? 'Delete this template permanently?'
+              : 'Archive this template?'}
+          </p>
+          <p className="text-xs text-gray-500 mt-1 text-center">
+            {confirmAction === 'delete'
+              ? 'This cannot be undone.'
+              : 'You can restore it later from archives.'}
+          </p>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={(e) => { e.stopPropagation(); setConfirmAction(null); }}
+              className="px-3 py-1.5 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+              disabled={isLoading}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); executeConfirmedAction(); }}
+              className={`px-3 py-1.5 text-sm rounded-md text-white ${
+                confirmAction === 'delete'
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-amber-600 hover:bg-amber-700'
+              }`}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Processing...' : confirmAction === 'delete' ? 'Delete' : 'Archive'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

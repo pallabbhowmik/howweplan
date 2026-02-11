@@ -276,7 +276,7 @@ userRoutes.post(
     );
 
     if (!result.success) {
-      const status = result.error?.code === 'REVIEW_011' ? 400 : 400;  // Gaming detected
+      const status = result.error?.code === 'REVIEW_011' ? 409 : 400;  // 409 for gaming/duplicate detection
       return c.json({ error: result.error }, status);
     }
 
