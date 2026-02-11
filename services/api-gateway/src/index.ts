@@ -551,6 +551,14 @@ function createProxyOptions(serviceName: string, serviceUrl: string): Options {
         proxyRes.headers['x-request-id'] = req.requestId;
       }
 
+      // Inject CORS headers into proxied responses so the browser accepts them
+      const origin = req.headers.origin;
+      if (origin && config.cors.allowedOrigins.includes(origin)) {
+        proxyRes.headers['access-control-allow-origin'] = origin;
+        proxyRes.headers['access-control-allow-credentials'] = 'true';
+        proxyRes.headers['access-control-expose-headers'] = 'X-Request-Id, X-Cache, ETag, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset';
+      }
+
       logger.debug({
         timestamp: new Date().toISOString(),
         requestId: req.requestId,
