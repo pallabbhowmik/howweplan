@@ -190,6 +190,10 @@ export const config = {
       url: process.env.REVIEWS_SERVICE_URL || 'http://localhost:3018',
       timeout: 3000, // Reduced from 5s
     },
+    wishlist: {
+      url: process.env.WISHLIST_SERVICE_URL || 'http://localhost:3020',
+      timeout: 3000,
+    },
   },
 
   // Internal Service Auth

@@ -39,7 +39,20 @@ interface AuthContext {
  */
 function getAuthContext(c: Context): AuthContext | null {
   const userId = c.req.header('x-user-id');
-  const userType = c.req.header('x-user-type') as 'TRAVELER' | 'AGENT' | 'ADMIN' | undefined;
+  // Support both x-user-type (direct) and x-user-role (from API gateway)
+  const rawType = c.req.header('x-user-type') || c.req.header('x-user-role') || '';
+  
+  // Normalize role values: gateway sends 'user'/'agent'/'admin', we need 'TRAVELER'/'AGENT'/'ADMIN'
+  const roleMap: Record<string, AuthContext['userType']> = {
+    'user': 'TRAVELER',
+    'traveler': 'TRAVELER',
+    'TRAVELER': 'TRAVELER',
+    'agent': 'AGENT',
+    'AGENT': 'AGENT',
+    'admin': 'ADMIN',
+    'ADMIN': 'ADMIN',
+  };
+  const userType = roleMap[rawType.toLowerCase()] || roleMap[rawType];
 
   if (!userId || !userType) return null;
   return { userId, userType };

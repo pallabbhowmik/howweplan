@@ -36,11 +36,16 @@ async function startService(): Promise<void> {
 
   // Initialize event bus connections
   console.log('[Startup] Initializing event bus...');
-  await initializeEventBus();
-  console.log('[Startup] Event bus publisher initialized');
+  try {
+    await initializeEventBus();
+    console.log('[Startup] Event bus publisher initialized');
 
-  await initializeEventConsumer();
-  console.log('[Startup] Event bus consumer initialized');
+    await initializeEventConsumer();
+    console.log('[Startup] Event bus consumer initialized');
+  } catch (error) {
+    console.warn('[Startup] Event bus initialization failed — service will run without event bus:', error instanceof Error ? error.message : error);
+    console.warn('[Startup] Events will not be published or consumed. The service will continue to handle HTTP requests.');
+  }
 
   // Start HTTP server
   console.log(`[Startup] Starting HTTP server on port ${appConfig.port}...`);

@@ -39,8 +39,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useUserSession } from '@/lib/user/session';
-import { createTravelRequest } from '@/lib/data/api';
-import { requestsApi } from '@/lib/api/client';
+import { createTravelRequest, fetchRequestCaps } from '@/lib/data/api';
 
 const popularDestinations = [
   { name: 'Goa', emoji: '🏖️', type: 'Beach Paradise', image: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=200&h=150&fit=crop', color: 'from-cyan-400 to-blue-500' },
@@ -124,6 +123,7 @@ function NewRequestPageContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [destinationSuggestions, setDestinationSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [urlDestinationApplied, setUrlDestinationApplied] = useState(false);
@@ -146,7 +146,7 @@ function NewRequestPageContent() {
       }
 
       try {
-        const response = await requestsApi.getCapsInfo() as any;
+        const response = await fetchRequestCaps() as any;
         // Handle both wrapped { data: {...} } and direct response formats
         const capsData = response?.data || response;
         if (capsData?.dailyCap || capsData?.openRequests) {
@@ -261,11 +261,12 @@ function NewRequestPageContent() {
     }
     
     if (!user?.userId) {
-      alert('Please log in to submit a request');
+      setFormError('Please log in to submit a request.');
       return;
     }
 
     setIsSubmitting(true);
+    setFormError(null);
     
     try {
       // Calculate budget min and max values
@@ -312,17 +313,16 @@ function NewRequestPageContent() {
     } catch (error) {
       console.error('Failed to submit request:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      // Show a more helpful error message to the user
       if (errorMessage.includes('Departure must be at least 3 days')) {
-        alert('Your departure date must be at least 3 days from today. Please select a later date.');
+        setFormError('Your departure date must be at least 3 days from today. Please select a later date.');
       } else if (errorMessage.includes('Return date must be after departure')) {
-        alert('Your return date must be after your departure date. Please check your dates.');
+        setFormError('Your return date must be after your departure date. Please check your dates.');
       } else if (errorMessage.includes('at least one adult')) {
-        alert('At least one adult traveler is required.');
+        setFormError('At least one adult traveler is required.');
       } else if (errorMessage.includes('budget')) {
-        alert('Please check your budget range - minimum budget cannot exceed maximum budget.');
+        setFormError('Please check your budget range — minimum budget cannot exceed maximum budget.');
       } else {
-        alert(`Failed to submit request: ${errorMessage}`);
+        setFormError(`Failed to submit request: ${errorMessage}`);
       }
     } finally {
       setIsSubmitting(false);
@@ -459,7 +459,7 @@ function NewRequestPageContent() {
                   <p className="text-xs text-slate-500">Avg. first proposal</p>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-2xl font-bold text-blue-600">4.8★</p>
+                  <p className="text-2xl font-bold text-blue-600">4.9★</p>
                   <p className="text-xs text-slate-500">Agent rating</p>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-4">
@@ -1274,6 +1274,19 @@ function NewRequestPageContent() {
               )}
             </div>
             
+            {/* Form Error */}
+            {formError && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-start gap-3">
+                <svg className="h-5 w-5 text-red-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <div>
+                  <p className="font-medium">Unable to submit</p>
+                  <p>{formError}</p>
+                </div>
+              </div>
+            )}
+
             {/* Reassurance micro-copy */}
             <div className="text-center mt-4 text-sm text-slate-500">
               {step === 1 && "Takes about 2 minutes • No account needed yet"}

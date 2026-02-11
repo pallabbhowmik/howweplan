@@ -198,8 +198,8 @@ export default function RegisterPage() {
           <div className="grid grid-cols-3 gap-6">
             {[
               { value: '50K+', label: 'Happy Travelers' },
-              { value: '200+', label: 'Expert Agents' },
-              { value: '150+', label: 'Destinations' },
+              { value: '2,500+', label: 'Expert Agents' },
+              { value: '120+', label: 'Destinations' },
             ].map((stat, index) => (
               <div key={index} className="text-center">
                 <div className="text-3xl font-bold text-white mb-1">{stat.value}</div>

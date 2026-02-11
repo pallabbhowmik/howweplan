@@ -173,7 +173,7 @@ function toRequestVM(match: AgentRequestMatch): RequestVM {
     receivedAt,
     expiresAt,
     status: match.status,
-    matchScore: match.matchScore ?? 0,
+    matchScore: Math.round((match.matchScore ?? 0) > 1 ? match.matchScore : (match.matchScore ?? 0) * 100),
     client: {
       firstName: match.user ? `${match.user.first_name}` : 'Client',
       avatarUrl: match.user?.avatar_url ?? null,

@@ -38,6 +38,7 @@ import {
   getAgentIdentity,
   getAgentStats,
   listMatchedRequests,
+  listAgentBookings,
   acceptMatch,
   declineMatch,
   refreshMatches,
@@ -102,13 +103,13 @@ interface ActivityItem {
 // UTILITY FUNCTIONS
 // ============================================================================
 
-function formatCurrency(cents: number): string {
+function formatCurrency(amount: number, isCents: boolean = false): string {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(cents / 100);
+  }).format(isCents ? amount / 100 : amount);
 }
 
 function formatRelativeTime(dateString: string): string {
@@ -272,8 +273,8 @@ function transformMatchToCard(match: AgentRequestMatch): RequestCardData {
       end: match.request?.return_date || '',
     },
     budget: {
-      min: (match.request?.budget_min || 0) * 100, // Convert to cents
-      max: (match.request?.budget_max || 0) * 100,
+      min: match.request?.budget_min || 0,
+      max: match.request?.budget_max || 0,
       currency: match.request?.budget_currency || 'INR',
     },
     travelers: { adults, children },
@@ -458,7 +459,7 @@ function BookingCard({ booking }: { booking: BookingCardData }) {
         <Badge variant={getStatusColor(booking.status)} className="mb-1">
           {getStatusLabel(booking.status)}
         </Badge>
-        <p className="text-sm font-semibold text-emerald-600">{formatCurrency(booking.commission)}</p>
+        <p className="text-sm font-semibold text-emerald-600">{formatCurrency(booking.commission, true)}</p>
         <p className="text-xs text-gray-400">{booking.daysUntilTrip > 0 ? `${booking.daysUntilTrip} days until trip` : 'Trip in progress'}</p>
       </div>
     </div>
@@ -787,6 +788,7 @@ export default function DashboardPage() {
   const [bookings, setBookings] = useState<BookingCardData[]>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -801,10 +803,11 @@ export default function DashboardPage() {
       }
 
       // Fetch agent identity and stats in parallel
-      const [identity, agentStats, matches] = await Promise.all([
+      const [identity, agentStats, matches, agentBookings] = await Promise.all([
         getAgentIdentity('current'),
         getAgentStats('current'),
         listMatchedRequests('current'),
+        listAgentBookings({ limit: 100 }).catch(() => []),
       ]);
 
       setAgentIdentity(identity);
@@ -821,15 +824,35 @@ export default function DashboardPage() {
         acceptedMatches: acceptedMatches.length,
         activeBookings: agentStats.activeBookings,
         unreadMessages: agentStats.unreadMessages,
-        thisMonthCommission: 0, // Would come from earnings API
-        lastMonthCommission: 0,
+        thisMonthCommission: (() => {
+          const now = new Date();
+          return agentBookings
+            .filter((b: any) => {
+              const d = new Date(b.createdAt || b.created_at);
+              return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+            })
+            .reduce((sum: number, b: any) => sum + Math.round((b.totalAmountCents || 0) * 0.1), 0);
+        })(),
+        lastMonthCommission: (() => {
+          const now = new Date();
+          const lm = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+          const ly = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+          return agentBookings
+            .filter((b: any) => {
+              const d = new Date(b.createdAt || b.created_at);
+              return d.getMonth() === lm && d.getFullYear() === ly;
+            })
+            .reduce((sum: number, b: any) => sum + Math.round((b.totalAmountCents || 0) * 0.1), 0);
+        })(),
         rating: identity?.rating ?? null,
         totalReviews: identity?.totalReviews ?? 0,
-        responseRate: 94, // Would come from performance metrics API
+        responseRate: matches.length > 0
+          ? Math.round((matches.filter(m => ['accepted', 'rejected'].includes(m.status)).length / matches.length) * 100)
+          : 0, // Calculated from actual match response data
         acceptanceRate: matches.length > 0 
           ? Math.round((acceptedMatches.length / matches.length) * 100) 
           : 0,
-        completedTrips: 0, // Would come from bookings API
+        completedTrips: agentBookings.filter((b: any) => ['completed', 'COMPLETED'].includes(b.status)).length,
       });
 
       // Generate recent activity from matches
@@ -913,7 +936,7 @@ export default function DashboardPage() {
       } : null);
     } catch (err) {
       console.error('Failed to accept match:', err);
-      alert('Failed to accept request. Please try again.');
+      setActionMessage({ type: 'error', text: 'Failed to accept request. Please try again.' });
     } finally {
       setActionInProgress(null);
     }
@@ -930,7 +953,7 @@ export default function DashboardPage() {
       } : null);
     } catch (err) {
       console.error('Failed to decline match:', err);
-      alert('Failed to decline request. Please try again.');
+      setActionMessage({ type: 'error', text: 'Failed to decline request. Please try again.' });
     } finally {
       setActionInProgress(null);
     }
@@ -945,11 +968,11 @@ export default function DashboardPage() {
         // Reload dashboard data to show new matches
         await loadDashboardData();
       } else {
-        alert('No new requests available at this time.');
+        setActionMessage({ type: 'info', text: 'No new requests available at this time.' });
       }
     } catch (err) {
       console.error('Failed to refresh matches:', err);
-      alert('Failed to refresh matches. Please try again.');
+      setActionMessage({ type: 'error', text: 'Failed to refresh matches. Please try again.' });
     } finally {
       setIsRefreshing(false);
     }
@@ -1064,6 +1087,18 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Action Messages */}
+      {actionMessage && (
+        <div className={`rounded-lg border px-4 py-3 text-sm font-medium flex items-center justify-between ${
+          actionMessage.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 
+          actionMessage.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
+          'bg-blue-50 border-blue-200 text-blue-800'
+        }`}>
+          <span>{actionMessage.text}</span>
+          <button onClick={() => setActionMessage(null)} className="ml-4 text-current opacity-60 hover:opacity-100">&times;</button>
+        </div>
+      )}
+
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {isLoading ? (
@@ -1091,7 +1126,7 @@ export default function DashboardPage() {
             />
             <StatCard
               title="This Month"
-              value={stats?.thisMonthCommission ? formatCurrency(stats.thisMonthCommission) : '₹0'}
+              value={stats?.thisMonthCommission ? formatCurrency(stats.thisMonthCommission, true) : '₹0'}
               subtext="Commission earned"
               icon={<DollarSign className="h-6 w-6" />}
               trend={commissionGrowth !== 0 ? { value: commissionGrowth, isPositive: commissionGrowth > 0 } : undefined}

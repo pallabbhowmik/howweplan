@@ -259,13 +259,13 @@ function MessageBubble({
       <div className={`max-w-[70%] ${isOwn ? 'order-1' : 'order-2'}`}>
         {/* Message Actions */}
         <div className={`flex items-center gap-1 mb-1 h-6 ${isOwn ? 'justify-end' : 'justify-start'} ${showActions && !isOptimistic ? 'opacity-100' : 'opacity-0'} transition-opacity`}>
-          <button className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all" title="Reply">
+          <button className="p-1.5 rounded-lg text-slate-300 cursor-not-allowed opacity-50" title="Reply — coming soon" disabled>
             <Reply className="h-3.5 w-3.5" />
           </button>
           <button onClick={handleCopy} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all" title={copied ? 'Copied!' : 'Copy'}>
             {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
-          <button className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-amber-500 transition-all" title="Star">
+          <button className="p-1.5 rounded-lg text-slate-300 cursor-not-allowed opacity-50" title="Star — coming soon" disabled>
             <Star className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -310,7 +310,7 @@ function ConversationListItem({
   isImportant?: boolean;
   onClick: () => void;
 }) {
-  const isOnline = true; // Assume agents are online during business hours
+  const isOnline = false; // Online status not yet implemented
 
   return (
     <button
@@ -379,11 +379,22 @@ export default function MessagesPage() {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [messagesError, setMessagesError] = useState<string | null>(null);
 
-  // Dropdown action states
-  const [importantConversations, setImportantConversations] = useState<Set<string>>(new Set());
-  const [mutedConversations, setMutedConversations] = useState<Set<string>>(new Set());
-  const [archivedConversations, setArchivedConversations] = useState<Set<string>>(new Set());
+  // Dropdown action states — persisted in localStorage
+  const [importantConversations, setImportantConversations] = useState<Set<string>>(() => {
+    try { const v = localStorage.getItem('tc_important_convos'); return v ? new Set(JSON.parse(v)) : new Set(); } catch { return new Set(); }
+  });
+  const [mutedConversations, setMutedConversations] = useState<Set<string>>(() => {
+    try { const v = localStorage.getItem('tc_muted_convos'); return v ? new Set(JSON.parse(v)) : new Set(); } catch { return new Set(); }
+  });
+  const [archivedConversations, setArchivedConversations] = useState<Set<string>>(() => {
+    try { const v = localStorage.getItem('tc_archived_convos'); return v ? new Set(JSON.parse(v)) : new Set(); } catch { return new Set(); }
+  });
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
+  // Persist dropdown states to localStorage
+  useEffect(() => { try { localStorage.setItem('tc_important_convos', JSON.stringify([...importantConversations])); } catch {} }, [importantConversations]);
+  useEffect(() => { try { localStorage.setItem('tc_muted_convos', JSON.stringify([...mutedConversations])); } catch {} }, [mutedConversations]);
+  useEffect(() => { try { localStorage.setItem('tc_archived_convos', JSON.stringify([...archivedConversations])); } catch {} }, [archivedConversations]);
   
   const router = useRouter();
 
@@ -407,10 +418,13 @@ export default function MessagesPage() {
   );
 
   const filteredConversations = useMemo(() => {
-    if (!searchQuery) return conversations;
-    const q = searchQuery.toLowerCase();
-    return conversations.filter((c) => c.agentName.toLowerCase().includes(q) || (c.destinationLabel ?? '').toLowerCase().includes(q));
-  }, [conversations, searchQuery]);
+    let list = conversations.filter((c) => !archivedConversations.has(c.id));
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((c) => c.agentName.toLowerCase().includes(q) || (c.destinationLabel ?? '').toLowerCase().includes(q));
+    }
+    return list;
+  }, [conversations, searchQuery, archivedConversations]);
 
   const messageGroups = useMemo(() => groupMessagesByDate(messages), [messages]);
 
@@ -686,7 +700,7 @@ export default function MessagesPage() {
                   <div>
                     <h3 className="font-bold text-slate-800">{activeConversation.agentName}</h3>
                     <div className="flex items-center gap-3">
-                      <OnlineStatus isOnline={true} />
+                      <OnlineStatus isOnline={false} />
                       <span className="text-xs text-slate-300">•</span>
                       <span className="text-xs text-blue-600 font-medium flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
@@ -770,14 +784,11 @@ export default function MessagesPage() {
                       <span>Archive Chat</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem 
-                      className="cursor-pointer text-red-600 focus:text-red-600"
-                      onClick={() => {
-                        setFeedbackMessage('Report submitted - our team will review');
-                        setTimeout(() => setFeedbackMessage(null), 3000);
-                      }}
+                      className="cursor-pointer text-slate-400"
+                      disabled
                     >
                       <Flag className="mr-2 h-4 w-4" />
-                      <span>Report Issue</span>
+                      <span>Report Issue — coming soon</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -852,10 +863,10 @@ export default function MessagesPage() {
               <div className="p-4 border-t bg-white">
                 <div className="flex items-end gap-2">
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                    <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-slate-300 opacity-50 cursor-not-allowed" disabled title="File attachments — coming soon">
                       <Paperclip className="h-5 w-5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                    <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-slate-300 opacity-50 cursor-not-allowed" disabled title="Image upload — coming soon">
                       <ImageIcon className="h-5 w-5" />
                     </Button>
                   </div>

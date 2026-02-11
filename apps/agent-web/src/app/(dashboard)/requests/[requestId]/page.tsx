@@ -186,7 +186,7 @@ export default function RequestDetailsPage() {
           {typeof match?.matchScore === 'number' && (
             <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0 gap-1">
               <Target className="h-3 w-3" />
-              {Math.round(match.matchScore)}%
+              {Math.round(match.matchScore > 1 ? match.matchScore : match.matchScore * 100)}%
             </Badge>
           )}
         </div>

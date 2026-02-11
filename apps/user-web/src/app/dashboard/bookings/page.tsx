@@ -19,6 +19,7 @@ import {
   Wallet,
   ArrowRight,
   Globe,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -29,6 +30,7 @@ export default function BookingsPage() {
   const { user, loading: userLoading } = useUserSession();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.userId) return;
@@ -36,13 +38,15 @@ export default function BookingsPage() {
 
     const loadBookings = async () => {
       setLoading(true);
+      setError(null);
       try {
         const data = await fetchUserBookings(user.userId);
         if (cancelled) return;
         setBookings(data);
-      } catch (error) {
+      } catch (err) {
         if (cancelled) return;
-        console.error('Error loading bookings:', error);
+        console.error('Error loading bookings:', err);
+        setError('Failed to load bookings. Please try again.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -67,7 +71,7 @@ export default function BookingsPage() {
   // Calculate total spent
   const totalSpent = bookings
     .filter(b => ['confirmed', 'CONFIRMED', 'completed', 'COMPLETED'].includes(b.status))
-    .reduce((sum, b) => sum + (b.totalAmount > 100000 ? b.totalAmount / 100 : b.totalAmount), 0);
+    .reduce((sum, b) => sum + b.totalAmount, 0);
 
   if (userLoading || loading) {
     return (
@@ -78,6 +82,20 @@ export default function BookingsPage() {
             <Loader2 className="relative h-12 w-12 animate-spin text-green-600 mx-auto mb-4" />
           </div>
           <p className="text-slate-500 font-medium">Loading your bookings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <div className="p-3 bg-red-100 rounded-full w-fit mx-auto">
+            <AlertTriangle className="h-8 w-8 text-red-600" />
+          </div>
+          <p className="text-slate-700 font-medium">{error}</p>
+          <Button variant="outline" onClick={() => window.location.reload()}>Try Again</Button>
         </div>
       </div>
     );
@@ -311,7 +329,7 @@ export default function BookingsPage() {
                 {/* Fun Stats Teaser */}
                 <div className="mt-12 grid grid-cols-3 gap-4 max-w-sm mx-auto">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-green-600">500+</p>
+                    <p className="text-2xl font-bold text-green-600">50K+</p>
                     <p className="text-xs text-slate-500">Trips Booked</p>
                   </div>
                   <div className="text-center">

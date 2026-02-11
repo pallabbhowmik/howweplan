@@ -912,8 +912,18 @@ function InsuranceSettings({
 // MAIN PAGE COMPONENT
 // ============================================================================
 
+const SETTINGS_STORAGE_KEY = 'tc_admin_settings';
+
 export default function SettingsPage() {
-  const [settings, setSettings] = useState(mockSettings);
+  const [settings, setSettings] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+        if (stored) return JSON.parse(stored);
+      } catch { /* ignore */ }
+    }
+    return mockSettings;
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -935,9 +945,10 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    // TODO: Replace with actual API call
-    // await fetch('/api/settings', { method: 'PUT', body: JSON.stringify(settings) });
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      // Persist to localStorage until backend settings API is available
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    } catch { /* ignore */ }
     setIsSaving(false);
     setHasChanges(false);
     setSaveSuccess(true);
@@ -947,6 +958,7 @@ export default function SettingsPage() {
   const handleReset = () => {
     setSettings(mockSettings);
     setHasChanges(false);
+    try { localStorage.removeItem(SETTINGS_STORAGE_KEY); } catch { /* ignore */ }
   };
 
   return (
@@ -975,6 +987,12 @@ export default function SettingsPage() {
       </div>
 
       {/* Quick Links to Live Settings */}
+      <Alert className="border-amber-200 bg-amber-50">
+        <AlertDescription className="text-amber-800">
+          Settings are stored locally in your browser. Backend persistence is coming soon.
+        </AlertDescription>
+      </Alert>
+
       <Alert>
         <AlertDescription className="flex items-center justify-between">
           <span>

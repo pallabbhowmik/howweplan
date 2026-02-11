@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { identityApi } from '@/lib/api/client';
+import { fetchCurrentUser } from '@/lib/data/api';
 import { clearAuthData, getStoredUser, getAccessToken, logout } from '@/lib/api/auth';
 
 const STORAGE_KEY = 'tc_demo_user_id';
@@ -144,7 +144,7 @@ export function UserSessionProvider({ children }: { children: React.ReactNode })
         // Validate/refresh profile via Identity Service when we have a token.
         // This is the supported architecture path (no direct DB/Supabase profile queries).
         if (accessToken) {
-          const meResponse: any = await identityApi.getMe();
+          const meResponse: any = await fetchCurrentUser();
           const me = meResponse?.data ?? meResponse;
           if (!me?.id) {
             throw new Error('Failed to load user');

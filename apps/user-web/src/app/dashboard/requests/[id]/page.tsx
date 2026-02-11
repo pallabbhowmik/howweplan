@@ -57,6 +57,7 @@ export default function RequestDetailPage() {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   // Callback to refresh request data
@@ -123,7 +124,8 @@ export default function RequestDetailPage() {
       setShowCancelConfirm(false);
     } catch (error) {
       console.error('Error cancelling request:', error);
-      alert('Failed to cancel request. Please try again.');
+      setCancelError('Failed to cancel request. Please try again.');
+      setTimeout(() => setCancelError(null), 5000);
     } finally {
       setCancelling(false);
     }
@@ -391,7 +393,17 @@ export default function RequestDetailPage() {
                   </Button>
                 </Link>
               )}
-              <Button variant="outline" className="w-full h-11">
+              <Button 
+                variant="outline" 
+                className="w-full h-11"
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({ title: `Travel Request - ${request?.destination?.label || 'Trip'}`, url: window.location.href });
+                  } else {
+                    navigator.clipboard.writeText(window.location.href);
+                  }
+                }}
+              >
                 <Share2 className="h-4 w-4 mr-2" />
                 Share Request
               </Button>

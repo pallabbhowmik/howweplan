@@ -34,6 +34,7 @@ const envSchema = z.object({
   DISPUTES_SERVICE_URL: z.string().url().default('http://localhost:3009'),
   REVIEWS_SERVICE_URL: z.string().url().default('http://localhost:3010'),
   AUDIT_SERVICE_URL: z.string().url().default('http://localhost:3011'),
+  WISHLIST_SERVICE_URL: z.string().url().default('http://localhost:3020'),
   EVENT_BUS_URL: z.string().url().optional().or(z.literal('')).default(''),
   
   // ─────────────────────────────────────────────────────────────────────────

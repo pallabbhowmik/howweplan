@@ -402,6 +402,7 @@ export default function EarningsPage() {
   const [monthlyEarnings, setMonthlyEarnings] = useState<MonthlyEarning[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [topDestinations, setTopDestinations] = useState<TopDestination[]>([]);
+  const [payoutMessage, setPayoutMessage] = useState<string | null>(null);
 
   // Fetch bookings and calculate earnings
   useEffect(() => {
@@ -528,7 +529,24 @@ export default function EarningsPage() {
               <SelectItem value="all_time">All Time</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => {
+            const headers = ['Date', 'Type', 'Description', 'Amount (₹)', 'Status'];
+            const rows = transactions.map(t => [
+              new Date(t.date).toLocaleDateString('en-IN'),
+              t.type,
+              t.description,
+              (t.amount / 100).toFixed(2),
+              t.status,
+            ]);
+            const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `earnings-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}>
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
@@ -655,15 +673,23 @@ export default function EarningsPage() {
               <p className="text-sm text-emerald-700 mb-4">
                 You have {formatCurrency(summary.available)} available for withdrawal
               </p>
-              <Button className="bg-emerald-600 hover:bg-emerald-700">
+              <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => {
+                setPayoutMessage('Payout request submitted! You will receive your funds within 3-5 business days.');
+                setTimeout(() => setPayoutMessage(null), 5000);
+              }}>
                 <CreditCard className="mr-2 h-4 w-4" />
                 Request Payout
               </Button>
+              {payoutMessage && (
+                <p className="text-sm text-emerald-700 mt-2 bg-emerald-100 rounded px-3 py-2">{payoutMessage}</p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-sm text-emerald-700">Bank Account</p>
               <p className="font-mono text-emerald-900">****4523</p>
-              <Button variant="link" className="text-emerald-600 p-0 h-auto text-sm">
+              <Button variant="link" className="text-emerald-600 p-0 h-auto text-sm" onClick={() => {
+                window.location.href = '/settings#payment';
+              }}>
                 Change
               </Button>
             </div>

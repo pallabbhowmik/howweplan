@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, MapPin, Calendar, Users, MessageSquare, FileText, Phone, AlertTriangle, CheckCircle, Star, Loader2, Award, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ export default function BookingDetailPage() {
   const searchParams = useSearchParams();
   const bookingId = params.id as string;
   const { loading: userLoading } = useUserSession();
+  const router = useRouter();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -246,7 +247,7 @@ export default function BookingDetailPage() {
             <CardContent>
               <div className="grid sm:grid-cols-2 gap-4">
                 {canRequestChanges && (
-                  <Button variant="outline"><MessageSquare className="h-4 w-4 mr-2" />Request Changes</Button>
+                  <Button variant="outline" onClick={() => router.push(`/dashboard/messages?booking=${bookingId}`)}><MessageSquare className="h-4 w-4 mr-2" />Request Changes</Button>
                 )}
                 {canLeaveReview && (
                   <Button variant="outline" onClick={() => setShowReviewModal(true)}>
@@ -283,7 +284,7 @@ export default function BookingDetailPage() {
                     )}
                   </div>
                 </div>
-                <Button variant="outline" className="w-full mt-4"><MessageSquare className="h-4 w-4 mr-2" />Send Message</Button>
+                <Button variant="outline" className="w-full mt-4" onClick={() => router.push(`/dashboard/messages?agent=${booking.agentId}`)}><MessageSquare className="h-4 w-4 mr-2" />Send Message</Button>
               </CardContent>
             </Card>
           )}

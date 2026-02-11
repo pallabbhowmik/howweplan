@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -44,7 +44,7 @@ import {
 } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { useAgentSession } from '@/lib/agent/session';
-import { getAgentItineraryById, type AgentItinerary } from '@/lib/data/agent';
+import { getAgentItineraryById, changeItineraryStatus, type AgentItinerary } from '@/lib/data/agent';
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -180,6 +180,8 @@ export default function ItineraryDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     async function fetchItinerary() {
@@ -306,11 +308,22 @@ export default function ItineraryDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={async () => {
+            const url = `${window.location.origin}/itineraries/${itineraryId}`;
+            if (navigator.share) {
+              try { await navigator.share({ title: overview.title || 'Itinerary', url }); } catch {}
+            } else {
+              await navigator.clipboard.writeText(url);
+              setActionMessage({ type: 'success', text: 'Link copied to clipboard!' });
+              setTimeout(() => setActionMessage(null), 3000);
+            }
+          }}>
             <Share2 className="h-4 w-4 mr-2" />
             Share
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => {
+            window.print();
+          }}>
             <Download className="h-4 w-4 mr-2" />
             Export PDF
           </Button>
@@ -326,15 +339,39 @@ export default function ItineraryDetailPage() {
                 {itinerary.status?.toLowerCase() === 'draft' ? 'Edit' : 'Update Proposal'}
               </Button>
               {itinerary.status?.toLowerCase() === 'draft' && (
-                <Button size="sm">
+                <Button size="sm" disabled={submitting} onClick={async () => {
+                  try {
+                    setSubmitting(true);
+                    await changeItineraryStatus(itineraryId, 'SUBMITTED');
+                    setItinerary(prev => prev ? { ...prev, status: 'SUBMITTED' } : prev);
+                    setActionMessage({ type: 'success', text: 'Itinerary submitted successfully!' });
+                    setTimeout(() => setActionMessage(null), 4000);
+                  } catch (err) {
+                    setActionMessage({ type: 'error', text: 'Failed to submit itinerary. Please try again.' });
+                    setTimeout(() => setActionMessage(null), 4000);
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}>
                   <Send className="h-4 w-4 mr-2" />
-                  Submit
+                  {submitting ? 'Submitting...' : 'Submit'}
                 </Button>
               )}
             </>
           )}
         </div>
       </div>
+
+      {/* Action Message */}
+      {actionMessage && (
+        <div className={cn(
+          'px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-2',
+          actionMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+        )}>
+          {actionMessage.type === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+          {actionMessage.text}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

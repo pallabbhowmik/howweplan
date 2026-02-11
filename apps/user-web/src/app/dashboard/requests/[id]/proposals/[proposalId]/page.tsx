@@ -34,8 +34,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { useUserSession } from '@/lib/user/session';
-import { fetchRequest, fetchRequestProposals, type TravelRequest, type Proposal } from '@/lib/data/api';
-import { bookingsApi } from '@/lib/api/client';
+import { fetchRequest, fetchRequestProposals, createFullBooking, createCheckout, type TravelRequest, type Proposal } from '@/lib/data/api';
 import { WishlistButton } from '@/components/trust/WishlistButton';
 
 // =============================================================================
@@ -238,7 +237,7 @@ export default function ProposalDetailPage() {
       // Convert to cents for API (price stored as whole currency)
       const basePriceCents = Math.round(totalPrice * 100);
 
-      const bookingResult = await bookingsApi.createBooking({
+      const bookingResult = await createFullBooking({
         userId: user.userId,
         agentId: proposal.agentId,
         itineraryId: proposal.id,
@@ -257,7 +256,7 @@ export default function ProposalDetailPage() {
         throw new Error('Failed to create booking - no booking ID returned');
       }
 
-      const checkoutResult = await bookingsApi.createCheckout({
+      const checkoutResult = await createCheckout({
         bookingId,
         successUrl: `${window.location.origin}/dashboard/bookings/${bookingId}/success`,
         cancelUrl: `${window.location.origin}/dashboard/requests/${requestId}/proposals/${proposalId}?cancelled=true`,

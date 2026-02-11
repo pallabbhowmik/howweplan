@@ -15,6 +15,7 @@ import {
   Clock,
   Globe,
   Plane,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -27,6 +28,7 @@ export default function RequestsPage() {
   const { user, loading: userLoading } = useUserSession();
   const [requests, setRequests] = useState<TravelRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   
@@ -39,6 +41,7 @@ export default function RequestsPage() {
 
     const loadRequests = async () => {
       setLoading(true);
+      setError(null);
       try {
         const data = await fetchUserRequests(user.userId);
         if (cancelled) return;
@@ -46,6 +49,7 @@ export default function RequestsPage() {
       } catch (error) {
         if (cancelled) return;
         console.error('Error loading requests:', error);
+        setError('Failed to load your travel requests. Please try again.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -80,6 +84,21 @@ export default function RequestsPage() {
             <Loader2 className="relative h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
           </div>
           <p className="text-slate-500 font-medium">Loading your requests...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center max-w-md">
+          <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-slate-800 mb-2">Something went wrong</h2>
+          <p className="text-slate-500 mb-6">{error}</p>
+          <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700 text-white">
+            Try Again
+          </Button>
         </div>
       </div>
     );

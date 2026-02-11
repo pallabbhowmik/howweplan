@@ -144,29 +144,20 @@ export default function ProposalsPage() {
   };
 
   const confirmBooking = async (proposalId: string) => {
-    setBookingInProgress(proposalId);
-    setBookingError(null);
     setShowConfirmModal(null);
-    
-    try {
-      const booking = await createBookingFromProposal(proposalId, requestId);
-      // Redirect to the new booking page
-      router.push(`/dashboard/bookings/${booking.id}`);
-    } catch (error) {
-      console.error('Booking error:', error);
-      setBookingError(error instanceof Error ? error.message : 'Failed to create booking. Please try again.');
-      setBookingInProgress(null);
-    }
+    // Navigate to the proposal detail page which has the full booking flow
+    // including payment, dates, and all required fields
+    router.push(`/dashboard/requests/${requestId}/proposals/${proposalId}?action=book`);
   };
 
   const handleMessageAgent = async (agentId: string | undefined) => {
     if (!user?.userId) {
-      alert('Please log in to message agents');
+      setBookingError('Please log in to message agents.');
       return;
     }
     
     if (!agentId) {
-      alert('Unable to message this agent - contact information unavailable');
+      setBookingError('Unable to message this agent — contact information unavailable.');
       return;
     }
     
@@ -175,9 +166,7 @@ export default function ProposalsPage() {
       const { conversationId } = await startConversation(user.userId, agentId);
       router.push(`/dashboard/messages?conversation=${conversationId}`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      // Show user-friendly error
-      alert(`Failed to start conversation: ${errorMessage}`);
+      console.error('Failed to start conversation:', error);
       // Still try to redirect to messages with agent filter
       router.push(`/dashboard/messages?agent=${agentId}`);
     } finally {

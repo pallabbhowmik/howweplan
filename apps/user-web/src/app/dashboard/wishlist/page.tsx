@@ -322,7 +322,14 @@ export default function WishlistPage() {
                   <Download size={20} />
                 </button>
                 <button
-                  onClick={() => {/* Share functionality */}}
+                  onClick={async () => {
+                    const text = items.map(i => `${i.name} - ${i.destination || ''}`).join('\n');
+                    if (navigator.share) {
+                      try { await navigator.share({ title: 'My Travel Wishlist', text }); } catch {}
+                    } else {
+                      await navigator.clipboard.writeText(text);
+                    }
+                  }}
                   className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   title="Share wishlist"
                 >

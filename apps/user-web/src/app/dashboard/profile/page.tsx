@@ -15,6 +15,7 @@ export default function ProfilePage() {
   const [userData, setUserData] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -56,6 +57,7 @@ export default function ProfilePage() {
     if (!sessionUser?.userId) return;
     
     setSaving(true);
+    setSaveMessage(null);
     try {
       const success = await updateUser(sessionUser.userId, {
         fullName: formData.fullName,
@@ -67,15 +69,16 @@ export default function ProfilePage() {
         // Refresh user data
         const data = await fetchUser(sessionUser.userId);
         if (data) setUserData(data);
-        alert('Profile updated successfully!');
+        setSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
       } else {
-        alert('Failed to update profile. Please try again.');
+        setSaveMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
       }
     } catch (error) {
       console.error('Error saving profile:', error);
-      alert('Failed to update profile. Please try again.');
+      setSaveMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
     } finally {
       setSaving(false);
+      setTimeout(() => setSaveMessage(null), 5000);
     }
   };
 
@@ -203,14 +206,21 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
+            <div className="flex items-center gap-4">
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+              {saveMessage && (
+                <p className={`text-sm font-medium ${saveMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                  {saveMessage.text}
+                </p>
               )}
-              {saving ? 'Saving...' : 'Save Changes'}
-            </Button>
+            </div>
           </CardContent>
         </Card>
 

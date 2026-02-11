@@ -465,7 +465,7 @@ function mapBookingFromApi(b: any): Booking {
     totalAmountCents: b.totalAmountCents || b.total_amount_cents || 0,
     totalAmount: (b.totalAmountCents || b.total_amount_cents || 0) / 100,
     paidAmount: (b.paidAmountCents || b.paid_amount_cents || 0) / 100,
-    currency: b.currency || 'USD',
+    currency: b.currency || 'INR',
     travelStartDate: b.travelStartDate || b.travel_start_date,
     travelEndDate: b.travelEndDate || b.travel_end_date,
     departureDate: b.travelStartDate || b.travel_start_date,
@@ -603,14 +603,30 @@ export async function updateUserSettings(userId: string, settings: Partial<UserS
 
 export async function changeUserPassword(
   _userId: string, 
-  _currentPassword: string, 
+  currentPassword: string, 
   newPassword: string
 ): Promise<{ success: boolean; error?: string }> {
   // Password changes go through Supabase Auth, not Gateway
   // Import here to avoid circular dependency
   const { getSupabaseClient } = await import('@/lib/supabase/client');
   const supabase = getSupabaseClient();
+
+  // First, verify the current password by re-authenticating
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) {
+    return { success: false, error: 'Unable to verify your identity. Please log in again.' };
+  }
+
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+
+  if (signInError) {
+    return { success: false, error: 'Current password is incorrect.' };
+  }
   
+  // Now update to the new password
   const { error } = await supabase.auth.updateUser({
     password: newPassword
   });
@@ -745,8 +761,16 @@ export async function createTravelRequest(input: CreateTravelRequestInput): Prom
   return mapRequestFromApi(data);
 }
 
-export async function updateTravelRequest(_requestId: string, _input: UpdateTravelRequestInput): Promise<void> {
-  throw new Error('Request updates are not currently supported. Please cancel and create a new request.');
+export async function updateTravelRequest(requestId: string, input: UpdateTravelRequestInput): Promise<void> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('Not authenticated. Please log in to update a request.');
+  }
+
+  await gatewayRequest(`/api/requests/api/v1/requests/${requestId}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
 }
 
 export async function submitTravelRequest(requestId: string): Promise<TravelRequest> {
@@ -930,10 +954,10 @@ export async function fetchDashboardStats(userId: string): Promise<DashboardStat
     }
   }
 
-  // Calculate unread from notifications - single pass counter
-  let unreadMessages = 0;
+  // Calculate unread notifications count
+  let unreadNotifications = 0;
   for (const n of notifications) {
-    if (!n.isRead) unreadMessages++;
+    if (!n.isRead) unreadNotifications++;
   }
 
   return {
@@ -941,7 +965,7 @@ export async function fetchDashboardStats(userId: string): Promise<DashboardStat
     awaitingSelection,
     confirmedBookings,
     completedTrips,
-    unreadMessages,
+    unreadMessages: unreadNotifications,
   };
 }
 
@@ -1260,4 +1284,112 @@ export async function fetchAgentReviews(agentId: string): Promise<{
       },
     };
   }
+}
+
+// ============================================================================
+// Current User (Identity) - for session validation
+// ============================================================================
+
+export async function fetchCurrentUser(): Promise<any> {
+  const result = await gatewayRequest<any>('/api/identity/users/me');
+  return result;
+}
+
+// ============================================================================
+// Request Caps - for request limits
+// ============================================================================
+
+export async function fetchRequestCaps(): Promise<any> {
+  return gatewayRequest<any>('/api/requests/api/v1/requests/caps');
+}
+
+// ============================================================================
+// Agent Profile - public agent details
+// ============================================================================
+
+export async function fetchAgentProfile(agentId: string): Promise<any> {
+  return gatewayRequest<any>(`/api/identity/agents/${agentId}/profile`);
+}
+
+// ============================================================================
+// Full Booking - with all details (used by proposal acceptance flow)
+// ============================================================================
+
+export interface CreateBookingParams {
+  userId: string;
+  agentId: string;
+  itineraryId: string;
+  tripStartDate: string;
+  tripEndDate: string;
+  destinationCity: string;
+  destinationCountry: string;
+  travelerCount: number;
+  basePriceCents: number;
+}
+
+export interface CreateCheckoutParams {
+  bookingId: string;
+  successUrl: string;
+  cancelUrl: string;
+}
+
+export async function createFullBooking(params: CreateBookingParams): Promise<any> {
+  const token = getAccessToken();
+  if (!token) throw new Error('Not authenticated. Please log in to create a booking.');
+
+  const idempotencyKey = `booking-${params.userId}-${params.itineraryId}-${Date.now()}`;
+  return gatewayRequest<any>('/api/booking-payments/api/v1/bookings', {
+    method: 'POST',
+    body: JSON.stringify({ ...params, idempotencyKey }),
+  });
+}
+
+export async function createCheckout(params: CreateCheckoutParams): Promise<any> {
+  const token = getAccessToken();
+  if (!token) throw new Error('Not authenticated. Please log in to complete payment.');
+
+  const idempotencyKey = `checkout-${params.bookingId}-${Date.now()}`;
+  return gatewayRequest<any>('/api/booking-payments/api/v1/checkout', {
+    method: 'POST',
+    body: JSON.stringify({ ...params, idempotencyKey }),
+  });
+}
+
+// ============================================================================
+// Messaging API - for messages data layer
+// ============================================================================
+
+export async function gwListConversations(): Promise<any> {
+  return gatewayRequest<any>('/api/messaging/api/v1/conversations');
+}
+
+export async function gwListMessages(conversationId: string): Promise<any> {
+  return gatewayRequest<any>(
+    `/api/messaging/api/v1/messages?conversationId=${encodeURIComponent(conversationId)}`
+  );
+}
+
+export async function gwSendMessage(conversationId: string, content: string): Promise<any> {
+  return gatewayRequest<any>('/api/messaging/api/v1/messages', {
+    method: 'POST',
+    body: JSON.stringify({ conversationId, content }),
+  });
+}
+
+export async function gwMarkReadUpTo(conversationId: string, upToMessageId: string): Promise<any> {
+  return gatewayRequest<any>('/api/messaging/api/v1/messages/read-up-to', {
+    method: 'POST',
+    body: JSON.stringify({ conversationId, upToMessageId }),
+  });
+}
+
+export async function gwCreateConversation(
+  userId: string,
+  agentId: string,
+  bookingId?: string | null
+): Promise<any> {
+  return gatewayRequest<any>('/api/messaging/api/v1/conversations', {
+    method: 'POST',
+    body: JSON.stringify({ userId, agentId, bookingId: bookingId || null }),
+  });
 }

@@ -1,4 +1,10 @@
-import { messagingApi } from '@/lib/api/client';
+import {
+  gwListConversations,
+  gwListMessages,
+  gwSendMessage,
+  gwMarkReadUpTo,
+  gwCreateConversation,
+} from '@/lib/data/api';
 
 // ============================================================================
 // Messaging Data Access - Gateway API
@@ -42,7 +48,7 @@ export async function listUserConversations(userId: string): Promise<Conversatio
   // The messaging service infers the principal from the bearer token.
   void userId;
 
-  const response: any = await messagingApi.listConversations();
+  const response: any = await gwListConversations();
   const items: any[] = response?.data?.items ?? [];
 
   return items.map((c: any) => {
@@ -77,7 +83,7 @@ export async function listUserConversations(userId: string): Promise<Conversatio
 }
 
 export async function listMessages(conversationId: string): Promise<ConversationMessage[]> {
-  const response: any = await messagingApi.listMessages(conversationId);
+  const response: any = await gwListMessages(conversationId);
   const items: any[] = response?.data?.items ?? [];
 
   return items.map((m: any) => ({
@@ -93,16 +99,16 @@ export async function listMessages(conversationId: string): Promise<Conversation
 export async function sendUserMessage(conversationId: string, userId: string, content: string): Promise<void> {
   // NOTE: `userId` kept for backward compatibility.
   void userId;
-  await messagingApi.sendMessage(conversationId, content);
+  await gwSendMessage(conversationId, content);
 }
 
 export async function markConversationReadAsUser(conversationId: string): Promise<void> {
   // Mark read up to the most recent message in the thread.
-  const response: any = await messagingApi.listMessages(conversationId);
+  const response: any = await gwListMessages(conversationId);
   const items: any[] = response?.data?.items ?? [];
   const last = items.length > 0 ? items[items.length - 1] : null;
   if (!last?.id) return;
-  await messagingApi.markReadUpTo(conversationId, String(last.id));
+  await gwMarkReadUpTo(conversationId, String(last.id));
 }
 
 /**
@@ -116,7 +122,7 @@ export async function startConversation(
 ): Promise<{ conversationId: string }> {
   console.log('[startConversation] Creating conversation - userId:', userId, 'agentId:', agentId, 'bookingId:', bookingId);
   try {
-    const response: any = await messagingApi.createConversation(userId, agentId, bookingId);
+    const response: any = await gwCreateConversation(userId, agentId, bookingId);
     console.log('[startConversation] Response:', response);
     const conversation = response?.data ?? response;
     if (!conversation?.id) {

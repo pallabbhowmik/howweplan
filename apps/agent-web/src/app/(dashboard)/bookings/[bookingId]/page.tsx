@@ -9,9 +9,9 @@ import { getAgentBookingById, submitUserReview, hasReviewedBooking, type AgentBo
 import { UserReviewExperience, type UserReviewData } from '@/components/reviews';
 
 function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'INR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(cents / 100);

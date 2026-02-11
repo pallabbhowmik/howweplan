@@ -35,6 +35,7 @@ export function TemplatePicker({
   const [loading, setLoading] = useState(true);
   const [selecting, setSelecting] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadSuggestions = useCallback(async () => {
     setLoading(true);
@@ -68,7 +69,8 @@ export function TemplatePicker({
       onSelect(template);
     } catch (err) {
       console.error('Failed to load template:', err);
-      alert('Failed to load template. Please try again.');
+      setLoadError('Failed to load template. Please try again.');
+      setTimeout(() => setLoadError(null), 4000);
     } finally {
       setSelecting(null);
     }

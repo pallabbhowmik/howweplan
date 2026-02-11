@@ -161,16 +161,14 @@ async function start(): Promise<void> {
     
     expiryProcessorInterval = setInterval(async () => {
       try {
-        // Note: In production, this would use the itinerary service directly
-        // For now, we log that the check would happen
         logger.debug('Checking for expired itineraries', {
           expiryHours: env.ITINERARY_EXPIRY_HOURS,
         });
         
-        // const count = await itineraryService.processExpiredItineraries();
-        // if (count > 0) {
-        //   logger.info('Processed expired itineraries', { count });
-        // }
+        const count = await itineraryService.processExpiredItineraries();
+        if (count > 0) {
+          logger.info('Processed expired itineraries', { count });
+        }
       } catch (error) {
         logger.error('Failed to process expired itineraries', {
           error: error instanceof Error ? error.message : 'Unknown error',

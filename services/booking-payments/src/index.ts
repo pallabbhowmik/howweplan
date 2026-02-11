@@ -27,10 +27,13 @@ const app = express();
 
 // CORS middleware - must be before other middleware
 app.use((req, res, next) => {
-  const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003'];
+  const allowedOrigins = [
+    'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003',
+  ];
   const origin = req.headers.origin;
   
-  if (origin && allowedOrigins.includes(origin)) {
+  // Allow configured origins and any *.onrender.com or *.vercel.app deployment
+  if (origin && (allowedOrigins.includes(origin) || /\.(onrender\.com|vercel\.app)$/.test(new URL(origin).hostname))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   
@@ -54,17 +57,17 @@ app.set('trust proxy', 1);
 
 // Parse JSON bodies for most routes
 app.use((req, res, next) => {
-  // Skip JSON parsing for Stripe webhooks (need raw body)
-  if (req.path === '/api/v1/webhooks/stripe') {
+  // Skip JSON parsing for Razorpay webhooks (need raw body for signature verification)
+  if (req.path === '/api/v1/webhooks/razorpay') {
     next();
   } else {
     express.json()(req, res, next);
   }
 });
 
-// Raw body parsing for Stripe webhooks
+// Raw body parsing for Razorpay webhooks (signature verification requires raw body)
 app.use(
-  '/api/v1/webhooks/stripe',
+  '/api/v1/webhooks/razorpay',
   express.raw({ type: 'application/json' })
 );
 

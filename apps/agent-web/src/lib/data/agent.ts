@@ -327,16 +327,20 @@ export class ApiError extends Error {
 }
 
 async function tryFetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  // Debug: Log token status before API call
   const token = getAccessToken();
-  console.log(`[API Debug] ${path} - Token present: ${!!token}, Token prefix: ${token?.substring(0, 20)}...`);
   
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> ?? {}),
+  };
+  
+  // Only set Content-Type for requests with a body
+  if (init?.body) {
+    headers['Content-Type'] = headers['Content-Type'] ?? 'application/json';
+  }
+
   const res = await authenticatedFetch(apiUrl(path), {
     ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
+    headers,
   });
 
   const json = await res.json().catch(() => ({}));
@@ -864,9 +868,11 @@ export async function listAgentBookings(options?: {
     };
   }>(`/api/booking-payments/api/v1/bookings?${queryParams.toString()}`);
 
-  const bookings = result?.data?.bookings ?? [];
+  // tryFetchJson already unwraps .data, so result may be the data level
+  // Handle both wrapped and unwrapped shapes
+  const bookingsArray = result?.bookings ?? (result as any)?.data?.bookings ?? [];
 
-  return bookings.map((b) => ({
+  const bookings = bookingsArray.map((b: any) => ({
     id: b.id,
     bookingNumber: b.bookingNumber,
     userId: b.userId,
@@ -887,6 +893,41 @@ export async function listAgentBookings(options?: {
     createdAt: b.createdAt,
     updatedAt: b.updatedAt,
   }));
+
+  // Enrich bookings with client data from identity service
+  const enrichedBookings = await Promise.all(
+    bookings.map(async (booking: AgentBooking) => {
+      if (booking.userId) {
+        try {
+          const user = await tryFetchJson<any>(`/api/identity/users/${booking.userId}`);
+          if (user) {
+            return {
+              ...booking,
+              client: {
+                id: booking.userId,
+                firstName: user.first_name ?? user.firstName ?? 'Client',
+                lastName: user.last_name ?? user.lastName ?? '',
+                email: user.email ?? '',
+              },
+            };
+          }
+        } catch {
+          // Non-critical: continue without client data
+        }
+      }
+      return {
+        ...booking,
+        client: {
+          id: booking.userId,
+          firstName: 'Client',
+          lastName: '',
+          email: '',
+        },
+      };
+    })
+  );
+
+  return enrichedBookings;
 }
 
 /**
@@ -922,10 +963,11 @@ export async function getAgentBookingById(bookingId: string): Promise<AgentBooki
     };
   }>(`/api/booking-payments/api/v1/bookings/${encodeURIComponent(bookingId)}`);
 
-  const b = result?.data;
-  if (!b) return null;
+  // tryFetchJson already unwraps .data, so result may BE the booking
+  const b = result?.data ?? result;
+  if (!b || !b.id) return null;
 
-  return {
+  const booking: AgentBooking = {
     id: b.id,
     bookingNumber: b.bookingNumber,
     userId: b.userId,
@@ -946,6 +988,34 @@ export async function getAgentBookingById(bookingId: string): Promise<AgentBooki
     createdAt: b.createdAt,
     updatedAt: b.updatedAt,
   };
+
+  // Enrich with client data from identity service
+  if (booking.userId) {
+    try {
+      const user = await tryFetchJson<any>(`/api/identity/users/${booking.userId}`);
+      if (user) {
+        booking.client = {
+          id: booking.userId,
+          firstName: user.first_name ?? user.firstName ?? 'Client',
+          lastName: user.last_name ?? user.lastName ?? '',
+          email: user.email ?? '',
+        };
+      }
+    } catch {
+      // Non-critical: continue without client data
+    }
+  }
+
+  if (!booking.client) {
+    booking.client = {
+      id: booking.userId,
+      firstName: 'Client',
+      lastName: '',
+      email: '',
+    };
+  }
+
+  return booking;
 }
 
 // ============================================================================
@@ -1318,7 +1388,7 @@ export async function getAgentItineraryById(itineraryId: string): Promise<AgentI
   }
 
   const itinerary = await tryFetchJson<AgentItinerary>(
-    `/api/itineraries/v1/itineraries/${encodeURIComponent(itineraryId)}`
+    `/api/itineraries/api/v1/itineraries/${encodeURIComponent(itineraryId)}`
   );
   
   if (!itinerary) return null;

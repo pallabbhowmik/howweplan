@@ -426,7 +426,7 @@ async function createConversationForMatch(userId: string, agentId: string, reque
   const internalApiKey = servicesConfig.internalApiKey;
   
   try {
-    const response = await fetch(`${messagingServiceUrl}/api/v1/webhooks/match-accepted`, {
+    const response = await fetch(`${messagingServiceUrl}/internal/webhooks/match-accepted`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1052,9 +1052,9 @@ async function requestHandler(
         }
       }
 
-      logger.info({ agentId, requestId }, 'Querying matches table');
+      logger.info({ agentId, requestId }, 'Querying agent_matches table');
       const result = await query<{ id: string; status: string }>(
-        `SELECT id, status FROM matches 
+        `SELECT id, status FROM agent_matches 
          WHERE agent_id = $1 AND request_id = $2 
          AND status IN ('pending', 'accepted', 'itinerary_submitted', 'booked')
          LIMIT 1`,
@@ -1090,8 +1090,8 @@ async function requestHandler(
   // Admin API Endpoints
   // ---------------------------------------------------------------------------
 
-  // GET /api/matching/v1/admin/matching/overrides - List matching overrides
-  if (url === '/api/matching/v1/admin/matching/overrides' && method === 'GET') {
+  // GET /v1/admin/matching/overrides - List matching overrides
+  if (url === '/v1/admin/matching/overrides' && method === 'GET') {
     const user = requireAdmin(getGatewayUser(req), res);
     if (!user) return;
 
@@ -1126,8 +1126,8 @@ async function requestHandler(
     return;
   }
 
-  // GET /api/matching/v1/admin/matching/overrides/:id - Get override details
-  if (url.match(/^\/api\/matching\/v1\/admin\/matching\/overrides\/[a-f0-9-]+$/) && method === 'GET') {
+  // GET /v1/admin/matching/overrides/:id - Get override details
+  if (url.match(/^\/v1\/admin\/matching\/overrides\/[a-f0-9-]+$/) && method === 'GET') {
     const user = requireAdmin(getGatewayUser(req), res);
     if (!user) return;
 
@@ -1145,8 +1145,8 @@ async function requestHandler(
     return;
   }
 
-  // POST /api/matching/v1/admin/matching/overrides - Create new override
-  if (url === '/api/matching/v1/admin/matching/overrides' && method === 'POST') {
+  // POST /v1/admin/matching/overrides - Create new override
+  if (url === '/v1/admin/matching/overrides' && method === 'POST') {
     const user = requireAdmin(getGatewayUser(req), res);
     if (!user) return;
 
@@ -1189,8 +1189,8 @@ async function requestHandler(
     return;
   }
 
-  // POST /api/matching/v1/admin/matching/overrides/:id/cancel - Cancel override
-  if (url.match(/^\/api\/matching\/v1\/admin\/matching\/overrides\/[a-f0-9-]+\/cancel$/) && method === 'POST') {
+  // POST /v1/admin/matching/overrides/:id/cancel - Cancel override
+  if (url.match(/^\/v1\/admin\/matching\/overrides\/[a-f0-9-]+\/cancel$/) && method === 'POST') {
     const user = requireAdmin(getGatewayUser(req), res);
     if (!user) return;
 
@@ -1226,8 +1226,8 @@ async function requestHandler(
     return;
   }
 
-  // GET /api/matching/v1/admin/matching/pending-requests - Get pending trip requests
-  if (url === '/api/matching/v1/admin/matching/pending-requests' && method === 'GET') {
+  // GET /v1/admin/matching/pending-requests - Get pending trip requests
+  if (url === '/v1/admin/matching/pending-requests' && method === 'GET') {
     const user = requireAdmin(getGatewayUser(req), res);
     if (!user) return;
 
@@ -1323,8 +1323,8 @@ async function requestHandler(
     return;
   }
 
-  // GET /api/matching/v1/admin/matching/available-agents/:tripRequestId - Get available agents
-  if (url.match(/^\/api\/matching\/v1\/admin\/matching\/available-agents\/[a-f0-9-]+$/) && method === 'GET') {
+  // GET /v1/admin/matching/available-agents/:tripRequestId - Get available agents
+  if (url.match(/^\/v1\/admin\/matching\/available-agents\/[a-f0-9-]+$/) && method === 'GET') {
     const user = requireAdmin(getGatewayUser(req), res);
     if (!user) return;
 

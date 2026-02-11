@@ -32,7 +32,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-// Sample agents data (in production, fetch from API)
+// Sample agents data — demonstration data for the comparison tool
+// In production, these would be fetched from the matching/identity API
 const sampleAgents = [
   {
     id: 'agent-1',
@@ -238,6 +239,18 @@ export default function CompareAgentsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Demo Mode Notice */}
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-start gap-3">
+          <Sparkles className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-amber-800">Preview Mode</p>
+            <p className="text-sm text-amber-700">
+              Showing sample advisor profiles to demonstrate the comparison tool. 
+              Once you submit a travel request, you&apos;ll be matched with real verified advisors.
+            </p>
+          </div>
+        </div>
+
         {/* Agent Selector Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {[0, 1, 2].map((slot) => {

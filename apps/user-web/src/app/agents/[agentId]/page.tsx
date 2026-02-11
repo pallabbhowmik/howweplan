@@ -27,7 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { identityApi } from '@/lib/api/client';
+import { fetchAgentProfile } from '@/lib/data/api';
 
 interface AgentProfile {
   id: string;
@@ -61,7 +61,7 @@ export default function AgentProfilePage() {
     async function loadAgent() {
       try {
         setLoading(true);
-        const result: any = await identityApi.getAgentProfile(agentId);
+        const result: any = await fetchAgentProfile(agentId);
         const data = result.data || result;
         
         setAgent({
@@ -73,13 +73,13 @@ export default function AgentProfilePage() {
           avatarUrl: data.avatarUrl || data.avatar_url || null,
           agencyName: data.agencyName || data.agency_name || null,
           bio: data.bio || 'Experienced travel professional dedicated to creating unforgettable journeys.',
-          specializations: data.specializations || ['Adventure', 'Luxury', 'Cultural'],
-          rating: data.rating || 4.8,
+          specializations: data.specializations || [],
+          rating: data.rating || 0,
           reviewCount: data.reviewCount || data.review_count || 0,
           isVerified: data.isVerified || data.is_verified || false,
-          yearsExperience: data.yearsExperience || 5,
-          tripsCompleted: data.tripsCompleted || data.trips_completed || 50,
-          responseTime: data.responseTime || '< 2 hours',
+          yearsExperience: data.yearsExperience || data.years_experience || 0,
+          tripsCompleted: data.tripsCompleted || data.trips_completed || 0,
+          responseTime: data.responseTime || data.response_time || null,
           languages: data.languages || ['English'],
         });
       } catch (err) {
@@ -231,7 +231,7 @@ export default function AgentProfilePage() {
                         </div>
                         <div className="flex items-center gap-1.5 text-slate-500">
                           <Clock className="h-4 w-4" />
-                          <span>Responds {agent.responseTime}</span>
+                          <span>Responds {agent.responseTime || 'within a few hours'}</span>
                         </div>
                       </div>
                     </div>
@@ -249,7 +249,7 @@ export default function AgentProfilePage() {
                       <Button 
                         size="lg" 
                         className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/25"
-                        onClick={() => router.push('/dashboard/messages')}
+                        onClick={() => router.push(`/dashboard/messages?agent=${agent.userId || agentId}`)}
                       >
                         <MessageSquare className="h-4 w-4 mr-2" />
                         Contact

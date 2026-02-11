@@ -270,13 +270,13 @@ function MessageBubble({
       <div className={cn('max-w-[70%]', isOwn ? 'order-1' : 'order-2')}>
         {/* Message Actions */}
         <div className={cn('flex items-center gap-1 mb-1 h-6', isOwn ? 'justify-end' : 'justify-start', showActions && !isOptimistic ? 'opacity-100' : 'opacity-0', 'transition-opacity')}>
-          <button className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all" title="Reply">
+          <button className="p-1.5 rounded-lg text-slate-300 cursor-not-allowed opacity-50" title="Reply — coming soon" disabled>
             <Reply className="h-3.5 w-3.5" />
           </button>
           <button onClick={handleCopy} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all" title={copied ? 'Copied!' : 'Copy'}>
             {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
-          <button className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-amber-500 transition-all" title="Star">
+          <button className="p-1.5 rounded-lg text-slate-300 cursor-not-allowed opacity-50" title="Star — coming soon" disabled>
             <Star className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -325,7 +325,7 @@ function ConversationListCard({
   onClick: () => void;
 }) {
   const initials = getInitials(conversation.clientName);
-  const isOnline = true; // Simulate online status
+  const isOnline = false; // Online status not yet implemented
 
   return (
     <button
@@ -385,10 +385,21 @@ export default function MessagesPage() {
   const { agent } = useAgentSession();
   const router = useRouter();
   
-  // Conversation action states (would be persisted in real app)
-  const [priorityConversations, setPriorityConversations] = useState<Set<string>>(new Set());
-  const [mutedConversations, setMutedConversations] = useState<Set<string>>(new Set());
-  const [archivedConversations, setArchivedConversations] = useState<Set<string>>(new Set());
+  // Conversation action states — persisted in localStorage
+  const [priorityConversations, setPriorityConversations] = useState<Set<string>>(() => {
+    try { const v = localStorage.getItem('tc_agent_priority_convos'); return v ? new Set(JSON.parse(v)) : new Set(); } catch { return new Set(); }
+  });
+  const [mutedConversations, setMutedConversations] = useState<Set<string>>(() => {
+    try { const v = localStorage.getItem('tc_agent_muted_convos'); return v ? new Set(JSON.parse(v)) : new Set(); } catch { return new Set(); }
+  });
+  const [archivedConversations, setArchivedConversations] = useState<Set<string>>(() => {
+    try { const v = localStorage.getItem('tc_agent_archived_convos'); return v ? new Set(JSON.parse(v)) : new Set(); } catch { return new Set(); }
+  });
+
+  // Persist dropdown states to localStorage
+  useEffect(() => { try { localStorage.setItem('tc_agent_priority_convos', JSON.stringify([...priorityConversations])); } catch {} }, [priorityConversations]);
+  useEffect(() => { try { localStorage.setItem('tc_agent_muted_convos', JSON.stringify([...mutedConversations])); } catch {} }, [mutedConversations]);
+  useEffect(() => { try { localStorage.setItem('tc_agent_archived_convos', JSON.stringify([...archivedConversations])); } catch {} }, [archivedConversations]);
 
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(true);
@@ -421,12 +432,15 @@ export default function MessagesPage() {
   );
 
   const filteredConversations = useMemo(() => {
-    if (!searchQuery) return conversations;
-    const query = searchQuery.toLowerCase();
-    return conversations.filter(
-      (conv) => conv.clientName.toLowerCase().includes(query) || (conv.destinationLabel ?? '').toLowerCase().includes(query)
-    );
-  }, [conversations, searchQuery]);
+    let list = conversations.filter((c) => !archivedConversations.has(c.id));
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      list = list.filter(
+        (conv) => conv.clientName.toLowerCase().includes(query) || (conv.destinationLabel ?? '').toLowerCase().includes(query)
+      );
+    }
+    return list;
+  }, [conversations, searchQuery, archivedConversations]);
 
   const messageGroups = useMemo(() => groupMessagesByDate(messages), [messages]);
 
@@ -543,8 +557,17 @@ export default function MessagesPage() {
   }, [selectedConversation]);
   */
 
+  // Adaptive polling - slows to 10s if page is hidden, speeds up to 1.5s after sending
+  const [pollSpeed, setPollSpeed] = useState(3000); // Default 3 seconds
+
   useEffect(() => {
     if (!selectedConversation) return;
+
+    // Adaptive polling - slow down when tab is hidden
+    const handleVisibilityChange = () => {
+      setPollSpeed(document.hidden ? 10000 : 3000);
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Polling fallback - only updates when data actually changes
     const id = setInterval(async () => {
@@ -552,7 +575,16 @@ export default function MessagesPage() {
         const msgs = await listMessages(selectedConversation);
         // Only update if there are new messages (compare by length and last message id)
         setMessages((prev) => {
-          if (msgs.length !== prev.length) return msgs;
+          if (msgs.length !== prev.length) {
+            // Visual notification for new client messages
+            const newMsgs = msgs.filter(m => !prev.find(p => p.id === m.id));
+            const hasClientMessage = newMsgs.some(m => m.senderType === 'user');
+            if (hasClientMessage && typeof window !== 'undefined') {
+              document.title = '💬 New message - HowWePlan Agent';
+              setTimeout(() => { document.title = 'Messages - HowWePlan Agent'; }, 3000);
+            }
+            return msgs;
+          }
           const lastNew = msgs[msgs.length - 1];
           const lastPrev = prev[prev.length - 1];
           if (lastNew?.id !== lastPrev?.id) return msgs;
@@ -564,11 +596,20 @@ export default function MessagesPage() {
       } catch {
         // ignore - polling is best-effort
       }
-    }, 5000);
+    }, pollSpeed);
 
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedConversation]);
+  }, [selectedConversation, pollSpeed]);
+
+  // Speed up polling briefly after sending a message
+  const speedUpPolling = () => {
+    setPollSpeed(1500); // 1.5 second
+    setTimeout(() => setPollSpeed(3000), 5000); // Back to normal after 5s
+  };
 
   useEffect(() => {
     const prevCount = prevMsgCountRef.current;
@@ -612,6 +653,7 @@ export default function MessagesPage() {
       const msgs = await listMessages(selectedConversation);
       setMessages(msgs);
       loadConversations();
+      speedUpPolling(); // Faster polling after sending
     } catch (e: any) {
       // Remove optimistic message on failure
       setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
@@ -737,7 +779,7 @@ export default function MessagesPage() {
                     {activeConversation.clientName}
                   </h3>
                   <div className="flex items-center gap-3">
-                    <OnlineStatus isOnline={true} />
+                    <OnlineStatus isOnline={false} />
                     <span className="text-xs text-slate-300">•</span>
                     <span className="text-xs text-indigo-600 font-medium flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
@@ -839,13 +881,11 @@ export default function MessagesPage() {
                     <span>Archive Chat</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem 
-                    className="cursor-pointer text-red-600 focus:text-red-600"
-                    onClick={() => {
-                      toast.warning('Report submitted', 'Our team will review this conversation');
-                    }}
+                    className="cursor-pointer text-slate-400"
+                    disabled
                   >
                     <Flag className="mr-2 h-4 w-4" />
-                    <span>Report Client</span>
+                    <span>Report Client — coming soon</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -920,10 +960,10 @@ export default function MessagesPage() {
             <div className="p-4 border-t bg-white">
               <div className="flex items-end gap-2">
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-slate-300 opacity-50 cursor-not-allowed" disabled title="File attachments — coming soon">
                     <Paperclip className="h-5 w-5" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-slate-300 opacity-50 cursor-not-allowed" disabled title="Image upload — coming soon">
                     <Image className="h-5 w-5" />
                   </Button>
                 </div>
