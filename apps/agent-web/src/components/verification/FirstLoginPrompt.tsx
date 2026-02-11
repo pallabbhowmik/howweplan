@@ -117,7 +117,10 @@ export function FirstLoginVerificationPrompt({ isAgent }: VerificationPromptProp
       if (token) {
         await fetch(`${env.NEXT_PUBLIC_API_BASE_URL}/api/identity/agents/me/verification/first-login-shown`, {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         });
       }
     } catch (error) {
@@ -135,7 +138,10 @@ export function FirstLoginVerificationPrompt({ isAgent }: VerificationPromptProp
       if (token) {
         await fetch(`${env.NEXT_PUBLIC_API_BASE_URL}/api/identity/agents/me/verification/first-login-shown`, {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         });
       }
     } catch (error) {

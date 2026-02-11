@@ -335,7 +335,10 @@ export default function VerificationDocumentsPage() {
     try {
       const res = await fetch(`${env.NEXT_PUBLIC_API_BASE_URL}/api/identity/agents/me/verification/submit`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
 
       if (!res.ok) {
@@ -356,7 +359,10 @@ export default function VerificationDocumentsPage() {
 
     await fetch(`${env.NEXT_PUBLIC_API_BASE_URL}/api/identity/agents/me/verification/comments/${commentId}/read`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
     });
   };
 
