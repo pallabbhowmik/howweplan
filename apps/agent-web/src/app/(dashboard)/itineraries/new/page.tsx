@@ -791,6 +791,7 @@ function NewItineraryPageContent() {
               title: '',
               description: '',
               activities: [''],
+              photos: [],
             })),
           }));
         }
