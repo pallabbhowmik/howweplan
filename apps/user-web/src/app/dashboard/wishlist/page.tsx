@@ -352,7 +352,7 @@ export default function WishlistPage() {
                 </button>
                 <button
                   onClick={async () => {
-                    const text = items.map(i => `${i.name} - ${i.destination || ''}`).join('\n');
+                    const text = items.map(i => `${i.itemName} - ${(i.itemMetadata as Record<string, string>)?.destination || ''}`).join('\n');
                     if (navigator.share) {
                       try { await navigator.share({ title: 'My Travel Wishlist', text }); } catch {}
                     } else {

@@ -102,8 +102,9 @@ function createApp(): Express {
   });
 
   // Store services for event subscriber initialization
-  (app as Express & { services: { disclosureService: DisclosureService } }).services = {
+  (app as Express & { services: { disclosureService: DisclosureService; itineraryService: ItineraryService } }).services = {
     disclosureService,
+    itineraryService,
   };
 
   return app;
@@ -132,7 +133,7 @@ async function start(): Promise<void> {
 
   // Initialize event subscribers
   try {
-    const services = (app as Express & { services: { disclosureService: DisclosureService } }).services;
+    const services = (app as Express & { services: { disclosureService: DisclosureService; itineraryService: ItineraryService } }).services;
     await initializeSubscribers({
       disclosureService: services.disclosureService,
     });
@@ -157,7 +158,7 @@ async function start(): Promise<void> {
   // Start expiry processor for automatic itinerary expiration
   const startExpiryProcessor = () => {
     const EXPIRY_CHECK_INTERVAL = env.EXPIRY_CHECK_INTERVAL_MINUTES * 60 * 1000;
-    const services = (app as Express & { services: { disclosureService: DisclosureService } }).services;
+    const services = (app as Express & { services: { disclosureService: DisclosureService; itineraryService: ItineraryService } }).services;
     
     expiryProcessorInterval = setInterval(async () => {
       try {
@@ -165,7 +166,7 @@ async function start(): Promise<void> {
           expiryHours: env.ITINERARY_EXPIRY_HOURS,
         });
         
-        const count = await itineraryService.processExpiredItineraries();
+        const count = await services.itineraryService.processExpiredItineraries();
         if (count > 0) {
           logger.info('Processed expired itineraries', { count });
         }

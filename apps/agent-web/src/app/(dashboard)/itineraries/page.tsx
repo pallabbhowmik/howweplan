@@ -338,8 +338,8 @@ function ItineraryCard({ itinerary, viewMode }: { itinerary: DisplayItinerary; v
               )}
               <Button variant="outline" size="sm" title="Duplicate itinerary" onClick={() => {
                 navigator.clipboard.writeText(JSON.stringify({
-                  title: itinerary.title,
-                  destinations: itinerary.destinations,
+                  name: itinerary.name,
+                  destination: itinerary.destination,
                   totalPrice: itinerary.totalPrice,
                 }));
                 window.location.href = `/itineraries/${itinerary.id}`;
