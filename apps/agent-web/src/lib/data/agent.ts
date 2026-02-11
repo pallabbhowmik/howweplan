@@ -868,9 +868,8 @@ export async function listAgentBookings(options?: {
     };
   }>(`/api/booking-payments/api/v1/bookings?${queryParams.toString()}`);
 
-  // tryFetchJson already unwraps .data, so result may be the data level
-  // Handle both wrapped and unwrapped shapes
-  const bookingsArray = result?.bookings ?? (result as any)?.data?.bookings ?? [];
+  // Handle both wrapped { success, data: { bookings } } and unwrapped { bookings } shapes
+  const bookingsArray = result?.data?.bookings ?? (result as any)?.bookings ?? [];
 
   const bookings = bookingsArray.map((b: any) => ({
     id: b.id,
