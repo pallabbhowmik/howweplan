@@ -33,7 +33,6 @@ import {
   Compass,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TripCountdown } from '@/components/trust/TripCountdown';
 import { useUserSession } from '@/lib/user/session';
@@ -41,16 +40,15 @@ import {
   fetchUserRequests,
   fetchUserBookings,
   fetchDashboardStats,
-  fetchRecentActivity,
   type TravelRequest,
   type Booking,
   type DashboardStats,
-  type ActivityItem,
 } from '@/lib/data/api';
 import {
   fetchDestinations,
   type Destination,
 } from '@/lib/api/destinations';
+import { formatRelativeTime } from '@/lib/utils';
 import {
   destinationImageUrl,
   INDIA_DESTINATIONS,
@@ -91,25 +89,6 @@ function determineJourneyStage(
 }
 
 // ============================================================================
-// TIME HELPERS
-// ============================================================================
-
-function getTimeAgo(dateString: string): string {
-  const now = new Date();
-  const then = new Date(dateString);
-  const diffMs = now.getTime() - then.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return then.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-// ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
@@ -122,7 +101,6 @@ export default function DashboardPage() {
   const [requests, setRequests] = useState<TravelRequest[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [_activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -139,16 +117,14 @@ export default function DashboardPage() {
     setLoading(true);
     setDataError(null);
     try {
-      const [requestsData, bookingsData, statsData, activityData] = await Promise.all([
+      const [requestsData, bookingsData, statsData] = await Promise.all([
         fetchUserRequests(user.userId),
         fetchUserBookings(user.userId),
         fetchDashboardStats(user.userId),
-        fetchRecentActivity(user.userId),
       ]);
       setRequests(requestsData);
       setBookings(bookingsData);
       setStats(statsData);
-      setActivity(activityData);
       setLastUpdated(new Date());
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -168,18 +144,6 @@ export default function DashboardPage() {
   }, [user?.userId, userLoading, loadData]);
 
   const journeyStage = determineJourneyStage(requests, bookings, stats);
-  
-  // ACTIVE REQUEST STATES - requests that are still in progress
-  const ACTIVE_REQUEST_STATES = [
-    'DRAFT',
-    'SUBMITTED', 
-    'AGENTS_MATCHED',
-    'AGENT_CONFIRMED',
-    'ITINERARIES_RECEIVED',
-    'ITINERARY_SELECTED',
-    'READY_FOR_PAYMENT',
-    'PAYMENT_PENDING'
-  ];
   
   // INACTIVE REQUEST STATES - requests that are done
   const INACTIVE_REQUEST_STATES = ['BOOKED', 'COMPLETED', 'CANCELLED', 'EXPIRED'];
@@ -1024,7 +988,7 @@ function ActiveTripCard({
 
           {lastUpdated && (
             <div className="ml-auto flex items-center gap-2 text-xs text-slate-400">
-              <span>Updated {getTimeAgo(lastUpdated.toISOString())}</span>
+              <span>Updated {formatRelativeTime(lastUpdated.toISOString())}</span>
               <button 
                 onClick={(e) => { e.preventDefault(); onRefresh(); }}
                 className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
@@ -1465,7 +1429,3 @@ function getDestinationEmoji(destination?: string): string {
   }
   return '🌍';
 }
-
-// Suppress unused imports warning - these are used in JSX
-void Card;
-void CardContent;

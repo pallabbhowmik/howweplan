@@ -25,9 +25,6 @@ const PUBLIC_ROUTES = [
   '/how-it-works',
 ];
 
-// API routes that should be protected
-const _PROTECTED_API_ROUTES = ['/api/'];
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
@@ -40,10 +37,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check if route is public
-  const isPublicRoute = PUBLIC_ROUTES.some(route => 
-    pathname === route || pathname.startsWith(route)
-  );
+  // Check if route is public (exact match only)
+  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
   // Check for authentication token
   // Support both Supabase token and our custom token

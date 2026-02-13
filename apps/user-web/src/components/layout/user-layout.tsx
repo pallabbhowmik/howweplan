@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, formatRelativeTime } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Logo } from '@/components/ui/logo';
 import { useUserSession } from '@/lib/user/session';
@@ -48,6 +48,8 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
   // Refs for hover intent (industry best practice for dropdowns)
   const notificationsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const notificationDropdownRef = useRef<HTMLDivElement>(null);
+  const userMenuDropdownRef = useRef<HTMLDivElement>(null);
   const HOVER_DELAY = 150; // ms delay before closing to prevent accidental closes
 
   // Cleanup timeouts on unmount
@@ -57,6 +59,19 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
       if (userMenuTimeoutRef.current) clearTimeout(userMenuTimeoutRef.current);
     };
   }, []);
+
+  // Close dropdowns on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (notificationsOpen) setNotificationsOpen(false);
+        if (userMenuOpen) setUserMenuOpen(false);
+        if (mobileMenuOpen) setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [notificationsOpen, userMenuOpen, mobileMenuOpen]);
 
   // Notifications dropdown hover handlers
   const handleNotificationsEnter = useCallback(() => {
@@ -118,21 +133,41 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
     loadData();
   }, [sessionUser?.userId]);
 
-  // Real-time polling for notifications (every 30 seconds)
+  // Real-time polling for notifications (every 30 seconds, pauses when tab is hidden)
   useEffect(() => {
     if (!sessionUser?.userId) return;
 
+    let interval: ReturnType<typeof setInterval> | null = null;
+
     const pollNotifications = async () => {
+      if (document.hidden) return; // Skip polling when tab is not visible
       try {
         const notifs = await fetchUserNotifications(sessionUser.userId, 10);
         setNotifications(notifs);
-      } catch (error) {
-        // Silent fail for polling
+      } catch {
+        // Silent fail for background polling
       }
     };
 
-    const interval = setInterval(pollNotifications, 30000);
-    return () => clearInterval(interval);
+    const startPolling = () => {
+      if (interval) clearInterval(interval);
+      interval = setInterval(pollNotifications, 30000);
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        pollNotifications(); // Refresh immediately when tab becomes visible
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [sessionUser?.userId]);
 
   // Refresh notifications when dropdown opens
@@ -239,11 +274,15 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
               {/* Notifications - Enhanced with hover behavior */}
               <div 
                 className="relative"
+                ref={notificationDropdownRef}
                 onMouseEnter={handleNotificationsEnter}
                 onMouseLeave={handleNotificationsLeave}
               >
                 <button
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
+                  aria-expanded={notificationsOpen}
+                  aria-haspopup="true"
+                  aria-label={`Notifications${unreadNotifications > 0 ? ` (${unreadNotifications} unread)` : ''}`}
                   className={cn(
                     "relative p-2.5 rounded-xl transition-all duration-200",
                     notificationsOpen 
@@ -265,7 +304,7 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
                 {notificationsOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)} />
-                    <div className="absolute right-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl shadow-black/10 border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div role="menu" aria-label="Notifications" className="absolute right-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl shadow-black/10 border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                       <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-blue-50/50">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -295,7 +334,7 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
                               key={notification.id}
                               title={notification.title}
                               description={notification.body}
-                              time={formatNotificationTime(notification.createdAt)}
+                              time={formatRelativeTime(notification.createdAt)}
                               unread={!notification.isRead}
                               icon={getNotificationIcon(notification.type)}
                               href={getNotificationHref(notification)}
@@ -323,11 +362,15 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
               {/* User Menu - Enhanced with hover behavior */}
               <div 
                 className="relative"
+                ref={userMenuDropdownRef}
                 onMouseEnter={handleUserMenuEnter}
                 onMouseLeave={handleUserMenuLeave}
               >
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  aria-expanded={userMenuOpen}
+                  aria-haspopup="true"
+                  aria-label="User menu"
                   className={cn(
                     "flex items-center gap-2 p-1.5 pr-3 rounded-xl transition-all duration-200",
                     userMenuOpen ? "bg-gray-100" : "hover:bg-gray-100"
@@ -344,7 +387,7 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
                 {userMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                    <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-2xl shadow-black/10 border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div role="menu" aria-label="User menu" className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-2xl shadow-black/10 border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                       <div className="px-5 py-5 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white relative overflow-hidden">
                         {/* Decorative elements */}
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
@@ -412,6 +455,8 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
               {/* Mobile menu button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-expanded={mobileMenuOpen}
+                aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
                 className={cn(
                   "lg:hidden p-2.5 rounded-xl transition-all",
                   mobileMenuOpen 
@@ -427,7 +472,7 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile Navigation - Enhanced */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-100 bg-white/95 backdrop-blur-xl animate-in slide-in-from-top duration-200">
+          <nav aria-label="Mobile navigation" className="lg:hidden border-t border-gray-100 bg-white/95 backdrop-blur-xl animate-in slide-in-from-top duration-200">
             <div className="px-4 py-4 space-y-2">
               {navigationItems.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -477,12 +522,12 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
             </div>
-          </div>
+          </nav>
         )}
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">{children}</main>
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">{children}</main>
 
       {/* Footer - Enhanced */}
       <footer className="border-t border-gray-100 bg-white/50">
@@ -494,7 +539,7 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
               </div>
               <div>
                 <span className="text-sm font-medium text-gray-900">HowWePlan</span>
-                <p className="text-xs text-gray-400">© 2025 All rights reserved.</p>
+                <p className="text-xs text-gray-400">© {new Date().getFullYear()} All rights reserved.</p>
               </div>
             </div>
             <div className="flex items-center gap-8 text-sm">
@@ -520,21 +565,7 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
 // Helper Functions
 // ============================================================================
 
-function formatNotificationTime(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
-  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-  if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
-  
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
+// Use shared formatRelativeTime from @/lib/utils instead of duplicate
 
 function getNotificationIcon(type: string): string {
   const iconMap: Record<string, string> = {

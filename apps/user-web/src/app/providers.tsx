@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { UserSessionProvider } from '@/lib/user/session';
+import { ToastProvider } from '@/components/ui/toast';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // Create QueryClient with optimized settings - memoized to prevent recreation
@@ -28,7 +29,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <UserSessionProvider>{children}</UserSessionProvider>
+      <UserSessionProvider>
+        <ToastProvider>{children}</ToastProvider>
+      </UserSessionProvider>
     </QueryClientProvider>
   );
 }

@@ -156,7 +156,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="relative z-10 flex items-center justify-between">
-          <p className="text-sm text-blue-200">© 2024 HowWePlan. All rights reserved.</p>
+          <p className="text-sm text-blue-200">&copy; {new Date().getFullYear()} HowWePlan. All rights reserved.</p>
           <div className="flex gap-6">
             <Link href="/privacy" className="text-sm text-blue-200 hover:text-white transition-colors">
               Privacy
@@ -189,7 +189,7 @@ export default function LoginPage() {
 
               {/* Error Alert */}
               {error && (
-                <Alert className="mb-6 bg-red-50 border-red-200">
+                <Alert role="alert" className="mb-6 bg-red-50 border-red-200">
                   <div className="flex items-center gap-2 text-red-800">
                     <Shield className="h-4 w-4" />
                     <span className="text-sm font-medium">{error}</span>
@@ -246,7 +246,7 @@ export default function LoginPage() {
                       type="button"
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                       onClick={() => setShowPassword(!showPassword)}
-                      tabIndex={-1}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
