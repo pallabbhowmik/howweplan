@@ -56,21 +56,6 @@ export class AttachmentService {
     // Cloudinary upload endpoint
     const uploadUrl = `https://api.cloudinary.com/v1_1/${uploadSignature.cloudName}/auto/upload`;
 
-    // Create pending attachment record
-    // await prisma.messageAttachment.create({
-    //   data: {
-    //     id: attachmentId,
-    //     messageId: null,
-    //     filename: input.filename,
-    //     mimeType: input.mimeType,
-    //     sizeBytes: input.sizeBytes,
-    //     cloudinaryPublicId: uploadSignature.publicId,
-    //     status: 'PENDING',
-    //     uploaderId,
-    //     expiresAt
-    //   }
-    // });
-
     return {
       attachmentId,
       uploadUrl,
@@ -89,18 +74,6 @@ export class AttachmentService {
   ): Promise<AttachmentView> {
     // Get file info from Cloudinary
     const fileInfo = await cloudinaryService.getFileInfo(publicId);
-
-    // Update attachment status in database
-    // await prisma.messageAttachment.update({
-    //   where: { id: attachmentId },
-    //   data: {
-    //     status: 'CONFIRMED',
-    //     cloudinaryPublicId: fileInfo.public_id,
-    //     url: fileInfo.secure_url,
-    //     thumbnailUrl: fileInfo.resource_type === 'image' ? thumbnailUrl : null,
-    //     sizeBytes: fileInfo.bytes
-    //   }
-    // });
 
     // Generate thumbnail URL for images
     let thumbnailUrl: string | null = null;
@@ -125,12 +98,6 @@ export class AttachmentService {
     _attachmentId: string,
     _requesterId: string
   ): Promise<AttachmentView | null> {
-    // Fetch attachment and verify access
-    // const attachment = await prisma.messageAttachment.findUnique({
-    //   where: { id: attachmentId },
-    //   include: { message: { include: { conversation: true } } }
-    // });
-
     // Placeholder
     return null;
   }

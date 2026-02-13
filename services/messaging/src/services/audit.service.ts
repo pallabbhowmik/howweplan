@@ -369,9 +369,6 @@ export class AuditService {
     if (config.isDevelopment) {
       console.info('[Audit]', JSON.stringify(entry, null, 2));
     }
-
-    // Database write would go here:
-    // await prisma.conversationAuditLog.create({ data: entry });
   }
 }
 

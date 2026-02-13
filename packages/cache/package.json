@@ -2,6 +2,7 @@
   "name": "@tripcomposer/cache",
   "version": "1.0.0",
   "description": "Caching utilities with Redis and in-memory support",
+  "private": true,
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

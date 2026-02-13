@@ -2,7 +2,6 @@
  * Messaging Service - TypeScript Type Definitions
  *
  * Core types for the messaging domain.
- * These types are derived from but independent of the Prisma schema.
  */
 
 // =============================================================================

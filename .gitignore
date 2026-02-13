@@ -61,6 +61,15 @@ yarn-error.log*
 .pnpm-store/
 .pnpm-debug.log
 
+# Error/debug output files
+*_errors.txt
+*_errors_*.txt
+
+# Individual service lock files (root lockfile only)
+services/*/package-lock.json
+apps/*/package-lock.json
+packages/*/package-lock.json
+
 # ----------------------------------------------------------------------------
 # BUILD OUTPUTS
 # ----------------------------------------------------------------------------

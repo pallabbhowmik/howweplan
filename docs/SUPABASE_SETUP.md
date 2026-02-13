@@ -55,53 +55,36 @@ docker ps --filter "name=tripcomposer"
 
 ---
 
-## Admin Credentials
+## Admin & Demo Credentials
 
-### Platform Administrator
-| Field | Value |
-|-------|-------|
-| **Email** | `admin@howweplan.com` |
-| **Password** | `TripAdmin@2025` |
-| **Role** | System Administrator |
-| **Permissions** | Full Access |
+> **Note:** Default credentials are configured via seed data in `docker/init-db/`. For production, change all passwords and use proper secrets management.
 
-### Demo User Account
-| Field | Value |
-|-------|-------|
-| **Email** | `user@demo.com` |
-| **Password** | `DemoUser@123` |
-| **Role** | User |
-
-### Demo Agent Account
-| Field | Value |
-|-------|-------|
-| **Email** | `agent@demo.com` |
-| **Password** | `DemoAgent@123` |
-| **Role** | Agent |
-| **Agency** | Global Adventures Travel |
+See `docker/init-db/` seed scripts or `.env.example` files for default development credentials.
 
 ---
 
 ## Supabase Keys
 
+> **Note:** All keys and secrets should be stored in `.env` files (see `.env.example` for templates). Never commit actual secrets to version control.
+
 ### Anonymous Key (Frontend/Public)
 ```
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+# See .env.example - set SUPABASE_ANON_KEY
 ```
 
 ### Service Role Key (Backend Only - NEVER expose to frontend)
 ```
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+# See .env.example - set SUPABASE_SERVICE_ROLE_KEY
 ```
 
 ### JWT Secret
 ```
-super-secret-jwt-token-with-at-least-32-characters-long
+# See .env.example - set JWT_SECRET
 ```
 
 ### Database Connection
 ```
-postgresql://postgres:your-super-secret-and-long-postgres-password@localhost:5432/postgres
+# See .env.example - set DATABASE_URL
 ```
 
 ---

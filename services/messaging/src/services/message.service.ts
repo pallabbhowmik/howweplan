@@ -178,14 +178,6 @@ export class MessageService {
       deletedBy: null,
     };
 
-    // Link attachments if provided
-    // if (input.attachmentIds) {
-    //   await prisma.messageAttachment.updateMany({
-    //     where: { id: { in: input.attachmentIds } },
-    //     data: { messageId }
-    //   });
-    // }
-
     // Audit log
     await auditService.logMessageSent(
       messageId,
@@ -368,12 +360,6 @@ export class MessageService {
     input: EditMessageInput,
     actor: ActorContext
   ): Promise<MessageView> {
-    // Fetch message
-    // const message = await prisma.message.findUnique({
-    //   where: { id: input.messageId },
-    //   include: { conversation: true }
-    // });
-
     // Placeholder
     const message: Message | null = null;
 
@@ -400,24 +386,6 @@ export class MessageService {
       throw Errors.CANNOT_EDIT_MESSAGE('Message has been deleted');
     }
 
-    // Apply masking to new content
-    // const conversation = message.conversation;
-    // const maskResult = contentMaskingService.maskContent(
-    //   input.content,
-    //   conversation.contactsRevealed
-    // );
-
-    // Update message
-    // await prisma.message.update({
-    //   where: { id: input.messageId },
-    //   data: {
-    //     content: maskResult.maskedContent,
-    //     originalContent: maskResult.wasMasked ? input.content : null,
-    //     wasMasked: maskResult.wasMasked,
-    //     editedAt: new Date()
-    //   }
-    // });
-
     // Placeholder return
     return this.toMessageView(currentMessage, actor.actorId);
   }
@@ -429,12 +397,6 @@ export class MessageService {
     input: DeleteMessageInput,
     actor: ActorContext
   ): Promise<void> {
-    // Fetch message
-    // const message = await prisma.message.findUnique({
-    //   where: { id: input.messageId },
-    //   include: { conversation: true }
-    // });
-
     const message: Message | null = null;
 
     if (!message) {
@@ -449,16 +411,6 @@ export class MessageService {
       throw Errors.CANNOT_DELETE_MESSAGE('Only the sender can delete a message');
     }
 
-    // Soft delete
-    // await prisma.message.update({
-    //   where: { id: input.messageId },
-    //   data: {
-    //     isDeleted: true,
-    //     deletedAt: new Date(),
-    //     deletedBy: actor.actorId
-    //   }
-    // });
-
     // Audit log would be handled by the event
   }
 
@@ -470,12 +422,6 @@ export class MessageService {
     input: AdminDeleteMessageInput,
     actor: ActorContext
   ): Promise<void> {
-    // Fetch message
-    // const message = await prisma.message.findUnique({
-    //   where: { id: input.messageId },
-    //   include: { conversation: true }
-    // });
-
     const message: Message | null = null;
 
     if (!message) {
@@ -484,16 +430,6 @@ export class MessageService {
 
     // Use type assertion since TypeScript narrows to 'never' after null check with placeholder
     const currentMessage = message as Message;
-
-    // Soft delete
-    // await prisma.message.update({
-    //   where: { id: input.messageId },
-    //   data: {
-    //     isDeleted: true,
-    //     deletedAt: new Date(),
-    //     deletedBy: actor.actorId
-    //   }
-    // });
 
     // Audit admin action
     await auditService.logAdminAction(
@@ -524,19 +460,6 @@ export class MessageService {
     if (messageIds.length === 0) {
       return { markedCount: 0 };
     }
-
-    // Validate all messages belong to the conversation and reader is a participant
-    // const conversation = await prisma.conversation.findUnique({
-    //   where: { id: conversationId }
-    // });
-    // 
-    // if (!conversation) {
-    //   throw Errors.CONVERSATION_NOT_FOUND(conversationId);
-    // }
-    // 
-    // if (conversation.userId !== readById && conversation.agentId !== readById) {
-    //   throw Errors.NOT_PARTICIPANT();
-    // }
 
     const supabase = getServiceSupabaseClient();
 
@@ -569,17 +492,6 @@ export class MessageService {
     }
 
     const now = new Date();
-
-    // Create read receipts (idempotent - skipDuplicates)
-    // const result = await prisma.messageReadReceipt.createMany({
-    //   data: messageIds.map(messageId => ({
-    //     id: crypto.randomUUID(),
-    //     messageId,
-    //     readById,
-    //     readAt: now
-    //   })),
-    //   skipDuplicates: true
-    // });
 
     const { data: updated, error: updateErr } = await supabase
       .from('messages')
@@ -624,20 +536,6 @@ export class MessageService {
     if (!config.features.readReceipts) {
       return 0;
     }
-
-    // Count messages not sent by user and not read by user
-    // const unreadCount = await prisma.message.count({
-    //   where: {
-    //     conversationId,
-    //     senderId: { not: userId },
-    //     isDeleted: false,
-    //     readReceipts: {
-    //       none: {
-    //         readById: userId
-    //       }
-    //     }
-    //   }
-    // });
 
     const supabase = getServiceSupabaseClient();
 
@@ -686,22 +584,6 @@ export class MessageService {
     if (!config.features.readReceipts) {
       return null;
     }
-
-    // Get the most recent read receipt for this user in this conversation
-    // const lastReceipt = await prisma.messageReadReceipt.findFirst({
-    //   where: {
-    //     readById: userId,
-    //     message: {
-    //       conversationId
-    //     }
-    //   },
-    //   orderBy: {
-    //     readAt: 'desc'
-    //   },
-    //   include: {
-    //     message: true
-    //   }
-    // });
 
     const supabase = getServiceSupabaseClient();
 
@@ -755,34 +637,6 @@ export class MessageService {
     if (!config.features.readReceipts) {
       return { markedCount: 0 };
     }
-
-    // Get the timestamp of the target message
-    // const targetMessage = await prisma.message.findUnique({
-    //   where: { id: upToMessageId }
-    // });
-    // 
-    // if (!targetMessage || targetMessage.conversationId !== conversationId) {
-    //   throw Errors.MESSAGE_NOT_FOUND(upToMessageId);
-    // }
-
-    // Get all unread messages up to and including this one
-    // const unreadMessages = await prisma.message.findMany({
-    //   where: {
-    //     conversationId,
-    //     senderId: { not: readById },
-    //     isDeleted: false,
-    //     createdAt: { lte: targetMessage.createdAt },
-    //     readReceipts: {
-    //       none: {
-    //         readById
-    //       }
-    //     }
-    //   },
-    //   select: { id: true }
-    // });
-    // 
-    // const messageIds = unreadMessages.map(m => m.id);
-    // return this.markMessagesRead(conversationId, messageIds, readById);
 
     const supabase = getServiceSupabaseClient();
 
@@ -863,15 +717,6 @@ export class MessageService {
     if (!config.features.reactions) {
       throw Errors.FORBIDDEN('Reactions are not enabled');
     }
-
-    // Create reaction
-    // await prisma.messageReaction.create({
-    //   data: {
-    //     messageId,
-    //     reactedById,
-    //     emoji
-    //   }
-    // });
   }
 
   /**
@@ -885,17 +730,6 @@ export class MessageService {
     if (!config.features.reactions) {
       return;
     }
-
-    // Delete reaction
-    // await prisma.messageReaction.delete({
-    //   where: {
-    //     messageId_reactedById_emoji: {
-    //       messageId,
-    //       reactedById,
-    //       emoji
-    //     }
-    //   }
-    // });
   }
 
   /**

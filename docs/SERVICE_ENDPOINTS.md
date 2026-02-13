@@ -139,19 +139,20 @@ GET    /audit/stats            - Get audit statistics
 
 ### Frontend Apps (NEXT_PUBLIC_*)
 ```env
-# API Base URL now includes /api/v1 prefix
+# See .env.example files in each app for required variables
 NEXT_PUBLIC_API_BASE_URL=http://localhost:3011/api/v1
 NEXT_PUBLIC_WS_URL=ws://localhost:3016
 NEXT_PUBLIC_SUPABASE_URL=http://localhost:3011
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
 ```
 
 ### Backend Services
 ```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/tripcomposer
+# See .env.example files in each service for required variables
+DATABASE_URL=postgresql://postgres:<password>@localhost:5432/tripcomposer
 REDIS_URL=redis://localhost:6379
-EVENT_BUS_URL=amqp://tripcomposer:tripcomposer@localhost:5672
-JWT_SECRET=super-secret-jwt-token-with-at-least-32-characters-long
+EVENT_BUS_URL=amqp://<user>:<password>@localhost:5672
+JWT_SECRET=<your-jwt-secret>
 ```
 
 ## Quick Health Check
@@ -182,14 +183,5 @@ JWT_SECRET=super-secret-jwt-token-with-at-least-32-characters-long
 
 ## Development Login Credentials
 
-### Admin Dashboard (http://localhost:3002)
-| Email | Password |
-|-------|----------|
-| `admin@howweplan.com` | `TripAdmin@2025` |
-| `admin@demo.com` | `admin123` |
-
-### User App (http://localhost:3000)
-Register a new user or use existing test accounts.
-
-### Agent Portal (http://localhost:3003)
-Register a new agent or use existing test accounts.
+See seed data in `docker/init-db/` for default development credentials.
+Register new accounts on each portal for testing.

@@ -380,9 +380,6 @@ export class ConversationService {
     actor: ActorContext,
     reason?: string
   ): Promise<ConversationView> {
-    // Fetch current conversation
-    // const conversation = await prisma.conversation.findUnique({ where: { id: conversationId } });
-
     // Placeholder - in production, fetch from database
     // For now, throw not found to satisfy type checker
     const conversation: Conversation | null = null;
@@ -398,12 +395,6 @@ export class ConversationService {
     this.validateStateTransition(currentConversation.state, newState, actor.actorType);
 
     const previousState = currentConversation.state;
-
-    // Update in database
-    // await prisma.conversation.update({
-    //   where: { id: conversationId },
-    //   data: { state: newState, updatedAt: new Date() }
-    // });
 
     // Audit log
     await auditService.logStateChanged(
@@ -430,12 +421,6 @@ export class ConversationService {
     conversationId: string,
     _requesterId: string
   ): Promise<ParticipantView[]> {
-    // Fetch conversation with participants
-    // const conversation = await prisma.conversation.findUnique({
-    //   where: { id: conversationId },
-    //   include: { participants: true }
-    // });
-
     // Placeholder - in production, fetch from database and identity service
     const conversation: Conversation | null = null;
 
@@ -457,21 +442,10 @@ export class ConversationService {
    * Determines if contacts should be revealed.
    */
   async handleBookingStateChange(input: BookingStateWebhookInput): Promise<void> {
-    // Find conversation for this booking
-    // const conversation = await prisma.conversation.findFirst({
-    //   where: { bookingId: input.bookingId }
-    // });
-
     // If payment is completed, reveal contacts
     if (input.isPaid && input.isConfirmed) {
       // await this.revealContacts(conversation.id, input.bookingId, input.newState);
     }
-
-    // Update booking state on conversation
-    // await prisma.conversation.update({
-    //   where: { id: conversation.id },
-    //   data: { bookingState: input.newState }
-    // });
   }
 
   /**
@@ -483,9 +457,6 @@ export class ConversationService {
     bookingId: string,
     triggerState: string
   ): Promise<void> {
-    // Fetch conversation
-    // const conversation = await prisma.conversation.findUnique({ where: { id: conversationId } });
-
     // Placeholder - in production, fetch from database
     const conversation: Conversation | null = null;
 
@@ -499,21 +470,6 @@ export class ConversationService {
     if (currentConversation.contactsRevealed) {
       return; // Already revealed
     }
-
-    // Update conversation
-    // await prisma.conversation.update({
-    //   where: { id: conversationId },
-    //   data: {
-    //     contactsRevealed: true,
-    //     contactsRevealedAt: new Date()
-    //   }
-    // });
-
-    // Update participant visibility
-    // await prisma.conversationParticipant.updateMany({
-    //   where: { conversationId },
-    //   data: { identityRevealed: true }
-    // });
 
     // Send system message about contact reveal
     // This would create a CONTACT_REVEAL message
@@ -536,16 +492,6 @@ export class ConversationService {
     _disputeId: string,
     _reason: string
   ): Promise<void> {
-    // Find and update conversation
-    // const conversation = await prisma.conversation.findFirst({
-    //   where: { bookingId: _bookingId }
-    // });
-
-    // await prisma.conversation.update({
-    //   where: { id: conversation.id },
-    //   data: { state: 'DISPUTED' }
-    // });
-
     // Audit is handled by the event
   }
 
@@ -557,16 +503,6 @@ export class ConversationService {
     _disputeId: string,
     _resolution: string
   ): Promise<void> {
-    // Update conversation state based on resolution
-    // const conversation = await prisma.conversation.findFirst({
-    //   where: { bookingId: _bookingId }
-    // });
-
-    // const newState = _resolution === 'dismissed' ? 'CLOSED' : 'ARCHIVED';
-    // await prisma.conversation.update({
-    //   where: { id: conversation.id },
-    //   data: { state: newState }
-    // });
   }
 
   /**
@@ -577,11 +513,6 @@ export class ConversationService {
     input: AdminUpdateConversationInput,
     actor: ActorContext
   ): Promise<ConversationView> {
-    // Fetch current conversation
-    // const conversation = await prisma.conversation.findUnique({
-    //   where: { id: input.conversationId }
-    // });
-
     const conversation: Conversation | null = null;
 
     if (!conversation) {
@@ -605,11 +536,6 @@ export class ConversationService {
         updates.contactsRevealedAt = new Date();
       }
     }
-
-    // await prisma.conversation.update({
-    //   where: { id: input.conversationId },
-    //   data: updates
-    // });
 
     // Audit admin action
     await auditService.logAdminAction(

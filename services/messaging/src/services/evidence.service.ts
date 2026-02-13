@@ -83,12 +83,6 @@ export class EvidenceService {
     input: ExportEvidenceInput,
     actor: ActorContext
   ): Promise<EvidenceExportRecord> {
-    // Verify actor is participant or admin
-    // const conversation = await prisma.conversation.findUnique({
-    //   where: { id: input.conversationId },
-    //   include: { messages: true, participants: true }
-    // });
-
     // Placeholder
     const conversation = {
       id: input.conversationId,
@@ -159,9 +153,6 @@ export class EvidenceService {
       expiresAt,
     };
 
-    // Save to database
-    // await prisma.evidenceExport.create({ data: exportRecord });
-
     // Audit log
     await auditService.logEvidenceExported(
       exportId,
@@ -205,16 +196,6 @@ export class EvidenceService {
     _exportId: string,
     _requesterId: string
   ): Promise<EvidenceExportRecord | null> {
-    // Fetch from database
-    // const exportRecord = await prisma.evidenceExport.findUnique({
-    //   where: { id: exportId }
-    // });
-
-    // Verify access (requestor must be the one who created it or an admin)
-    // if (exportRecord.requestedById !== requesterId && !isAdmin) {
-    //   throw Errors.FORBIDDEN();
-    // }
-
     return null;
   }
 
@@ -249,17 +230,6 @@ export class EvidenceService {
     _conversationId: string,
     _requesterId: string
   ): Promise<EvidenceExportRecord[]> {
-    // Verify access
-    // const conversation = await prisma.conversation.findUnique({
-    //   where: { id: conversationId }
-    // });
-
-    // Fetch exports
-    // const exports = await prisma.evidenceExport.findMany({
-    //   where: { conversationId },
-    //   orderBy: { createdAt: 'desc' }
-    // });
-
     return [];
   }
 

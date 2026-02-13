@@ -2,7 +2,7 @@
   "name": "tripcomposer",
   "version": "1.0.0",
   "private": true,
-  "description": "HowWePlan - Travel planning platform monorepo",
+  "description": "TripComposer - Travel planning platform monorepo",
   "workspaces": [
     "packages/*",
     "services/*",
