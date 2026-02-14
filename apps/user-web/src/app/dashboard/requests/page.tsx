@@ -220,131 +220,189 @@ export default function RequestsPage() {
         </div>
       </div>
 
-      {/* Requests List - Flight Ticket Style */}
-      <div className="space-y-5">
+      {/* Requests List - Premium Boarding Pass Style */}
+      <div className="space-y-6">
         {filteredRequests.map((request) => {
           const tripDays = getTripDuration(request.departureDate, request.returnDate);
           const travelersCount = getTravelersCount(request.travelers);
           const departureCity = request.departureLocation?.city || 'Origin';
           const destinationCity = getDestination(request);
           const normalized = normalizeStatus(request.state);
+          const depDate = request.departureDate ? new Date(request.departureDate) : null;
+          const retDate = request.returnDate ? new Date(request.returnDate) : null;
           
           return (
             <Link key={request.id} href={`/dashboard/requests/${request.id}`} className="block group">
-              <div className="relative bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group-hover:-translate-y-0.5 border border-slate-100">
-                {/* Top colored band */}
-                <div className={`h-1.5 ${getStatusColor(request.state)}`} />
+              <div className="relative bg-white rounded-2xl shadow-[0_2px_20px_-4px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_40px_-8px_rgba(0,0,0,0.15)] transition-all duration-300 overflow-hidden group-hover:-translate-y-1 border border-slate-100/80">
                 
                 <div className="flex flex-col md:flex-row">
-                  {/* === LEFT: Main Ticket === */}
-                  <div className="flex-1 p-5 md:p-6">
-                    {/* Airline-style header row */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <Plane className="h-4 w-4 text-blue-500 -rotate-45" />
-                        <span className="text-[11px] font-bold tracking-widest text-slate-400 uppercase">HowWePlan</span>
+                  {/* === LEFT: Main Ticket Body === */}
+                  <div className="flex-1 relative">
+                    {/* Gradient accent top edge */}
+                    <div className={`h-1 bg-gradient-to-r ${getTicketGradient(request.state)}`} />
+                    
+                    <div className="p-5 md:p-6 pb-4">
+                      {/* Header: Brand + Status + Request ID */}
+                      <div className="flex items-center justify-between mb-5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
+                            <Plane className="h-3.5 w-3.5 text-white -rotate-45" />
+                          </div>
+                          <div>
+                            <span className="text-[11px] font-bold tracking-[0.2em] text-slate-400 uppercase block leading-none">HowWePlan</span>
+                            <span className="text-[9px] tracking-wider text-slate-300 uppercase">Boarding Pass</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-[10px] font-mono text-slate-400 hidden sm:block">#{request.id.slice(0, 8).toUpperCase()}</span>
+                          <StatusBadge status={request.state} />
+                        </div>
                       </div>
-                      <StatusBadge status={request.state} />
-                    </div>
 
-                    {/* FROM → TO Route */}
-                    <div className="flex items-center gap-3 md:gap-5 mb-5">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase mb-0.5">From</p>
-                        <p className="text-sm font-bold text-slate-700 truncate">{departureCity}</p>
+                      {/* === Route Section: FROM ✈ TO === */}
+                      <div className="flex items-stretch gap-4 md:gap-6 mb-5">
+                        {/* Departure */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-1">Departure</p>
+                          <p className="text-base md:text-lg font-extrabold text-slate-800 tracking-tight truncate">{departureCity}</p>
+                          {depDate && (
+                            <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
+                              {depDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                            </p>
+                          )}
+                        </div>
+                        
+                        {/* Flight path visualization */}
+                        <div className="flex flex-col items-center justify-center shrink-0 w-24 md:w-32 pt-4">
+                          <div className="flex items-center w-full">
+                            <div className="h-2 w-2 rounded-full border-2 border-blue-400 bg-white" />
+                            <div className="flex-1 h-px bg-gradient-to-r from-blue-300 via-blue-400 to-indigo-400 relative mx-1">
+                              <div className="absolute inset-x-0 top-0 h-px bg-blue-300 opacity-40" style={{backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 4px, currentColor 4px, currentColor 8px)'}} />
+                            </div>
+                            <Plane className="h-4 w-4 text-blue-500 shrink-0" />
+                            <div className="flex-1 h-px bg-gradient-to-r from-indigo-400 via-purple-400 to-purple-300 mx-1" />
+                            <div className="h-2 w-2 rounded-full bg-indigo-500" />
+                          </div>
+                          {tripDays && (
+                            <span className="text-[10px] text-slate-400 font-semibold mt-1">
+                              {tripDays}D {tripDays > 1 ? `/ ${tripDays - 1}N` : ''}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Destination */}
+                        <div className="flex-1 min-w-0 text-right">
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-1">Destination</p>
+                          <p className="text-lg md:text-xl font-black text-slate-900 group-hover:text-blue-600 transition-colors truncate">{destinationCity}</p>
+                          {retDate && (
+                            <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
+                              {retDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 text-blue-400 shrink-0 pt-3">
-                        <div className="w-6 h-px bg-blue-300" />
-                        <Plane className="h-4 w-4 text-blue-500" />
-                        <div className="w-6 h-px bg-blue-300" />
-                      </div>
-                      <div className="flex-1 min-w-0 text-right">
-                        <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase mb-0.5">To</p>
-                        <p className="text-lg font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors truncate">{destinationCity}</p>
-                      </div>
-                    </div>
 
-                    {/* Bottom detail row — ticket info grid */}
-                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-4 border-t border-dashed border-slate-200">
-                      <div>
-                        <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Date</p>
-                        <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-                          <Calendar className="h-3.5 w-3.5 text-blue-500" />
-                          {formatDateRange(request.departureDate, request.returnDate)}
-                        </p>
-                      </div>
-                      {tripDays && (
-                        <div>
-                          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Duration</p>
-                          <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-                            <Clock className="h-3.5 w-3.5 text-purple-500" />
-                            {tripDays} day{tripDays !== 1 ? 's' : ''}
+                      {/* Info Cells — boarding pass style */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-dashed border-slate-200">
+                        <div className="bg-slate-50 rounded-lg px-3 py-2">
+                          <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-0.5">Date</p>
+                          <p className="text-[13px] font-bold text-slate-700">
+                            {formatDateRange(request.departureDate, request.returnDate)}
                           </p>
                         </div>
-                      )}
-                      <div>
-                        <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Travelers</p>
-                        <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-                          <Users className="h-3.5 w-3.5 text-green-500" />
-                          {travelersCount}
-                        </p>
-                      </div>
-                      {request.budgetMax && (
-                        <div>
-                          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Budget</p>
-                          <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-                            <Wallet className="h-3.5 w-3.5 text-amber-500" />
-                            {formatBudget(request.budgetMin, request.budgetMax)}
+                        <div className="bg-slate-50 rounded-lg px-3 py-2">
+                          <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-0.5">Travelers</p>
+                          <p className="text-[13px] font-bold text-slate-700">
+                            {travelersCount} pax
                           </p>
                         </div>
-                      )}
-                      <div className="ml-auto hidden md:block">
-                        <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Request ID</p>
-                        <p className="text-sm font-mono font-semibold text-slate-500">#{request.id.slice(0, 8)}</p>
+                        {request.budgetMax ? (
+                          <div className="bg-slate-50 rounded-lg px-3 py-2">
+                            <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-0.5">Budget</p>
+                            <p className="text-[13px] font-bold text-slate-700 truncate">
+                              {formatBudget(request.budgetMin, request.budgetMax)}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="bg-slate-50 rounded-lg px-3 py-2">
+                            <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-0.5">Budget</p>
+                            <p className="text-[13px] font-bold text-slate-700">Flexible</p>
+                          </div>
+                        )}
+                        <div className="bg-slate-50 rounded-lg px-3 py-2">
+                          <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-0.5">Duration</p>
+                          <p className="text-[13px] font-bold text-slate-700">
+                            {tripDays ? `${tripDays} day${tripDays !== 1 ? 's' : ''}` : 'N/A'}
+                          </p>
+                        </div>
                       </div>
+                    </div>
+
+                    {/* Barcode-style footer strip */}
+                    <div className="px-5 md:px-6 pb-3 flex items-center justify-between">
+                      <div className="flex gap-[2px] items-end h-4 opacity-20">
+                        {request.id.split('').slice(0, 20).map((char, i) => (
+                          <div
+                            key={i}
+                            className="bg-slate-900 rounded-[0.5px]"
+                            style={{ width: '2px', height: `${8 + (char.charCodeAt(0) % 8)}px` }}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-[9px] font-mono text-slate-300 tracking-wider">{request.id.slice(0, 8).toUpperCase()}</span>
                     </div>
                   </div>
 
                   {/* === Perforated Divider === */}
                   <div className="relative hidden md:flex items-stretch">
                     {/* Top notch */}
-                    <div className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-5 h-2.5 bg-slate-50 rounded-b-full border-b border-x border-slate-100 z-10" />
+                    <div className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-6 h-3 bg-slate-50 rounded-b-full border-b border-x border-slate-100 z-10" />
                     {/* Dotted line */}
-                    <div className="w-px border-l-2 border-dashed border-slate-200 my-4" />
+                    <div className="w-px border-l-2 border-dashed border-slate-200 my-6" />
                     {/* Bottom notch */}
-                    <div className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 w-5 h-2.5 bg-slate-50 rounded-t-full border-t border-x border-slate-100 z-10" />
+                    <div className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 w-6 h-3 bg-slate-50 rounded-t-full border-t border-x border-slate-100 z-10" />
                   </div>
                   {/* Mobile horizontal divider */}
-                  <div className="md:hidden relative flex items-center mx-5">
-                    <div className="absolute -left-[1px] top-1/2 -translate-y-1/2 w-2.5 h-5 bg-slate-50 rounded-r-full border-r border-y border-slate-100 z-10" />
+                  <div className="md:hidden relative flex items-center mx-5 my-1">
+                    <div className="absolute -left-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-r-full border-r border-y border-slate-100 z-10" />
                     <div className="flex-1 h-px border-t-2 border-dashed border-slate-200" />
-                    <div className="absolute -right-[1px] top-1/2 -translate-y-1/2 w-2.5 h-5 bg-slate-50 rounded-l-full border-l border-y border-slate-100 z-10" />
+                    <div className="absolute -right-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-l-full border-l border-y border-slate-100 z-10" />
                   </div>
 
                   {/* === RIGHT: Stub / Tear-off === */}
-                  <div className="w-full md:w-44 p-5 md:p-5 flex flex-row md:flex-col items-center md:items-center justify-between md:justify-center gap-3 bg-slate-50/50">
+                  <div className="w-full md:w-48 flex flex-row md:flex-col items-center md:items-center justify-between md:justify-center gap-4 p-5 md:p-6 bg-gradient-to-br from-slate-50 to-slate-100/80">
                     {!['DRAFT', 'CANCELLED', 'EXPIRED'].includes(normalized) ? (
                       <div className="text-center">
-                        <Sparkles className="h-5 w-5 text-amber-400 mx-auto mb-1" />
-                        <span className="text-3xl font-extrabold bg-gradient-to-b from-blue-600 to-purple-600 bg-clip-text text-transparent leading-none">
-                          {request.agentsResponded || 0}
-                        </span>
-                        <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
-                          agent{(request.agentsResponded || 0) !== 1 ? 's' : ''} responded
-                        </p>
+                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-amber-100 to-amber-50 mb-2">
+                          <Sparkles className="h-5 w-5 text-amber-500" />
+                        </div>
+                        <div>
+                          <span className="text-3xl font-black bg-gradient-to-b from-blue-600 to-indigo-600 bg-clip-text text-transparent leading-none">
+                            {request.agentsResponded || 0}
+                          </span>
+                          <p className="text-[10px] text-slate-400 mt-0.5 font-semibold tracking-wide uppercase">
+                            agent{(request.agentsResponded || 0) !== 1 ? 's' : ''}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-semibold tracking-wide uppercase -mt-0.5">
+                            responded
+                          </p>
+                        </div>
                       </div>
                     ) : (
                       <div className="text-center">
-                        <p className="text-xs text-slate-400 font-medium capitalize">{_getStatusLabel(request.state)}</p>
+                        <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full mb-2 ${getStatusBgColor(request.state)}`}>
+                          <MapPin className={`h-5 w-5 ${getStatusIconColor(request.state)}`} />
+                        </div>
+                        <p className="text-xs text-slate-400 font-semibold capitalize">{_getStatusLabel(request.state)}</p>
                       </div>
                     )}
                     <Button 
                       size="sm"
                       variant={normalized === 'PROPOSALS_RECEIVED' ? 'default' : 'outline'}
-                      className={`text-xs w-full md:w-auto ${
+                      className={`text-xs font-semibold w-full transition-all duration-200 ${
                         normalized === 'PROPOSALS_RECEIVED' 
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white' 
-                          : 'group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-300'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-500/20' 
+                          : 'bg-white hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 shadow-sm'
                       }`}
                     >
                       {getButtonText(request.state)}
@@ -472,6 +530,24 @@ function getButtonText(status: string): string {
     EXPIRED: 'View Details',
   };
   return texts[normalized] || 'View';
+}
+
+function getTicketGradient(status: string): string {
+  const normalized = normalizeStatus(status);
+  const gradients: Record<string, string> = {
+    OPEN: 'from-blue-400 via-blue-500 to-indigo-500',
+    DRAFT: 'from-slate-300 via-slate-400 to-slate-500',
+    SUBMITTED: 'from-blue-400 via-blue-500 to-indigo-500',
+    MATCHING: 'from-indigo-400 via-indigo-500 to-purple-500',
+    MATCHED: 'from-purple-400 via-purple-500 to-pink-500',
+    PROPOSALS_RECEIVED: 'from-amber-400 via-orange-500 to-red-400',
+    BOOKED: 'from-green-400 via-emerald-500 to-teal-500',
+    CONFIRMED: 'from-green-400 via-emerald-500 to-teal-500',
+    COMPLETED: 'from-emerald-400 via-emerald-500 to-green-500',
+    CANCELLED: 'from-red-400 via-red-500 to-rose-500',
+    EXPIRED: 'from-slate-300 via-slate-400 to-slate-500',
+  };
+  return gradients[normalized] || 'from-slate-300 via-slate-400 to-slate-500';
 }
 
 function getStatusColor(status: string): string {

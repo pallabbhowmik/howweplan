@@ -122,9 +122,9 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
         fetchUserNotifications(sessionUser.userId, 10),
       ]);
       if (userData) setUserData(userData);
-      // Count active requests (not completed/cancelled)
+      // Count active requests (not completed/cancelled/expired)
       const activeRequests = requests.filter(r => 
-        !['completed', 'cancelled', 'COMPLETED', 'CANCELLED'].includes(r.state)
+        !['completed', 'cancelled', 'expired', 'COMPLETED', 'CANCELLED', 'EXPIRED'].includes(r.state)
       );
       setRequestCount(activeRequests.length);
       setNotifications(notifs);
