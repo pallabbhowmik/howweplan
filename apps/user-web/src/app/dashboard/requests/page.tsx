@@ -16,6 +16,7 @@ import {
   Globe,
   Plane,
   AlertTriangle,
+  ArrowRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -143,7 +144,7 @@ export default function RequestsPage() {
 
   return (
     <div className="space-y-8">
-      {/* Hero Header */}
+      {/* Hero Header - Active Requests Only */}
       <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-3xl p-8 text-white shadow-2xl">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtOS45NCAwLTE4IDguMDYtMTggMThzOC4wNiAxOCAxOCAxOCAxOC04LjA2IDE4LTE4LTguMDYtMTgtMTgtMTh6bTAgMzJjLTcuNzMyIDAtMTQtNi4yNjgtMTQtMTRzNi4yNjgtMTQgMTQtMTQgMTQgNi4yNjggMTQgMTQtNi4yNjggMTQtMTQgMTR6IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9Ii4wNSIvPjwvZz48L3N2Zz4=')] opacity-30" />
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
@@ -156,7 +157,18 @@ export default function RequestsPage() {
             </div>
             <div>
               <h1 className="text-3xl md:text-4xl font-bold">My Travel Requests</h1>
-              <p className="text-blue-100 mt-1">Track and manage all your trip requests</p>
+              <p className="text-blue-100 mt-2 text-lg">
+                <span className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-full px-4 py-1.5">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-300 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-400" />
+                  </span>
+                  <span className="font-semibold text-white">
+                    {requests.filter(r => ['OPEN', 'SUBMITTED', 'MATCHING', 'MATCHED', 'PROPOSALS_RECEIVED'].includes(normalizeStatus(r.state))).length}
+                  </span>
+                  <span className="text-blue-100">active request{requests.filter(r => ['OPEN', 'SUBMITTED', 'MATCHING', 'MATCHED', 'PROPOSALS_RECEIVED'].includes(normalizeStatus(r.state))).length !== 1 ? 's' : ''}</span>
+                </span>
+              </p>
             </div>
           </div>
           <Link href="/requests/new">
@@ -165,26 +177,6 @@ export default function RequestsPage() {
               New Request
             </Button>
           </Link>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="relative mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-            <p className="text-blue-100 text-sm">Total Requests</p>
-            <p className="text-2xl font-bold">{requests.length}</p>
-          </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-            <p className="text-blue-100 text-sm">Active</p>
-            <p className="text-2xl font-bold">{requests.filter(r => ['OPEN', 'SUBMITTED', 'MATCHING', 'MATCHED', 'PROPOSALS_RECEIVED'].includes(normalizeStatus(r.state))).length}</p>
-          </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-            <p className="text-blue-100 text-sm">With Proposals</p>
-            <p className="text-2xl font-bold">{requests.filter(r => normalizeStatus(r.state) === 'PROPOSALS_RECEIVED').length}</p>
-          </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-            <p className="text-blue-100 text-sm">Booked</p>
-            <p className="text-2xl font-bold">{requests.filter(r => ['BOOKED', 'CONFIRMED', 'COMPLETED'].includes(normalizeStatus(r.state))).length}</p>
-          </div>
         </div>
       </div>
 
@@ -228,98 +220,139 @@ export default function RequestsPage() {
         </div>
       </div>
 
-      {/* Requests List */}
-      <div className="space-y-4">
+      {/* Requests List - Flight Ticket Style */}
+      <div className="space-y-5">
         {filteredRequests.map((request) => {
           const tripDays = getTripDuration(request.departureDate, request.returnDate);
           const travelersCount = getTravelersCount(request.travelers);
+          const departureCity = request.departureLocation?.city || 'Origin';
+          const destinationCity = getDestination(request);
+          const normalized = normalizeStatus(request.state);
           
           return (
             <Link key={request.id} href={`/dashboard/requests/${request.id}`} className="block group">
-              <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group-hover:-translate-y-1">
-                <CardContent className="p-0">
-                  <div className="flex flex-col md:flex-row">
-                    {/* Left Color Strip */}
-                    <div className={`w-full md:w-2 h-2 md:h-auto ${getStatusColor(request.state)}`} />
-                    
-                    <div className="flex-1 p-6">
-                      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                        {/* Main Content */}
-                        <div className="flex-1 space-y-4">
-                          {/* Header with destination */}
-                          <div className="flex items-start gap-3">
-                            <div className={`p-3 rounded-xl ${getStatusBgColor(request.state)}`}>
-                              <MapPin className={`h-6 w-6 ${getStatusIconColor(request.state)}`} />
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 flex-wrap">
-                                <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                                  {getDestination(request)}
-                                </h3>
-                                <StatusBadge status={request.state} />
-                              </div>
-                              <p className="text-slate-500 text-sm mt-1">
-                                Request #{request.id.slice(0, 8)}
-                              </p>
-                            </div>
-                          </div>
+              <div className="relative bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group-hover:-translate-y-0.5 border border-slate-100">
+                {/* Top colored band */}
+                <div className={`h-1.5 ${getStatusColor(request.state)}`} />
+                
+                <div className="flex flex-col md:flex-row">
+                  {/* === LEFT: Main Ticket === */}
+                  <div className="flex-1 p-5 md:p-6">
+                    {/* Airline-style header row */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Plane className="h-4 w-4 text-blue-500 -rotate-45" />
+                        <span className="text-[11px] font-bold tracking-widest text-slate-400 uppercase">HowWePlan</span>
+                      </div>
+                      <StatusBadge status={request.state} />
+                    </div>
 
-                          {/* Trip Details Grid */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="flex items-center gap-2 text-slate-600">
-                              <Calendar className="h-4 w-4 text-blue-500" />
-                              <span className="text-sm">{formatDateRange(request.departureDate, request.returnDate)}</span>
-                            </div>
-                            {tripDays && (
-                              <div className="flex items-center gap-2 text-slate-600">
-                                <Clock className="h-4 w-4 text-purple-500" />
-                                <span className="text-sm">{tripDays} days</span>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2 text-slate-600">
-                              <Users className="h-4 w-4 text-green-500" />
-                              <span className="text-sm">{travelersCount} traveler{travelersCount !== 1 ? 's' : ''}</span>
-                            </div>
-                            {request.budgetMax && (
-                              <div className="flex items-center gap-2 text-slate-600">
-                                <Wallet className="h-4 w-4 text-amber-500" />
-                                <span className="text-sm">{formatBudget(request.budgetMin, request.budgetMax)}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                    {/* FROM → TO Route */}
+                    <div className="flex items-center gap-3 md:gap-5 mb-5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase mb-0.5">From</p>
+                        <p className="text-sm font-bold text-slate-700 truncate">{departureCity}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-blue-400 shrink-0 pt-3">
+                        <div className="w-6 h-px bg-blue-300" />
+                        <Plane className="h-4 w-4 text-blue-500" />
+                        <div className="w-6 h-px bg-blue-300" />
+                      </div>
+                      <div className="flex-1 min-w-0 text-right">
+                        <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase mb-0.5">To</p>
+                        <p className="text-lg font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors truncate">{destinationCity}</p>
+                      </div>
+                    </div>
 
-                        {/* Right Side - Stats & Action */}
-                        <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-start gap-4 pt-4 md:pt-0 border-t md:border-t-0 md:border-l md:pl-6">
-                          {!['DRAFT', 'CANCELLED', 'EXPIRED'].includes(request.state) && (
-                            <div className="text-center md:text-right">
-                              <div className="flex items-center gap-2">
-                                <Sparkles className="h-5 w-5 text-amber-500" />
-                                <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                                  {request.agentsResponded || 0}
-                                </span>
-                              </div>
-                              <p className="text-xs text-slate-500 mt-1">
-                                agent{(request.agentsResponded || 0) !== 1 ? 's' : ''} responded
-                              </p>
-                            </div>
-                          )}
-                          <Button 
-                            variant={request.state === 'PROPOSALS_RECEIVED' ? 'default' : 'outline'}
-                            className={request.state === 'PROPOSALS_RECEIVED' 
-                              ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700' 
-                              : 'group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-200'
-                            }
-                          >
-                            {getButtonText(request.state)}
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Button>
+                    {/* Bottom detail row — ticket info grid */}
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-4 border-t border-dashed border-slate-200">
+                      <div>
+                        <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Date</p>
+                        <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                          <Calendar className="h-3.5 w-3.5 text-blue-500" />
+                          {formatDateRange(request.departureDate, request.returnDate)}
+                        </p>
+                      </div>
+                      {tripDays && (
+                        <div>
+                          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Duration</p>
+                          <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5 text-purple-500" />
+                            {tripDays} day{tripDays !== 1 ? 's' : ''}
+                          </p>
                         </div>
+                      )}
+                      <div>
+                        <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Travelers</p>
+                        <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5 text-green-500" />
+                          {travelersCount}
+                        </p>
+                      </div>
+                      {request.budgetMax && (
+                        <div>
+                          <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Budget</p>
+                          <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                            <Wallet className="h-3.5 w-3.5 text-amber-500" />
+                            {formatBudget(request.budgetMin, request.budgetMax)}
+                          </p>
+                        </div>
+                      )}
+                      <div className="ml-auto hidden md:block">
+                        <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Request ID</p>
+                        <p className="text-sm font-mono font-semibold text-slate-500">#{request.id.slice(0, 8)}</p>
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+
+                  {/* === Perforated Divider === */}
+                  <div className="relative hidden md:flex items-stretch">
+                    {/* Top notch */}
+                    <div className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-5 h-2.5 bg-slate-50 rounded-b-full border-b border-x border-slate-100 z-10" />
+                    {/* Dotted line */}
+                    <div className="w-px border-l-2 border-dashed border-slate-200 my-4" />
+                    {/* Bottom notch */}
+                    <div className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 w-5 h-2.5 bg-slate-50 rounded-t-full border-t border-x border-slate-100 z-10" />
+                  </div>
+                  {/* Mobile horizontal divider */}
+                  <div className="md:hidden relative flex items-center mx-5">
+                    <div className="absolute -left-[1px] top-1/2 -translate-y-1/2 w-2.5 h-5 bg-slate-50 rounded-r-full border-r border-y border-slate-100 z-10" />
+                    <div className="flex-1 h-px border-t-2 border-dashed border-slate-200" />
+                    <div className="absolute -right-[1px] top-1/2 -translate-y-1/2 w-2.5 h-5 bg-slate-50 rounded-l-full border-l border-y border-slate-100 z-10" />
+                  </div>
+
+                  {/* === RIGHT: Stub / Tear-off === */}
+                  <div className="w-full md:w-44 p-5 md:p-5 flex flex-row md:flex-col items-center md:items-center justify-between md:justify-center gap-3 bg-slate-50/50">
+                    {!['DRAFT', 'CANCELLED', 'EXPIRED'].includes(normalized) ? (
+                      <div className="text-center">
+                        <Sparkles className="h-5 w-5 text-amber-400 mx-auto mb-1" />
+                        <span className="text-3xl font-extrabold bg-gradient-to-b from-blue-600 to-purple-600 bg-clip-text text-transparent leading-none">
+                          {request.agentsResponded || 0}
+                        </span>
+                        <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
+                          agent{(request.agentsResponded || 0) !== 1 ? 's' : ''} responded
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <p className="text-xs text-slate-400 font-medium capitalize">{_getStatusLabel(request.state)}</p>
+                      </div>
+                    )}
+                    <Button 
+                      size="sm"
+                      variant={normalized === 'PROPOSALS_RECEIVED' ? 'default' : 'outline'}
+                      className={`text-xs w-full md:w-auto ${
+                        normalized === 'PROPOSALS_RECEIVED' 
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white' 
+                          : 'group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-300'
+                      }`}
+                    >
+                      {getButtonText(request.state)}
+                      <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </Link>
           );
         })}
@@ -534,24 +567,25 @@ function getTravelersCount(travelers: { adults?: number; children?: number; infa
 function StatusBadge({ status }: { status: string }) {
   const normalized = normalizeStatus(status);
   
-  const labels: Record<string, string> = {
-    OPEN: 'open',
-    DRAFT: 'draft',
-    SUBMITTED: 'submitted',
-    MATCHING: 'matching',
-    MATCHED: 'matched',
-    PROPOSALS_RECEIVED: 'proposals received',
-    BOOKED: 'booked',
-    CONFIRMED: 'confirmed',
-    COMPLETED: 'completed',
-    CANCELLED: 'cancelled',
-    EXPIRED: 'expired',
+  const config: Record<string, { label: string; bg: string; text: string; dot: string }> = {
+    OPEN: { label: 'Open', bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
+    DRAFT: { label: 'Draft', bg: 'bg-slate-50', text: 'text-slate-600', dot: 'bg-slate-400' },
+    SUBMITTED: { label: 'Submitted', bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
+    MATCHING: { label: 'Matching', bg: 'bg-indigo-50', text: 'text-indigo-700', dot: 'bg-indigo-500' },
+    MATCHED: { label: 'Matched', bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-500' },
+    PROPOSALS_RECEIVED: { label: 'Has Proposals', bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+    BOOKED: { label: 'Booked', bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
+    CONFIRMED: { label: 'Confirmed', bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
+    COMPLETED: { label: 'Completed', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+    CANCELLED: { label: 'Cancelled', bg: 'bg-red-50', text: 'text-red-600', dot: 'bg-red-400' },
+    EXPIRED: { label: 'Expired', bg: 'bg-slate-50', text: 'text-slate-500', dot: 'bg-slate-400' },
   };
 
-  const label = labels[normalized] || status.toLowerCase();
+  const { label, bg, text, dot } = config[normalized] || { label: status, bg: 'bg-slate-50', text: 'text-slate-600', dot: 'bg-slate-400' };
   
   return (
-    <span className="text-sm text-slate-500 font-medium">
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide uppercase ${bg} ${text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
       {label}
     </span>
   );
