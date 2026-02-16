@@ -12,9 +12,10 @@ import { Button } from '@/components/ui/button';
 // ============================================================================
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
+  { href: '/dashboard', label: 'Dashboard', icon: '📊', exact: true },
   { href: '/dashboard/services', label: 'Services', icon: '🩺' },
-  { href: '/dashboard/agents', label: 'Agents', icon: '👥' },
+  { href: '/dashboard/agents', label: 'Agents', icon: '👥', exact: true },
+  { href: '/dashboard/agents/verification', label: 'Verification', icon: '🛡️', indent: true },
   { href: '/dashboard/destinations', label: 'Destinations', icon: '🗺️' },
   { href: '/dashboard/itineraries', label: 'Itineraries', icon: '📝' },
   { href: '/dashboard/disputes', label: 'Disputes', icon: '⚖️' },
@@ -65,21 +66,27 @@ export default function DashboardLayout({
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                  pathname === item.href
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                )}
-              >
-                <span>{item.icon}</span>
-                {item.label}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const isActive = item.exact
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(item.href + '/');
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                    item.indent && 'ml-4 text-xs',
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  )}
+                >
+                  <span>{item.icon}</span>
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
 
           {/* User Info */}

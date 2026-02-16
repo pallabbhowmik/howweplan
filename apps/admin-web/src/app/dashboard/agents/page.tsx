@@ -2,7 +2,8 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import { listAgents, approveAgent, suspendAgent, reactivateAgent, rejectAgent, getAgent } from '@/lib/api';
 import type { AgentFilters } from '@/lib/api';
@@ -381,6 +382,12 @@ export default function AgentsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/dashboard/agents/verification">
+            <Button variant="default" size="sm">
+              <Shield className="h-4 w-4 mr-2" />
+              Review Documents
+            </Button>
+          </Link>
           <Button
             variant="outline"
             size="sm"
