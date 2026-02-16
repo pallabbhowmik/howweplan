@@ -259,40 +259,49 @@ export default function RequestsPage() {
             <Link key={request.id} href={`/dashboard/requests/${request.id}`} className="block group">
               <div className={`
                 relative rounded-2xl overflow-hidden transition-all duration-300 group-hover:-translate-y-1
-                border-[2.5px] border-dashed border-slate-300/80
-                shadow-[0_4px_20px_rgba(0,0,0,0.08)]
-                hover:shadow-[0_12px_40px_rgba(0,0,0,0.15)]
-                ${normalized === 'EXPIRED' || normalized === 'CANCELLED' ? 'opacity-80 hover:opacity-100' : ''}
+                border-[2.5px] border-dashed border-amber-400/40
+                shadow-[0_4px_24px_rgba(0,0,0,0.12)]
+                hover:shadow-[0_12px_44px_rgba(0,0,0,0.2)]
+                ${normalized === 'EXPIRED' || normalized === 'CANCELLED' ? 'opacity-85 hover:opacity-100' : ''}
               `}>
                 <div className="flex flex-col md:flex-row">
-                  {/* === LEFT: Main Boarding Pass Body === */}
-                  <div className={`flex-1 relative min-w-0 bg-gradient-to-br ${getTicketBg(request.state)} overflow-hidden`}>
-                    {/* Tropical decorative layers */}
-                    <div className="absolute -top-10 -right-10 w-56 h-56 rounded-full bg-white/20 blur-3xl pointer-events-none" />
-                    <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-cyan-400/15 to-transparent pointer-events-none" />
-                    <div className="absolute top-1/3 -left-8 w-36 h-36 rounded-full bg-amber-400/15 blur-2xl pointer-events-none" />
-                    <div className="absolute bottom-4 right-16 w-20 h-20 rounded-full bg-teal-300/15 blur-xl pointer-events-none" />
-                    {/* Abstract palm silhouettes */}
-                    <div className="absolute right-10 bottom-2 w-[3px] h-24 bg-green-900/[0.04] rounded-full rotate-[8deg] pointer-events-none" />
-                    <div className="absolute right-4 bottom-14 w-16 h-6 bg-green-900/[0.04] rounded-full -rotate-[25deg] pointer-events-none" />
-                    <div className="absolute right-14 bottom-16 w-14 h-5 bg-green-900/[0.04] rounded-full rotate-[15deg] pointer-events-none" />
+                  {/* === LEFT: Dark Teal Boarding Pass Body === */}
+                  <div className={`flex-1 relative min-w-0 overflow-hidden ${getTicketBg(request.state)}`}>
+                    {/* Ambient glow layers */}
+                    <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-amber-400/10 blur-3xl pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
+                    <div className="absolute top-1/4 -left-10 w-40 h-40 rounded-full bg-teal-300/10 blur-3xl pointer-events-none" />
+
+                    {/* Gold palm leaf decorations */}
+                    {/* Trunk */}
+                    <div className="absolute right-[15%] bottom-0 w-[3px] h-[55%] bg-gradient-to-t from-amber-600/20 to-amber-500/10 rounded-full rotate-[6deg] pointer-events-none" />
+                    {/* Leaves fanning out */}
+                    <div className="absolute right-[8%] top-[18%] w-24 h-3 bg-gradient-to-l from-amber-500/15 to-transparent rounded-full -rotate-[30deg] pointer-events-none" />
+                    <div className="absolute right-[10%] top-[12%] w-28 h-3 bg-gradient-to-l from-amber-500/12 to-transparent rounded-full -rotate-[50deg] pointer-events-none" />
+                    <div className="absolute right-[6%] top-[25%] w-20 h-2.5 bg-gradient-to-l from-amber-500/12 to-transparent rounded-full -rotate-[10deg] pointer-events-none" />
+                    <div className="absolute right-[18%] top-[10%] w-24 h-3 bg-gradient-to-r from-amber-500/12 to-transparent rounded-full rotate-[35deg] pointer-events-none" />
+                    <div className="absolute right-[22%] top-[15%] w-20 h-2.5 bg-gradient-to-r from-amber-500/10 to-transparent rounded-full rotate-[55deg] pointer-events-none" />
+                    {/* Second smaller palm */}
+                    <div className="absolute right-[40%] bottom-0 w-[2px] h-[35%] bg-gradient-to-t from-amber-600/15 to-amber-500/5 rounded-full -rotate-[4deg] pointer-events-none" />
+                    <div className="absolute right-[35%] top-[38%] w-16 h-2 bg-gradient-to-l from-amber-500/10 to-transparent rounded-full -rotate-[25deg] pointer-events-none" />
+                    <div className="absolute right-[42%] top-[35%] w-16 h-2 bg-gradient-to-r from-amber-500/10 to-transparent rounded-full rotate-[30deg] pointer-events-none" />
 
                     {/* Content */}
                     <div className="relative p-5 md:p-6">
                       {/* "BOARDING PASS" header */}
                       <h2
-                        className="text-[22px] md:text-[28px] font-black tracking-[0.1em] text-white select-none"
-                        style={{ textShadow: '0 0 10px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.25), 1px 1px 0px rgba(0,0,0,0.1)' }}
+                        className="text-[22px] md:text-[28px] font-black italic tracking-[0.08em] text-white/90 select-none"
+                        style={{ textShadow: '0 2px 8px rgba(0,0,0,0.4), 0 0 20px rgba(255,255,255,0.1)' }}
                       >
                         BOARDING PASS
                       </h2>
 
                       {/* Plane + DESTINATION */}
                       <div className="flex items-center gap-2 md:gap-3 mt-1 mb-5">
-                        <Plane className="h-8 w-8 md:h-10 md:w-10 text-white/70 -rotate-[20deg] shrink-0 drop-shadow-md" />
+                        <Plane className="h-8 w-8 md:h-10 md:w-10 text-amber-300/60 -rotate-[20deg] shrink-0 drop-shadow-lg" />
                         <h3
-                          className="text-[42px] md:text-[56px] font-black text-slate-900/90 tracking-tight leading-none truncate"
-                          style={{ textShadow: '0 1px 3px rgba(255,255,255,0.4)' }}
+                          className="text-[42px] md:text-[56px] font-black text-white tracking-tight leading-none truncate"
+                          style={{ textShadow: '0 2px 12px rgba(0,0,0,0.3), 0 0 40px rgba(255,255,255,0.08)' }}
                         >
                           {destinationCity.toUpperCase()}
                         </h3>
@@ -302,45 +311,45 @@ export default function RequestsPage() {
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 mb-4">
                         {/* Passengers */}
                         <div>
-                          <span className="inline-block bg-gradient-to-r from-orange-400 to-orange-500 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
+                          <span className="inline-block bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
                             Passengers:
                           </span>
-                          <p className="text-xl font-black text-slate-900 mt-1.5 pl-0.5">{travelersCount}</p>
+                          <p className="text-xl font-black text-white mt-1.5 pl-0.5">{travelersCount}</p>
                         </div>
                         {/* Depart */}
                         <div>
-                          <span className="inline-block bg-gradient-to-r from-pink-400 to-rose-500 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
+                          <span className="inline-block bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
                             Depart:
                           </span>
-                          <p className="text-[13px] font-bold text-slate-900 mt-1.5 pl-0.5">
+                          <p className="text-[13px] font-bold text-white/90 mt-1.5 pl-0.5">
                             {depDate ? depDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                           </p>
                         </div>
                         {/* Return */}
                         <div>
-                          <span className="inline-block bg-gradient-to-r from-pink-400 to-rose-500 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
+                          <span className="inline-block bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
                             Return:
                           </span>
-                          <p className="text-[13px] font-bold text-slate-900 mt-1.5 pl-0.5">
+                          <p className="text-[13px] font-bold text-white/90 mt-1.5 pl-0.5">
                             {retDate ? retDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                           </p>
                         </div>
                         {/* Duration */}
                         <div>
-                          <span className="inline-block bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
+                          <span className="inline-block bg-gradient-to-r from-orange-400 to-amber-500 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
                             Duration:
                           </span>
-                          <p className="text-[13px] font-bold text-slate-900 mt-1.5 pl-0.5">
+                          <p className="text-[13px] font-bold text-white/90 mt-1.5 pl-0.5">
                             {tripDays ? `${tripDays} Day${tripDays !== 1 ? 's' : ''}` : '—'}
                           </p>
                         </div>
                         {/* Budget */}
                         {request.budgetMax && (
                           <div className="col-span-2 sm:col-span-2">
-                            <span className="inline-block bg-gradient-to-r from-blue-400 to-teal-500 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
+                            <span className="inline-block bg-gradient-to-r from-sky-500 to-cyan-500 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
                               Budget:
                             </span>
-                            <p className="text-[13px] font-bold text-slate-900 mt-1.5 pl-0.5">
+                            <p className="text-[13px] font-bold text-white/90 mt-1.5 pl-0.5">
                               {formatBudget(request.budgetMin, request.budgetMax)}
                             </p>
                           </div>
@@ -348,98 +357,100 @@ export default function RequestsPage() {
                       </div>
 
                       {/* Barcode */}
-                      <div className="flex items-center gap-3 pt-3 border-t border-white/25">
+                      <div className="flex items-center gap-3 pt-3 border-t border-white/10">
                         <div className="flex gap-[1.5px] items-end h-6">
                           {request.id.split('').slice(0, 32).map((char, i) => {
                             const h = 8 + (char.charCodeAt(0) % 14);
                             const w = i % 3 === 0 ? 2.5 : 1.5;
                             return (
-                              <div key={i} className="bg-slate-900/40 rounded-[0.5px]" style={{ width: `${w}px`, height: `${h}px` }} />
+                              <div key={i} className="bg-amber-300/30 rounded-[0.5px]" style={{ width: `${w}px`, height: `${h}px` }} />
                             );
                           })}
                         </div>
                       </div>
                     </div>
 
-                    {/* Status Stamp Overlay */}
+                    {/* Wax Seal Stamp for terminal statuses */}
                     {['EXPIRED', 'CANCELLED', 'COMPLETED', 'CONFIRMED', 'BOOKED'].includes(normalized) && (
-                      <div className="absolute bottom-12 right-6 md:bottom-14 md:right-20 -rotate-12 pointer-events-none select-none z-10">
-                        <div className={`px-5 py-1.5 border-[3px] rounded-md ${getStampStyle(normalized)}`}>
-                          <span className="text-xl md:text-2xl font-black tracking-[0.1em] uppercase whitespace-nowrap">
-                            {_getStatusLabel(request.state)}
-                          </span>
+                      <div className="absolute bottom-8 right-6 md:bottom-10 md:right-16 pointer-events-none select-none z-10">
+                        <div className={`w-[72px] h-[72px] md:w-[88px] md:h-[88px] rounded-full flex items-center justify-center ${getWaxSealBg(normalized)}`}
+                          style={{ boxShadow: `inset 0 2px 6px rgba(0,0,0,0.3), inset 0 -1px 3px rgba(255,255,255,0.15), 0 4px 16px ${getWaxSealShadow(normalized)}` }}
+                        >
+                          <div className="w-[54px] h-[54px] md:w-[66px] md:h-[66px] rounded-full border-2 border-white/20 flex items-center justify-center">
+                            <span className="text-[10px] md:text-xs font-black text-white tracking-[0.1em] uppercase text-center leading-tight"
+                              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                              {_getStatusLabel(request.state)}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     )}
                   </div>
 
                   {/* === Perforation (desktop vertical) === */}
-                  <div className="relative hidden md:flex flex-col items-center justify-between bg-gradient-to-b from-stone-100/80 to-stone-50/80">
-                    <div className="w-6 h-3 bg-slate-50 rounded-b-full -mt-[1px] z-10 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.06)]" />
+                  <div className="relative hidden md:flex flex-col items-center justify-between" style={{ background: 'linear-gradient(to bottom, #d4a843, #c9973a, #d4a843)' }}>
+                    <div className="w-6 h-3 rounded-b-full -mt-[1px] z-10" style={{ backgroundColor: 'rgb(248 250 252)' }} />
                     <div className="flex-1 flex flex-col items-center justify-center gap-[5px] py-1">
                       {Array.from({ length: 16 }).map((_, i) => (
-                        <div key={i} className="w-[4px] h-[4px] rounded-full bg-slate-300/60" />
+                        <div key={i} className="w-[4px] h-[4px] rounded-full bg-amber-900/20" />
                       ))}
                     </div>
-                    <div className="w-6 h-3 bg-slate-50 rounded-t-full -mb-[1px] z-10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]" />
+                    <div className="w-6 h-3 rounded-t-full -mb-[1px] z-10" style={{ backgroundColor: 'rgb(248 250 252)' }} />
                   </div>
                   {/* Mobile horizontal perforation */}
-                  <div className="md:hidden relative flex items-center bg-gradient-to-r from-stone-100/50 via-stone-50/50 to-stone-100/50">
-                    <div className="absolute -left-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-r-full z-10" />
+                  <div className="md:hidden relative flex items-center" style={{ background: 'linear-gradient(to right, #d4a843, #c9973a, #d4a843)' }}>
+                    <div className="absolute -left-[1px] top-1/2 -translate-y-1/2 w-3 h-6 rounded-r-full z-10" style={{ backgroundColor: 'rgb(248 250 252)' }} />
                     <div className="flex-1 flex items-center justify-center gap-[5px] px-5 py-1.5">
                       {Array.from({ length: 28 }).map((_, i) => (
-                        <div key={i} className="w-[4px] h-[4px] rounded-full bg-slate-300/60 shrink-0" />
+                        <div key={i} className="w-[4px] h-[4px] rounded-full bg-amber-900/20 shrink-0" />
                       ))}
                     </div>
-                    <div className="absolute -right-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-l-full z-10" />
+                    <div className="absolute -right-[1px] top-1/2 -translate-y-1/2 w-3 h-6 rounded-l-full z-10" style={{ backgroundColor: 'rgb(248 250 252)' }} />
                   </div>
 
-                  {/* === RIGHT: Holographic Stub === */}
+                  {/* === RIGHT: Golden Stub === */}
                   <div className="w-full md:w-52 relative overflow-hidden">
-                    {/* Holographic gradient layers */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-rose-200/60 via-violet-100/40 via-60% to-cyan-200/50" />
-                    <div className="absolute inset-0 bg-gradient-to-tl from-amber-100/30 via-transparent to-blue-100/30" />
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-white/10" />
-                    {/* Rainbow shimmer stripe */}
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-300/40 via-yellow-200/40 via-green-200/40 via-cyan-200/40 to-purple-300/40" />
+                    {/* Golden gradient background */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-200 via-yellow-100 to-amber-200" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-transparent to-amber-300/20" />
 
                     <div className="relative flex flex-row md:flex-col items-stretch justify-between gap-3 p-4 md:px-4 md:py-5">
-                      {/* Small status stamp on stub */}
+                      {/* Small red status badge on stub */}
                       {['EXPIRED', 'CANCELLED'].includes(normalized) && (
-                        <div className="hidden md:block absolute top-3 left-1/2 -translate-x-1/2 -rotate-12 pointer-events-none z-20">
-                          <div className="px-2 py-0.5 border-2 border-red-500/50 rounded-sm">
-                            <span className="text-[9px] font-black text-red-500/60 tracking-[0.15em] uppercase">{_getStatusLabel(request.state)}</span>
-                          </div>
+                        <div className="hidden md:flex absolute top-3 right-3 z-20">
+                          <span className="bg-red-500 text-white text-[8px] font-black tracking-[0.15em] uppercase px-2 py-0.5 rounded shadow-sm">
+                            {_getStatusLabel(request.state)}
+                          </span>
                         </div>
                       )}
 
-                      {/* Real request details */}
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-3 w-full md:mt-5">
+                      {/* Request details */}
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-3 w-full md:mt-1">
                         <div>
-                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Status:</p>
-                          <p className="text-base font-black text-slate-800">{_getStatusLabel(request.state)}</p>
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-amber-700/60 uppercase mb-0.5">Status:</p>
+                          <p className="text-base font-black text-amber-950">{_getStatusLabel(request.state)}</p>
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Agents:</p>
-                          <p className="text-lg font-black text-slate-800">{request.agentsResponded || 0}</p>
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-amber-700/60 uppercase mb-0.5">Agents:</p>
+                          <p className="text-lg font-black text-amber-950">{request.agentsResponded || 0}</p>
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Style:</p>
-                          <p className="text-sm font-bold text-slate-800 capitalize">{request.travelStyle || 'Any'}</p>
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-amber-700/60 uppercase mb-0.5">Style:</p>
+                          <p className="text-sm font-bold text-amber-950 capitalize">{request.travelStyle || 'Any'}</p>
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Country:</p>
-                          <p className="text-sm font-bold text-slate-800">{request.destination?.country || '—'}</p>
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-amber-700/60 uppercase mb-0.5">Country:</p>
+                          <p className="text-sm font-bold text-amber-950">India</p>
                         </div>
                       </div>
 
                       {/* Dashed separator */}
-                      <div className="hidden md:block border-t border-dashed border-slate-400/30 w-full my-1" />
+                      <div className="hidden md:block border-t border-dashed border-amber-600/25 w-full my-1" />
 
                       {/* QR code + View Details */}
                       <div className="flex md:flex-col items-center gap-3 md:gap-2.5 flex-shrink-0">
                         {/* QR code pattern */}
-                        <div className="grid grid-cols-7 gap-[1.5px] w-fit shrink-0">
+                        <div className="grid grid-cols-7 gap-[1.5px] w-fit shrink-0 mx-auto">
                           {Array.from({ length: 49 }).map((_, i) => {
                             const row = Math.floor(i / 7);
                             const col = i % 7;
@@ -448,18 +459,23 @@ export default function RequestsPage() {
                             const fromId = (request.id.charCodeAt(i % request.id.length) + i) % 3 !== 0;
                             const isActive = isCorner || (isBorder && i % 2 === 0) || fromId;
                             return (
-                              <div key={i} className={`w-[5px] h-[5px] rounded-[0.5px] ${isActive ? 'bg-slate-800/60' : 'bg-slate-300/20'}`} />
+                              <div key={i} className={`w-[5px] h-[5px] rounded-[0.5px] ${isActive ? 'bg-amber-900/50' : 'bg-amber-300/30'}`} />
                             );
                           })}
                         </div>
 
                         <Button
                           size="sm"
-                          className="w-full bg-slate-800/90 hover:bg-slate-900 text-white text-[11px] font-bold shadow-md rounded-lg transition-all duration-200 group-hover:shadow-lg"
+                          className="w-full bg-amber-900/85 hover:bg-amber-950 text-amber-50 text-[11px] font-bold shadow-md rounded-lg transition-all duration-200 group-hover:shadow-lg"
                         >
                           {getButtonText(request.state)}
                           <ChevronRight className="h-3.5 w-3.5 ml-1 transition-transform group-hover:translate-x-0.5" />
                         </Button>
+                      </div>
+
+                      {/* Decorative gold star */}
+                      <div className="hidden md:flex absolute bottom-3 right-3 text-amber-500/40 pointer-events-none">
+                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
                       </div>
                     </div>
                   </div>
@@ -694,30 +710,37 @@ function getTravelersCount(travelers: { adults?: number; children?: number; infa
   return (travelers.adults || 0) + (travelers.children || 0) + (travelers.infants || 0) || 1;
 }
 
-// Tropical background gradient per status
+// Dark teal/emerald background per status
 function getTicketBg(status: string): string {
   const normalized = normalizeStatus(status);
   const bgs: Record<string, string> = {
-    OPEN: 'from-amber-300 via-orange-200 to-cyan-200',
-    DRAFT: 'from-stone-200 via-amber-50 to-stone-100',
-    SUBMITTED: 'from-amber-300 via-orange-200 to-cyan-200',
-    MATCHING: 'from-amber-200 via-pink-200 to-violet-200',
-    MATCHED: 'from-amber-200 via-rose-200 to-purple-200',
-    PROPOSALS_RECEIVED: 'from-amber-400 via-orange-300 to-rose-200',
-    BOOKED: 'from-lime-300 via-emerald-200 to-cyan-200',
-    CONFIRMED: 'from-lime-300 via-emerald-200 to-teal-200',
-    COMPLETED: 'from-emerald-300 via-green-200 to-teal-200',
-    CANCELLED: 'from-stone-300 via-red-100 to-stone-200',
-    EXPIRED: 'from-stone-300 via-amber-100 to-stone-200',
+    OPEN: 'bg-gradient-to-br from-teal-800 via-teal-700 to-emerald-800',
+    DRAFT: 'bg-gradient-to-br from-slate-600 via-slate-500 to-slate-700',
+    SUBMITTED: 'bg-gradient-to-br from-teal-800 via-teal-700 to-emerald-800',
+    MATCHING: 'bg-gradient-to-br from-indigo-800 via-indigo-700 to-violet-800',
+    MATCHED: 'bg-gradient-to-br from-purple-800 via-purple-700 to-indigo-800',
+    PROPOSALS_RECEIVED: 'bg-gradient-to-br from-teal-800 via-emerald-700 to-cyan-800',
+    BOOKED: 'bg-gradient-to-br from-emerald-800 via-emerald-700 to-green-800',
+    CONFIRMED: 'bg-gradient-to-br from-emerald-800 via-green-700 to-teal-800',
+    COMPLETED: 'bg-gradient-to-br from-green-800 via-emerald-700 to-teal-800',
+    CANCELLED: 'bg-gradient-to-br from-stone-700 via-stone-600 to-stone-700',
+    EXPIRED: 'bg-gradient-to-br from-teal-900 via-teal-800 to-emerald-900',
   };
-  return bgs[normalized] || 'from-amber-300 via-orange-200 to-cyan-200';
+  return bgs[normalized] || 'bg-gradient-to-br from-teal-800 via-teal-700 to-emerald-800';
 }
 
-function getStampStyle(normalized: string): string {
-  if (['EXPIRED', 'CANCELLED'].includes(normalized)) return 'border-red-500/60 text-red-600/60';
-  if (['BOOKED', 'CONFIRMED'].includes(normalized)) return 'border-emerald-500/60 text-emerald-600/60';
-  if (normalized === 'COMPLETED') return 'border-green-600/60 text-green-700/60';
-  return 'border-slate-400/60 text-slate-500/60';
+function getWaxSealBg(normalized: string): string {
+  if (['EXPIRED', 'CANCELLED'].includes(normalized)) return 'bg-gradient-to-br from-red-600 via-red-700 to-red-800';
+  if (['BOOKED', 'CONFIRMED'].includes(normalized)) return 'bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700';
+  if (normalized === 'COMPLETED') return 'bg-gradient-to-br from-green-500 via-green-600 to-green-700';
+  return 'bg-gradient-to-br from-slate-500 via-slate-600 to-slate-700';
+}
+
+function getWaxSealShadow(normalized: string): string {
+  if (['EXPIRED', 'CANCELLED'].includes(normalized)) return 'rgba(220,38,38,0.4)';
+  if (['BOOKED', 'CONFIRMED'].includes(normalized)) return 'rgba(16,185,129,0.4)';
+  if (normalized === 'COMPLETED') return 'rgba(22,163,74,0.4)';
+  return 'rgba(100,116,139,0.4)';
 }
 
 function StatusBadge({ status }: { status: string }) {
