@@ -259,6 +259,7 @@ export default function RequestsPage() {
             <Link key={request.id} href={`/dashboard/requests/${request.id}`} className="block group">
               <div className={`
                 relative rounded-2xl overflow-hidden transition-all duration-300 group-hover:-translate-y-1
+                border-[2.5px] border-dashed border-slate-300/80
                 shadow-[0_4px_20px_rgba(0,0,0,0.08)]
                 hover:shadow-[0_12px_40px_rgba(0,0,0,0.15)]
                 ${normalized === 'EXPIRED' || normalized === 'CANCELLED' ? 'opacity-80 hover:opacity-100' : ''}
@@ -412,23 +413,23 @@ export default function RequestsPage() {
                         </div>
                       )}
 
-                      {/* GATE / SEAT / CLASS / FLIGHT */}
+                      {/* Real request details */}
                       <div className="grid grid-cols-2 gap-x-3 gap-y-3 w-full md:mt-5">
                         <div>
-                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Gate:</p>
-                          <p className="text-xl font-black text-slate-800">{getGate(destinationCity, request.id)}</p>
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Status:</p>
+                          <p className="text-base font-black text-slate-800">{_getStatusLabel(request.state)}</p>
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Seat:</p>
-                          <p className="text-lg font-black text-slate-800">{getSeatNumbers(travelersCount, request.id)}</p>
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Agents:</p>
+                          <p className="text-lg font-black text-slate-800">{request.agentsResponded || 0}</p>
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Class:</p>
-                          <p className="text-sm font-bold text-slate-800">{getBudgetClass(request.budgetMax)}</p>
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Style:</p>
+                          <p className="text-sm font-bold text-slate-800 capitalize">{request.travelStyle || 'Any'}</p>
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Flight:</p>
-                          <p className="text-lg font-black text-slate-800">{getFlightCode(request.id)}</p>
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Country:</p>
+                          <p className="text-sm font-bold text-slate-800">{request.destination?.country || '—'}</p>
                         </div>
                       </div>
 
@@ -717,31 +718,6 @@ function getStampStyle(normalized: string): string {
   if (['BOOKED', 'CONFIRMED'].includes(normalized)) return 'border-emerald-500/60 text-emerald-600/60';
   if (normalized === 'COMPLETED') return 'border-green-600/60 text-green-700/60';
   return 'border-slate-400/60 text-slate-500/60';
-}
-
-function getFlightCode(id: string): string {
-  const num = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 900 + 100;
-  return `HW${num}`;
-}
-
-function getGate(destination: string, id: string): string {
-  const letter = (destination.charAt(0) || 'A').toUpperCase();
-  const num = (id.charCodeAt(0) % 9) + 1;
-  return `${letter}${num}`;
-}
-
-function getSeatNumbers(count: number, id: string): string {
-  const row = 10 + (id.charCodeAt(1) % 20);
-  const seats = 'ABCDEF';
-  const seatCount = Math.min(Math.max(count, 1), 6);
-  return Array.from({ length: seatCount }, (_, i) => `${row}${seats[i]}`).join('/');
-}
-
-function getBudgetClass(budgetMax: number | null): string {
-  if (!budgetMax) return 'Economy';
-  if (budgetMax >= 500000) return 'First Class';
-  if (budgetMax >= 200000) return 'Business';
-  return 'Economy';
 }
 
 function StatusBadge({ status }: { status: string }) {
