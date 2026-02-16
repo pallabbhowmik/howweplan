@@ -5,18 +5,14 @@ import { useEffect, useState } from 'react';
 import { 
   Plus, 
   Search, 
-  Calendar, 
-  Users, 
   Loader2,
   MapPin,
-  Wallet,
   ChevronRight,
   Sparkles,
   Clock,
   Globe,
   Plane,
   AlertTriangle,
-  ArrowRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -253,8 +249,8 @@ export default function RequestsPage() {
         </div>
       </div>
 
-      {/* Requests List - Premium Boarding Pass Style */}
-      <div className="space-y-6">
+      {/* Requests List - Boarding Pass Style */}
+      <div className="space-y-5">
         {filteredRequests.map((request) => {
           const tripDays = getTripDuration(request.departureDate, request.returnDate);
           const travelersCount = getTravelersCount(request.travelers);
@@ -266,205 +262,162 @@ export default function RequestsPage() {
           return (
             <Link key={request.id} href={`/dashboard/requests/${request.id}`} className="block group">
               <div className={`
-                relative rounded-2xl transition-all duration-300 overflow-hidden group-hover:-translate-y-1
-                bg-white border border-slate-200/60
-                shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.06)]
-                hover:shadow-[0_4px_16px_rgba(0,0,0,0.08),0_12px_40px_rgba(0,0,0,0.1)]
+                relative rounded-2xl transition-all duration-300 group-hover:-translate-y-1
+                bg-white border border-slate-200/70
+                shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_14px_rgba(0,0,0,0.06)]
+                hover:shadow-[0_8px_30px_rgba(0,0,0,0.1)]
+                overflow-hidden
                 ${normalized === 'EXPIRED' || normalized === 'CANCELLED' ? 'opacity-70 hover:opacity-100' : ''}
               `}>
-                {/* Paper texture overlay */}
-                <div className="absolute inset-0 opacity-[0.015] pointer-events-none" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'4\' height=\'4\' viewBox=\'0 0 4 4\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M1 3h1v1H1V3zm2-2h1v1H3V1z\' fill=\'%23000\' fill-opacity=\'1\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")'}} />
-                
-                {/* Gradient accent top edge */}
-                <div className={`h-1 bg-gradient-to-r ${getTicketGradient(request.state)}`} />
+                {/* Top gradient bar */}
+                <div className={`h-1.5 bg-gradient-to-r ${getTicketGradient(request.state)}`} />
                 
                 <div className="flex flex-col md:flex-row">
-                  {/* === LEFT: Main Ticket Body === */}
+                  {/* ======= LEFT: Main Boarding Pass ======= */}
                   <div className="flex-1 relative min-w-0">
-                    {/* Watermark */}
-                    <div className="absolute top-6 right-6 opacity-[0.025] pointer-events-none">
-                      <Plane className="h-28 w-28 text-slate-900" />
+                    {/* Faded watermark */}
+                    <div className="absolute -right-4 -bottom-4 opacity-[0.02] pointer-events-none rotate-12">
+                      <Plane className="h-40 w-40 text-slate-900" />
                     </div>
-                    
-                    <div className="p-5 md:p-6 pb-0 relative">
-                      {/* Header row: Brand | ID + Status */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getTicketGradient(request.state)} flex items-center justify-center shadow-sm ring-1 ring-black/5`}>
-                            <Plane className="h-4 w-4 text-white -rotate-45" />
-                          </div>
-                          <div>
-                            <span className="text-[11px] font-bold tracking-[0.2em] text-slate-400 uppercase block leading-none">HowWePlan</span>
-                            <span className="text-[9px] tracking-[0.15em] text-slate-300 uppercase font-medium">Travel Pass</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-[10px] font-mono text-slate-300 hidden sm:block tracking-wider">#{request.id.slice(0, 8).toUpperCase()}</span>
-                          <StatusBadge status={request.state} />
-                        </div>
-                      </div>
 
-                      {/* === Destination Hero + Date Columns === */}
-                      <div className="flex items-start gap-4 md:gap-6 mb-5">
-                        {/* Destination icon block */}
-                        <div className={`shrink-0 w-[52px] h-[52px] rounded-xl bg-gradient-to-br ${getTicketGradient(request.state)} flex items-center justify-center shadow-lg ring-1 ring-black/5`}>
-                          <MapPin className="h-6 w-6 text-white drop-shadow-sm" />
+                    {/* --- Top section: airline header --- */}
+                    <div className="px-5 md:px-6 pt-4 pb-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-7 h-7 rounded-md bg-gradient-to-br ${getTicketGradient(request.state)} flex items-center justify-center`}>
+                          <Plane className="h-3.5 w-3.5 text-white -rotate-45" />
                         </div>
-                        
-                        {/* Destination name + inline date badges */}
-                        <div className="flex-1 min-w-0 pt-0.5">
-                          <h3 className="text-xl md:text-2xl font-black text-slate-900 group-hover:text-blue-600 transition-colors truncate leading-tight tracking-tight">
-                            {destinationCity}
-                          </h3>
-                          <div className="flex items-center gap-2 mt-2 flex-wrap">
-                            {depDate && (
-                              <span className="inline-flex items-center gap-1.5 bg-slate-50 text-slate-600 text-[11px] font-semibold px-2.5 py-1 rounded-md ring-1 ring-slate-200/60">
-                                <Calendar className="h-3 w-3 text-blue-400" />
-                                {depDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                              </span>
-                            )}
-                            {depDate && retDate && (
-                              <ArrowRight className="h-3 w-3 text-slate-300 shrink-0" />
-                            )}
-                            {retDate && (
-                              <span className="inline-flex items-center gap-1.5 bg-slate-50 text-slate-600 text-[11px] font-semibold px-2.5 py-1 rounded-md ring-1 ring-slate-200/60">
-                                <Calendar className="h-3 w-3 text-indigo-400" />
-                                {retDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                              </span>
-                            )}
-                            {tripDays && (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-50 text-[11px] font-bold text-blue-600 ring-1 ring-blue-100">
-                                <Clock className="h-3 w-3" />
-                                {tripDays}D{tripDays > 1 ? ` / ${tripDays - 1}N` : ''}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                        <span className="text-[11px] font-extrabold tracking-[0.25em] text-slate-400 uppercase">HowWePlan</span>
                       </div>
-
-                      {/* Info Cells — ticket detail strip */}
-                      <div className="grid grid-cols-3 gap-2.5 pt-4 border-t border-dashed border-slate-200">
-                        <div className="bg-gradient-to-b from-slate-50 to-white rounded-lg px-3 py-2.5 ring-1 ring-slate-100">
-                          <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-1 flex items-center gap-1">
-                            <Users className="h-2.5 w-2.5" />
-                            Passengers
-                          </p>
-                          <p className="text-[13px] font-bold text-slate-700">
-                            {travelersCount} {travelersCount === 1 ? 'traveler' : 'travelers'}
-                          </p>
-                        </div>
-                        <div className="bg-gradient-to-b from-slate-50 to-white rounded-lg px-3 py-2.5 ring-1 ring-slate-100">
-                          <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-1 flex items-center gap-1">
-                            <Wallet className="h-2.5 w-2.5" />
-                            Budget
-                          </p>
-                          <p className="text-[13px] font-bold text-slate-700 truncate">
-                            {request.budgetMax ? formatBudget(request.budgetMin, request.budgetMax) : 'Flexible'}
-                          </p>
-                        </div>
-                        <div className="bg-gradient-to-b from-slate-50 to-white rounded-lg px-3 py-2.5 ring-1 ring-slate-100">
-                          <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-1 flex items-center gap-1">
-                            <Clock className="h-2.5 w-2.5" />
-                            Duration
-                          </p>
-                          <p className="text-[13px] font-bold text-slate-700">
-                            {tripDays ? `${tripDays} day${tripDays !== 1 ? 's' : ''}` : 'N/A'}
-                          </p>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono text-slate-300 tracking-widest hidden sm:inline">#{request.id.slice(0, 8).toUpperCase()}</span>
+                        <StatusBadge status={request.state} />
                       </div>
                     </div>
 
-                    {/* Barcode strip */}
-                    <div className="px-5 md:px-6 py-3 flex items-center justify-between">
-                      <div className="flex gap-[1.5px] items-end h-5 opacity-[0.12]">
-                        {request.id.split('').slice(0, 24).map((char, i) => {
+                    {/* --- Destination hero --- */}
+                    <div className="px-5 md:px-6 pb-4">
+                      <p className="text-[9px] font-bold tracking-[0.25em] text-slate-400 uppercase mb-1">Destination</p>
+                      <h3 className="text-3xl md:text-4xl font-black text-slate-900 group-hover:text-blue-600 transition-colors leading-none tracking-tight truncate">
+                        {destinationCity}
+                      </h3>
+                    </div>
+
+                    {/* --- Dashed separator --- */}
+                    <div className="mx-5 md:mx-6 border-t border-dashed border-slate-200" />
+
+                    {/* --- Field grid (boarding pass style) --- */}
+                    <div className="px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3">
+                      <div>
+                        <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-0.5">Depart</p>
+                        <p className="text-sm font-bold text-slate-800">
+                          {depDate ? depDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-0.5">Return</p>
+                        <p className="text-sm font-bold text-slate-800">
+                          {retDate ? retDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-0.5">Passengers</p>
+                        <p className="text-sm font-bold text-slate-800">{travelersCount}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-0.5">Duration</p>
+                        <p className="text-sm font-bold text-slate-800">
+                          {tripDays ? `${tripDays} day${tripDays !== 1 ? 's' : ''}` : '—'}
+                        </p>
+                      </div>
+                      {request.budgetMax && (
+                        <div className="col-span-2">
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-0.5">Budget</p>
+                          <p className="text-sm font-bold text-slate-800">
+                            {formatBudget(request.budgetMin, request.budgetMax)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* --- Barcode strip --- */}
+                    <div className="px-5 md:px-6 pb-3 pt-1 flex items-center justify-between border-t border-slate-100">
+                      <div className="flex gap-[1.5px] items-end h-[18px] opacity-[0.12]">
+                        {request.id.split('').slice(0, 28).map((char, i) => {
                           const h = 6 + (char.charCodeAt(0) % 12);
                           const w = i % 3 === 0 ? 2.5 : 1.5;
                           return (
-                            <div
-                              key={i}
-                              className="bg-slate-900 rounded-[0.5px]"
-                              style={{ width: `${w}px`, height: `${h}px` }}
-                            />
+                            <div key={i} className="bg-slate-900 rounded-[0.5px]" style={{ width: `${w}px`, height: `${h}px` }} />
                           );
                         })}
                       </div>
-                      <span className="text-[9px] font-mono text-slate-300 tracking-widest select-none">{request.id.slice(0, 8).toUpperCase()}</span>
+                      <span className="text-[8px] font-mono text-slate-300 tracking-[0.3em] select-none uppercase">Boarding Pass</span>
                     </div>
                   </div>
 
-                  {/* === Perforated Divider === */}
-                  <div className="relative hidden md:flex flex-col items-center justify-between py-0">
-                    {/* Top semicircle cutout */}
-                    <div className="w-6 h-3 bg-slate-50 rounded-b-full -mt-[1px] relative z-10 border-b border-x border-slate-200/60" />
-                    {/* Perforation dots */}
-                    <div className="flex-1 flex flex-col items-center justify-center gap-[6px] py-2">
-                      {Array.from({ length: 12 }).map((_, i) => (
-                        <div key={i} className="w-[5px] h-[5px] rounded-full bg-slate-200/80" />
+                  {/* ======= Perforation ======= */}
+                  <div className="relative hidden md:flex flex-col items-center justify-between">
+                    <div className="w-6 h-3 bg-slate-50 rounded-b-full -mt-[1px] z-10 border-b border-x border-slate-200/70" />
+                    <div className="flex-1 flex flex-col items-center justify-center gap-[5px] py-1">
+                      {Array.from({ length: 14 }).map((_, i) => (
+                        <div key={i} className="w-[4px] h-[4px] rounded-full bg-slate-200" />
                       ))}
                     </div>
-                    {/* Bottom semicircle cutout */}
-                    <div className="w-6 h-3 bg-slate-50 rounded-t-full -mb-[1px] relative z-10 border-t border-x border-slate-200/60" />
+                    <div className="w-6 h-3 bg-slate-50 rounded-t-full -mb-[1px] z-10 border-t border-x border-slate-200/70" />
                   </div>
-                  {/* Mobile horizontal divider */}
-                  <div className="md:hidden relative flex items-center mx-0 my-0">
-                    <div className="absolute -left-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-r-full border-r border-y border-slate-200/60 z-10" />
-                    <div className="flex-1 flex items-center justify-center gap-[6px] px-6">
-                      {Array.from({ length: 20 }).map((_, i) => (
-                        <div key={i} className="w-[5px] h-[5px] rounded-full bg-slate-200/80 shrink-0" />
+                  {/* Mobile horizontal perforation */}
+                  <div className="md:hidden relative flex items-center">
+                    <div className="absolute -left-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-r-full border-r border-y border-slate-200/70 z-10" />
+                    <div className="flex-1 flex items-center justify-center gap-[5px] px-5 py-1">
+                      {Array.from({ length: 24 }).map((_, i) => (
+                        <div key={i} className="w-[4px] h-[4px] rounded-full bg-slate-200 shrink-0" />
                       ))}
                     </div>
-                    <div className="absolute -right-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-l-full border-l border-y border-slate-200/60 z-10" />
+                    <div className="absolute -right-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-l-full border-l border-y border-slate-200/70 z-10" />
                   </div>
 
-                  {/* === RIGHT: Stub / Tear-off === */}
-                  <div className="w-full md:w-48 flex flex-row md:flex-col items-center md:items-center justify-between md:justify-center gap-3 p-5 md:p-5 bg-gradient-to-b from-slate-50/80 to-slate-100/60 md:bg-gradient-to-br">
+                  {/* ======= RIGHT: Stub ======= */}
+                  <div className="w-full md:w-44 flex flex-row md:flex-col items-center md:items-center justify-between md:justify-center gap-3 p-4 md:py-5 md:px-4 bg-slate-50/60">
                     {!['DRAFT', 'CANCELLED', 'EXPIRED'].includes(normalized) ? (
                       <div className="text-center">
-                        <div className="relative inline-block mb-2">
-                          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-100 via-amber-50 to-orange-50 flex items-center justify-center ring-2 ring-amber-200/50">
-                            <Sparkles className="h-6 w-6 text-amber-500" />
+                        <div className="relative inline-block mb-1.5">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-100 to-orange-50 flex items-center justify-center ring-1 ring-amber-200/50">
+                            <Sparkles className="h-5 w-5 text-amber-500" />
                           </div>
                           {(request.agentsResponded || 0) > 0 && (
-                            <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center ring-2 ring-white">
-                              <span className="text-[10px] font-black text-white">{request.agentsResponded}</span>
+                            <div className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center ring-2 ring-white text-[9px] font-black text-white">
+                              {request.agentsResponded}
                             </div>
                           )}
                         </div>
-                        <div>
-                          <span className="text-2xl font-black bg-gradient-to-b from-blue-600 to-indigo-600 bg-clip-text text-transparent leading-none block">
-                            {request.agentsResponded || 0}
-                          </span>
-                          <p className="text-[10px] text-slate-400 mt-0.5 font-semibold tracking-wide uppercase leading-tight">
-                            agent{(request.agentsResponded || 0) !== 1 ? 's' : ''} responded
-                          </p>
-                        </div>
+                        <p className="text-2xl font-black bg-gradient-to-b from-blue-600 to-indigo-600 bg-clip-text text-transparent leading-none">
+                          {request.agentsResponded || 0}
+                        </p>
+                        <p className="text-[9px] text-slate-400 mt-0.5 font-semibold tracking-wider uppercase">
+                          agent{(request.agentsResponded || 0) !== 1 ? 's' : ''}
+                        </p>
                       </div>
                     ) : (
                       <div className="text-center">
-                        <div className={`inline-flex items-center justify-center w-14 h-14 rounded-full mb-2 ring-2 ring-slate-200/50 ${getStatusBgColor(request.state)}`}>
-                          <MapPin className={`h-6 w-6 ${getStatusIconColor(request.state)}`} />
+                        <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full mb-1 ring-1 ring-slate-200/50 ${getStatusBgColor(request.state)}`}>
+                          <MapPin className={`h-5 w-5 ${getStatusIconColor(request.state)}`} />
                         </div>
-                        <p className="text-xs text-slate-400 font-semibold capitalize">{_getStatusLabel(request.state)}</p>
+                        <p className="text-[10px] text-slate-400 font-semibold capitalize">{_getStatusLabel(request.state)}</p>
                       </div>
                     )}
                     <Button 
                       size="sm"
                       variant={normalized === 'PROPOSALS_RECEIVED' ? 'default' : 'outline'}
-                      className={`text-xs font-semibold w-full transition-all duration-200 rounded-lg ${
+                      className={`text-[11px] font-semibold w-full rounded-lg transition-all duration-200 ${
                         normalized === 'PROPOSALS_RECEIVED' 
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-500/25 ring-1 ring-blue-500/20' 
-                          : 'bg-white hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 shadow-sm ring-1 ring-slate-200/60'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-500/25' 
+                          : 'bg-white hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 shadow-sm'
                       }`}
                     >
                       {getButtonText(request.state)}
-                      <ChevronRight className="h-3.5 w-3.5 ml-1 transition-transform group-hover:translate-x-0.5" />
+                      <ChevronRight className="h-3.5 w-3.5 ml-0.5 transition-transform group-hover:translate-x-0.5" />
                     </Button>
                   </div>
                 </div>
-
-                {/* Hover shimmer effect */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-r from-transparent via-white/5 to-transparent" />
               </div>
             </Link>
           );
