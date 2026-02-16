@@ -105,21 +105,60 @@ export default function RequestsPage() {
           <div className="h-10 w-24 bg-slate-100 rounded-lg" />
           <div className="h-10 w-24 bg-slate-100 rounded-lg" />
         </div>
-        {/* Request card skeletons */}
+        {/* Request card skeletons - ticket shape */}
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="bg-white rounded-xl border p-5 flex gap-4">
-            <div className="w-1 rounded-full bg-slate-200 self-stretch" />
-            <div className="flex-1 space-y-3">
-              <div className="flex justify-between">
-                <div className="h-5 w-40 bg-slate-200 rounded" />
-                <div className="h-5 w-20 bg-slate-100 rounded-full" />
+          <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+            <div className="h-1 bg-slate-200" />
+            <div className="flex">
+              <div className="flex-1 p-6 space-y-5">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 bg-slate-200 rounded-lg" />
+                    <div className="space-y-1">
+                      <div className="h-2.5 w-20 bg-slate-200 rounded" />
+                      <div className="h-2 w-14 bg-slate-100 rounded" />
+                    </div>
+                  </div>
+                  <div className="h-5 w-16 bg-slate-100 rounded-full" />
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-2 w-12 bg-slate-100 rounded" />
+                    <div className="h-5 w-24 bg-slate-200 rounded" />
+                  </div>
+                  <div className="w-28 flex items-center gap-1">
+                    <div className="h-2 w-2 bg-slate-200 rounded-full" />
+                    <div className="flex-1 h-px bg-slate-200" />
+                    <div className="h-4 w-4 bg-slate-200 rounded-full" />
+                    <div className="flex-1 h-px bg-slate-200" />
+                    <div className="h-2 w-2 bg-slate-200 rounded-full" />
+                  </div>
+                  <div className="flex-1 space-y-1.5 text-right">
+                    <div className="h-2 w-14 bg-slate-100 rounded ml-auto" />
+                    <div className="h-6 w-28 bg-slate-200 rounded ml-auto" />
+                  </div>
+                </div>
+                <div className="border-t border-dashed border-slate-100 pt-4 grid grid-cols-4 gap-2.5">
+                  {[...Array(4)].map((_, j) => (
+                    <div key={j} className="bg-slate-50 rounded-lg p-2.5 space-y-1.5">
+                      <div className="h-2 w-8 bg-slate-200 rounded" />
+                      <div className="h-3.5 w-16 bg-slate-200 rounded" />
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="flex gap-4">
-                <div className="h-4 w-28 bg-slate-100 rounded" />
-                <div className="h-4 w-20 bg-slate-100 rounded" />
-                <div className="h-4 w-24 bg-slate-100 rounded" />
+              <div className="hidden md:flex flex-col items-center py-4">
+                <div className="w-6 h-3 bg-slate-100 rounded-b-full" />
+                <div className="flex-1 flex flex-col gap-1.5 py-2 items-center">
+                  {[...Array(8)].map((_, j) => <div key={j} className="w-1 h-1 bg-slate-200 rounded-full" />)}
+                </div>
+                <div className="w-6 h-3 bg-slate-100 rounded-t-full" />
               </div>
-              <div className="h-4 w-32 bg-slate-100 rounded" />
+              <div className="hidden md:flex flex-col items-center justify-center w-48 bg-slate-50 p-5 gap-3">
+                <div className="w-14 h-14 bg-slate-200 rounded-full" />
+                <div className="h-3 w-20 bg-slate-200 rounded" />
+                <div className="h-8 w-full bg-slate-200 rounded-lg" />
+              </div>
             </div>
           </div>
         ))}
@@ -225,112 +264,166 @@ export default function RequestsPage() {
         {filteredRequests.map((request) => {
           const tripDays = getTripDuration(request.departureDate, request.returnDate);
           const travelersCount = getTravelersCount(request.travelers);
-          const departureCity = request.departureLocation?.city || 'Origin';
+          const departureCity = request.departureLocation?.city || null;
           const destinationCity = getDestination(request);
           const normalized = normalizeStatus(request.state);
           const depDate = request.departureDate ? new Date(request.departureDate) : null;
           const retDate = request.returnDate ? new Date(request.returnDate) : null;
+          const hasDeparture = !!departureCity;
           
           return (
             <Link key={request.id} href={`/dashboard/requests/${request.id}`} className="block group">
-              <div className="relative bg-white rounded-2xl shadow-[0_2px_20px_-4px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_40px_-8px_rgba(0,0,0,0.15)] transition-all duration-300 overflow-hidden group-hover:-translate-y-1 border border-slate-100/80">
+              <div className={`
+                relative rounded-2xl transition-all duration-300 overflow-hidden group-hover:-translate-y-1
+                bg-white border border-slate-200/60
+                shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.06)]
+                hover:shadow-[0_4px_16px_rgba(0,0,0,0.08),0_12px_40px_rgba(0,0,0,0.1)]
+                ${normalized === 'EXPIRED' || normalized === 'CANCELLED' ? 'opacity-75 hover:opacity-100' : ''}
+              `}>
+                {/* Subtle ticket texture overlay */}
+                <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'4\' height=\'4\' viewBox=\'0 0 4 4\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M1 3h1v1H1V3zm2-2h1v1H3V1z\' fill=\'%23000\' fill-opacity=\'1\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")'}} />
+                
+                {/* Gradient accent top edge */}
+                <div className={`h-1 bg-gradient-to-r ${getTicketGradient(request.state)}`} />
                 
                 <div className="flex flex-col md:flex-row">
                   {/* === LEFT: Main Ticket Body === */}
-                  <div className="flex-1 relative">
-                    {/* Gradient accent top edge */}
-                    <div className={`h-1 bg-gradient-to-r ${getTicketGradient(request.state)}`} />
+                  <div className="flex-1 relative min-w-0">
+                    {/* Watermark plane */}
+                    <div className="absolute top-4 right-4 opacity-[0.03] pointer-events-none">
+                      <Plane className="h-32 w-32 text-slate-900" />
+                    </div>
                     
-                    <div className="p-5 md:p-6 pb-4">
+                    <div className="p-5 md:p-6 pb-0 relative">
                       {/* Header: Brand + Status + Request ID */}
                       <div className="flex items-center justify-between mb-5">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
-                            <Plane className="h-3.5 w-3.5 text-white -rotate-45" />
+                          <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getTicketGradient(request.state)} flex items-center justify-center shadow-sm ring-1 ring-black/5`}>
+                            <Plane className="h-4 w-4 text-white -rotate-45" />
                           </div>
                           <div>
                             <span className="text-[11px] font-bold tracking-[0.2em] text-slate-400 uppercase block leading-none">HowWePlan</span>
-                            <span className="text-[9px] tracking-wider text-slate-300 uppercase">Boarding Pass</span>
+                            <span className="text-[9px] tracking-[0.15em] text-slate-300 uppercase font-medium">Boarding Pass</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2.5">
-                          <span className="text-[10px] font-mono text-slate-400 hidden sm:block">#{request.id.slice(0, 8).toUpperCase()}</span>
+                          <span className="text-[10px] font-mono text-slate-300 hidden sm:block tracking-wider">#{request.id.slice(0, 8).toUpperCase()}</span>
                           <StatusBadge status={request.state} />
                         </div>
                       </div>
 
-                      {/* === Route Section: FROM ✈ TO === */}
-                      <div className="flex items-stretch gap-4 md:gap-6 mb-5">
-                        {/* Departure */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-1">Departure</p>
-                          <p className="text-base md:text-lg font-extrabold text-slate-800 tracking-tight truncate">{departureCity}</p>
-                          {depDate && (
-                            <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
-                              {depDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                            </p>
-                          )}
-                        </div>
-                        
-                        {/* Flight path visualization */}
-                        <div className="flex flex-col items-center justify-center shrink-0 w-24 md:w-32 pt-4">
-                          <div className="flex items-center w-full">
-                            <div className="h-2 w-2 rounded-full border-2 border-blue-400 bg-white" />
-                            <div className="flex-1 h-px bg-gradient-to-r from-blue-300 via-blue-400 to-indigo-400 relative mx-1">
-                              <div className="absolute inset-x-0 top-0 h-px bg-blue-300 opacity-40" style={{backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 4px, currentColor 4px, currentColor 8px)'}} />
-                            </div>
-                            <Plane className="h-4 w-4 text-blue-500 shrink-0" />
-                            <div className="flex-1 h-px bg-gradient-to-r from-indigo-400 via-purple-400 to-purple-300 mx-1" />
-                            <div className="h-2 w-2 rounded-full bg-indigo-500" />
+                      {/* === Route Section === */}
+                      {hasDeparture ? (
+                        <div className="flex items-stretch gap-3 md:gap-5 mb-5">
+                          {/* Departure */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-1">Departure</p>
+                            <p className="text-base md:text-lg font-extrabold text-slate-800 tracking-tight truncate">{departureCity}</p>
+                            {depDate && (
+                              <p className="text-[11px] text-slate-400 mt-1 font-medium">
+                                {depDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                              </p>
+                            )}
                           </div>
-                          {tripDays && (
-                            <span className="text-[10px] text-slate-400 font-semibold mt-1">
-                              {tripDays}D {tripDays > 1 ? `/ ${tripDays - 1}N` : ''}
-                            </span>
-                          )}
+                          
+                          {/* Flight path */}
+                          <div className="flex flex-col items-center justify-center shrink-0 w-28 md:w-36 pt-3">
+                            <div className="flex items-center w-full gap-0.5">
+                              <div className="h-[7px] w-[7px] rounded-full border-2 border-blue-400 bg-white shrink-0" />
+                              <div className="flex-1 relative h-[2px]">
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-200 to-blue-300 rounded-full" />
+                                <div className="absolute inset-0 rounded-full" style={{background: 'repeating-linear-gradient(90deg, transparent 0px, transparent 3px, white 3px, white 5px)'}} />
+                              </div>
+                              <div className="shrink-0 bg-blue-50 rounded-full p-1">
+                                <Plane className="h-3.5 w-3.5 text-blue-500" />
+                              </div>
+                              <div className="flex-1 relative h-[2px]">
+                                <div className="absolute inset-0 bg-gradient-to-r from-indigo-300 to-indigo-200 rounded-full" />
+                                <div className="absolute inset-0 rounded-full" style={{background: 'repeating-linear-gradient(90deg, transparent 0px, transparent 3px, white 3px, white 5px)'}} />
+                              </div>
+                              <div className="h-[7px] w-[7px] rounded-full bg-indigo-500 shrink-0" />
+                            </div>
+                            {tripDays && (
+                              <span className="text-[10px] text-slate-400 font-semibold mt-1.5 bg-slate-50 px-2 py-0.5 rounded-full">
+                                {tripDays}D{tripDays > 1 ? ` / ${tripDays - 1}N` : ''}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Destination */}
+                          <div className="flex-1 min-w-0 text-right">
+                            <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-1">Destination</p>
+                            <p className="text-lg md:text-xl font-black text-slate-900 group-hover:text-blue-600 transition-colors truncate">{destinationCity}</p>
+                            {retDate && (
+                              <p className="text-[11px] text-slate-400 mt-1 font-medium">
+                                {retDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        
-                        {/* Destination */}
-                        <div className="flex-1 min-w-0 text-right">
-                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-1">Destination</p>
-                          <p className="text-lg md:text-xl font-black text-slate-900 group-hover:text-blue-600 transition-colors truncate">{destinationCity}</p>
-                          {retDate && (
-                            <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
-                              {retDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      ) : (
+                        /* Destination-hero layout */
+                        <div className="flex items-center gap-4 mb-5">
+                          <div className={`shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br ${getTicketGradient(request.state)} flex items-center justify-center shadow-lg ring-1 ring-black/5`}>
+                            <MapPin className="h-7 w-7 text-white drop-shadow-sm" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xl md:text-2xl font-black text-slate-900 group-hover:text-blue-600 transition-colors truncate leading-tight">
+                              {destinationCity}
                             </p>
-                          )}
+                            <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
+                              {depDate && retDate && (
+                                <span className="inline-flex items-center gap-1.5 text-[12px] text-slate-500 font-medium">
+                                  <Calendar className="h-3.5 w-3.5 text-blue-400" />
+                                  {depDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  {' '}&ndash;{' '}
+                                  {retDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </span>
+                              )}
+                              {tripDays && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-[11px] font-bold text-blue-600 ring-1 ring-blue-100">
+                                  {tripDays}D{tripDays > 1 ? ` / ${tripDays - 1}N` : ''}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      {/* Info Cells — boarding pass style */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-dashed border-slate-200">
-                        <div className="bg-slate-50 rounded-lg px-3 py-2">
-                          <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-0.5">Date</p>
+                      {/* Info Cells — boarding pass style with icons */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-4 border-t border-dashed border-slate-200">
+                        <div className="bg-gradient-to-b from-slate-50 to-white rounded-lg px-3 py-2.5 ring-1 ring-slate-100">
+                          <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-1 flex items-center gap-1">
+                            <Calendar className="h-2.5 w-2.5" />
+                            Date
+                          </p>
                           <p className="text-[13px] font-bold text-slate-700">
                             {formatDateRange(request.departureDate, request.returnDate)}
                           </p>
                         </div>
-                        <div className="bg-slate-50 rounded-lg px-3 py-2">
-                          <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-0.5">Travelers</p>
+                        <div className="bg-gradient-to-b from-slate-50 to-white rounded-lg px-3 py-2.5 ring-1 ring-slate-100">
+                          <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-1 flex items-center gap-1">
+                            <Users className="h-2.5 w-2.5" />
+                            Passengers
+                          </p>
                           <p className="text-[13px] font-bold text-slate-700">
                             {travelersCount} pax
                           </p>
                         </div>
-                        {request.budgetMax ? (
-                          <div className="bg-slate-50 rounded-lg px-3 py-2">
-                            <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-0.5">Budget</p>
-                            <p className="text-[13px] font-bold text-slate-700 truncate">
-                              {formatBudget(request.budgetMin, request.budgetMax)}
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="bg-slate-50 rounded-lg px-3 py-2">
-                            <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-0.5">Budget</p>
-                            <p className="text-[13px] font-bold text-slate-700">Flexible</p>
-                          </div>
-                        )}
-                        <div className="bg-slate-50 rounded-lg px-3 py-2">
-                          <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-0.5">Duration</p>
+                        <div className="bg-gradient-to-b from-slate-50 to-white rounded-lg px-3 py-2.5 ring-1 ring-slate-100">
+                          <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-1 flex items-center gap-1">
+                            <Wallet className="h-2.5 w-2.5" />
+                            Budget
+                          </p>
+                          <p className="text-[13px] font-bold text-slate-700 truncate">
+                            {request.budgetMax ? formatBudget(request.budgetMin, request.budgetMax) : 'Flexible'}
+                          </p>
+                        </div>
+                        <div className="bg-gradient-to-b from-slate-50 to-white rounded-lg px-3 py-2.5 ring-1 ring-slate-100">
+                          <p className="text-[9px] font-bold tracking-[0.15em] text-slate-400 uppercase mb-1 flex items-center gap-1">
+                            <Clock className="h-2.5 w-2.5" />
+                            Duration
+                          </p>
                           <p className="text-[13px] font-bold text-slate-700">
                             {tripDays ? `${tripDays} day${tripDays !== 1 ? 's' : ''}` : 'N/A'}
                           </p>
@@ -338,60 +431,76 @@ export default function RequestsPage() {
                       </div>
                     </div>
 
-                    {/* Barcode-style footer strip */}
-                    <div className="px-5 md:px-6 pb-3 flex items-center justify-between">
-                      <div className="flex gap-[2px] items-end h-4 opacity-20">
-                        {request.id.split('').slice(0, 20).map((char, i) => (
-                          <div
-                            key={i}
-                            className="bg-slate-900 rounded-[0.5px]"
-                            style={{ width: '2px', height: `${8 + (char.charCodeAt(0) % 8)}px` }}
-                          />
-                        ))}
+                    {/* Barcode strip */}
+                    <div className="px-5 md:px-6 py-3 flex items-center justify-between">
+                      <div className="flex gap-[1.5px] items-end h-5 opacity-15">
+                        {request.id.split('').slice(0, 24).map((char, i) => {
+                          const h = 6 + (char.charCodeAt(0) % 12);
+                          const w = i % 3 === 0 ? 2.5 : 1.5;
+                          return (
+                            <div
+                              key={i}
+                              className="bg-slate-900 rounded-[0.5px]"
+                              style={{ width: `${w}px`, height: `${h}px` }}
+                            />
+                          );
+                        })}
                       </div>
-                      <span className="text-[9px] font-mono text-slate-300 tracking-wider">{request.id.slice(0, 8).toUpperCase()}</span>
+                      <span className="text-[9px] font-mono text-slate-300 tracking-widest select-none">{request.id.slice(0, 8).toUpperCase()}</span>
                     </div>
                   </div>
 
                   {/* === Perforated Divider === */}
-                  <div className="relative hidden md:flex items-stretch">
-                    {/* Top notch */}
-                    <div className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-6 h-3 bg-slate-50 rounded-b-full border-b border-x border-slate-100 z-10" />
-                    {/* Dotted line */}
-                    <div className="w-px border-l-2 border-dashed border-slate-200 my-6" />
-                    {/* Bottom notch */}
-                    <div className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 w-6 h-3 bg-slate-50 rounded-t-full border-t border-x border-slate-100 z-10" />
+                  <div className="relative hidden md:flex flex-col items-center justify-between py-0">
+                    {/* Top semicircle cutout */}
+                    <div className="w-6 h-3 bg-slate-50 rounded-b-full -mt-[1px] relative z-10 border-b border-x border-slate-200/60" />
+                    {/* Perforation dots */}
+                    <div className="flex-1 flex flex-col items-center justify-center gap-[6px] py-2">
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <div key={i} className="w-[5px] h-[5px] rounded-full bg-slate-200/80" />
+                      ))}
+                    </div>
+                    {/* Bottom semicircle cutout */}
+                    <div className="w-6 h-3 bg-slate-50 rounded-t-full -mb-[1px] relative z-10 border-t border-x border-slate-200/60" />
                   </div>
                   {/* Mobile horizontal divider */}
-                  <div className="md:hidden relative flex items-center mx-5 my-1">
-                    <div className="absolute -left-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-r-full border-r border-y border-slate-100 z-10" />
-                    <div className="flex-1 h-px border-t-2 border-dashed border-slate-200" />
-                    <div className="absolute -right-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-l-full border-l border-y border-slate-100 z-10" />
+                  <div className="md:hidden relative flex items-center mx-0 my-0">
+                    <div className="absolute -left-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-r-full border-r border-y border-slate-200/60 z-10" />
+                    <div className="flex-1 flex items-center justify-center gap-[6px] px-6">
+                      {Array.from({ length: 20 }).map((_, i) => (
+                        <div key={i} className="w-[5px] h-[5px] rounded-full bg-slate-200/80 shrink-0" />
+                      ))}
+                    </div>
+                    <div className="absolute -right-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-l-full border-l border-y border-slate-200/60 z-10" />
                   </div>
 
                   {/* === RIGHT: Stub / Tear-off === */}
-                  <div className="w-full md:w-48 flex flex-row md:flex-col items-center md:items-center justify-between md:justify-center gap-4 p-5 md:p-6 bg-gradient-to-br from-slate-50 to-slate-100/80">
+                  <div className="w-full md:w-48 flex flex-row md:flex-col items-center md:items-center justify-between md:justify-center gap-3 p-5 md:p-5 bg-gradient-to-b from-slate-50/80 to-slate-100/60 md:bg-gradient-to-br">
                     {!['DRAFT', 'CANCELLED', 'EXPIRED'].includes(normalized) ? (
                       <div className="text-center">
-                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-amber-100 to-amber-50 mb-2">
-                          <Sparkles className="h-5 w-5 text-amber-500" />
+                        <div className="relative inline-block mb-2">
+                          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-100 via-amber-50 to-orange-50 flex items-center justify-center ring-2 ring-amber-200/50">
+                            <Sparkles className="h-6 w-6 text-amber-500" />
+                          </div>
+                          {(request.agentsResponded || 0) > 0 && (
+                            <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center ring-2 ring-white">
+                              <span className="text-[10px] font-black text-white">{request.agentsResponded}</span>
+                            </div>
+                          )}
                         </div>
                         <div>
-                          <span className="text-3xl font-black bg-gradient-to-b from-blue-600 to-indigo-600 bg-clip-text text-transparent leading-none">
+                          <span className="text-2xl font-black bg-gradient-to-b from-blue-600 to-indigo-600 bg-clip-text text-transparent leading-none block">
                             {request.agentsResponded || 0}
                           </span>
-                          <p className="text-[10px] text-slate-400 mt-0.5 font-semibold tracking-wide uppercase">
-                            agent{(request.agentsResponded || 0) !== 1 ? 's' : ''}
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-semibold tracking-wide uppercase -mt-0.5">
-                            responded
+                          <p className="text-[10px] text-slate-400 mt-0.5 font-semibold tracking-wide uppercase leading-tight">
+                            agent{(request.agentsResponded || 0) !== 1 ? 's' : ''} responded
                           </p>
                         </div>
                       </div>
                     ) : (
                       <div className="text-center">
-                        <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full mb-2 ${getStatusBgColor(request.state)}`}>
-                          <MapPin className={`h-5 w-5 ${getStatusIconColor(request.state)}`} />
+                        <div className={`inline-flex items-center justify-center w-14 h-14 rounded-full mb-2 ring-2 ring-slate-200/50 ${getStatusBgColor(request.state)}`}>
+                          <MapPin className={`h-6 w-6 ${getStatusIconColor(request.state)}`} />
                         </div>
                         <p className="text-xs text-slate-400 font-semibold capitalize">{_getStatusLabel(request.state)}</p>
                       </div>
@@ -399,17 +508,20 @@ export default function RequestsPage() {
                     <Button 
                       size="sm"
                       variant={normalized === 'PROPOSALS_RECEIVED' ? 'default' : 'outline'}
-                      className={`text-xs font-semibold w-full transition-all duration-200 ${
+                      className={`text-xs font-semibold w-full transition-all duration-200 rounded-lg ${
                         normalized === 'PROPOSALS_RECEIVED' 
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-500/20' 
-                          : 'bg-white hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 shadow-sm'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-500/25 ring-1 ring-blue-500/20' 
+                          : 'bg-white hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 shadow-sm ring-1 ring-slate-200/60'
                       }`}
                     >
                       {getButtonText(request.state)}
-                      <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                      <ChevronRight className="h-3.5 w-3.5 ml-1 transition-transform group-hover:translate-x-0.5" />
                     </Button>
                   </div>
                 </div>
+
+                {/* Hover shimmer effect */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-r from-transparent via-white/5 to-transparent" />
               </div>
             </Link>
           );
