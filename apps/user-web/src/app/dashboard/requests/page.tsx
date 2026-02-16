@@ -5,11 +5,7 @@ import { useEffect, useState } from 'react';
 import { 
   Plus, 
   Search, 
-  Loader2,
-  MapPin,
   ChevronRight,
-  Sparkles,
-  Clock,
   Globe,
   Plane,
   AlertTriangle,
@@ -249,8 +245,8 @@ export default function RequestsPage() {
         </div>
       </div>
 
-      {/* Requests List - Boarding Pass Style */}
-      <div className="space-y-5">
+      {/* Requests List - Vivid Boarding Pass */}
+      <div className="space-y-6">
         {filteredRequests.map((request) => {
           const tripDays = getTripDuration(request.departureDate, request.returnDate);
           const travelersCount = getTravelersCount(request.travelers);
@@ -262,160 +258,209 @@ export default function RequestsPage() {
           return (
             <Link key={request.id} href={`/dashboard/requests/${request.id}`} className="block group">
               <div className={`
-                relative rounded-2xl transition-all duration-300 group-hover:-translate-y-1
-                bg-white border border-slate-200/70
-                shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_14px_rgba(0,0,0,0.06)]
-                hover:shadow-[0_8px_30px_rgba(0,0,0,0.1)]
-                overflow-hidden
-                ${normalized === 'EXPIRED' || normalized === 'CANCELLED' ? 'opacity-70 hover:opacity-100' : ''}
+                relative rounded-2xl overflow-hidden transition-all duration-300 group-hover:-translate-y-1
+                shadow-[0_4px_20px_rgba(0,0,0,0.08)]
+                hover:shadow-[0_12px_40px_rgba(0,0,0,0.15)]
+                ${normalized === 'EXPIRED' || normalized === 'CANCELLED' ? 'opacity-80 hover:opacity-100' : ''}
               `}>
-                {/* Top gradient bar */}
-                <div className={`h-1.5 bg-gradient-to-r ${getTicketGradient(request.state)}`} />
-                
                 <div className="flex flex-col md:flex-row">
-                  {/* ======= LEFT: Main Boarding Pass ======= */}
-                  <div className="flex-1 relative min-w-0">
-                    {/* Faded watermark */}
-                    <div className="absolute -right-4 -bottom-4 opacity-[0.02] pointer-events-none rotate-12">
-                      <Plane className="h-40 w-40 text-slate-900" />
-                    </div>
+                  {/* === LEFT: Main Boarding Pass Body === */}
+                  <div className={`flex-1 relative min-w-0 bg-gradient-to-br ${getTicketBg(request.state)} overflow-hidden`}>
+                    {/* Tropical decorative layers */}
+                    <div className="absolute -top-10 -right-10 w-56 h-56 rounded-full bg-white/20 blur-3xl pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-cyan-400/15 to-transparent pointer-events-none" />
+                    <div className="absolute top-1/3 -left-8 w-36 h-36 rounded-full bg-amber-400/15 blur-2xl pointer-events-none" />
+                    <div className="absolute bottom-4 right-16 w-20 h-20 rounded-full bg-teal-300/15 blur-xl pointer-events-none" />
+                    {/* Abstract palm silhouettes */}
+                    <div className="absolute right-10 bottom-2 w-[3px] h-24 bg-green-900/[0.04] rounded-full rotate-[8deg] pointer-events-none" />
+                    <div className="absolute right-4 bottom-14 w-16 h-6 bg-green-900/[0.04] rounded-full -rotate-[25deg] pointer-events-none" />
+                    <div className="absolute right-14 bottom-16 w-14 h-5 bg-green-900/[0.04] rounded-full rotate-[15deg] pointer-events-none" />
 
-                    {/* --- Top section: airline header --- */}
-                    <div className="px-5 md:px-6 pt-4 pb-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-7 h-7 rounded-md bg-gradient-to-br ${getTicketGradient(request.state)} flex items-center justify-center`}>
-                          <Plane className="h-3.5 w-3.5 text-white -rotate-45" />
+                    {/* Content */}
+                    <div className="relative p-5 md:p-6">
+                      {/* "BOARDING PASS" header */}
+                      <h2
+                        className="text-[22px] md:text-[28px] font-black tracking-[0.1em] text-white select-none"
+                        style={{ textShadow: '0 0 10px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.25), 1px 1px 0px rgba(0,0,0,0.1)' }}
+                      >
+                        BOARDING PASS
+                      </h2>
+
+                      {/* Plane + DESTINATION */}
+                      <div className="flex items-center gap-2 md:gap-3 mt-1 mb-5">
+                        <Plane className="h-8 w-8 md:h-10 md:w-10 text-white/70 -rotate-[20deg] shrink-0 drop-shadow-md" />
+                        <h3
+                          className="text-[42px] md:text-[56px] font-black text-slate-900/90 tracking-tight leading-none truncate"
+                          style={{ textShadow: '0 1px 3px rgba(255,255,255,0.4)' }}
+                        >
+                          {destinationCity.toUpperCase()}
+                        </h3>
+                      </div>
+
+                      {/* Data fields with colored label badges */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 mb-4">
+                        {/* Passengers */}
+                        <div>
+                          <span className="inline-block bg-gradient-to-r from-orange-400 to-orange-500 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
+                            Passengers:
+                          </span>
+                          <p className="text-xl font-black text-slate-900 mt-1.5 pl-0.5">{travelersCount}</p>
                         </div>
-                        <span className="text-[11px] font-extrabold tracking-[0.25em] text-slate-400 uppercase">HowWePlan</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono text-slate-300 tracking-widest hidden sm:inline">#{request.id.slice(0, 8).toUpperCase()}</span>
-                        <StatusBadge status={request.state} />
-                      </div>
-                    </div>
-
-                    {/* --- Destination hero --- */}
-                    <div className="px-5 md:px-6 pb-4">
-                      <p className="text-[9px] font-bold tracking-[0.25em] text-slate-400 uppercase mb-1">Destination</p>
-                      <h3 className="text-3xl md:text-4xl font-black text-slate-900 group-hover:text-blue-600 transition-colors leading-none tracking-tight truncate">
-                        {destinationCity}
-                      </h3>
-                    </div>
-
-                    {/* --- Dashed separator --- */}
-                    <div className="mx-5 md:mx-6 border-t border-dashed border-slate-200" />
-
-                    {/* --- Field grid (boarding pass style) --- */}
-                    <div className="px-5 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3">
-                      <div>
-                        <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-0.5">Depart</p>
-                        <p className="text-sm font-bold text-slate-800">
-                          {depDate ? depDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-0.5">Return</p>
-                        <p className="text-sm font-bold text-slate-800">
-                          {retDate ? retDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-0.5">Passengers</p>
-                        <p className="text-sm font-bold text-slate-800">{travelersCount}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-0.5">Duration</p>
-                        <p className="text-sm font-bold text-slate-800">
-                          {tripDays ? `${tripDays} day${tripDays !== 1 ? 's' : ''}` : '—'}
-                        </p>
-                      </div>
-                      {request.budgetMax && (
-                        <div className="col-span-2">
-                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-0.5">Budget</p>
-                          <p className="text-sm font-bold text-slate-800">
-                            {formatBudget(request.budgetMin, request.budgetMax)}
+                        {/* Depart */}
+                        <div>
+                          <span className="inline-block bg-gradient-to-r from-pink-400 to-rose-500 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
+                            Depart:
+                          </span>
+                          <p className="text-[13px] font-bold text-slate-900 mt-1.5 pl-0.5">
+                            {depDate ? depDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                           </p>
                         </div>
-                      )}
-                    </div>
-
-                    {/* --- Barcode strip --- */}
-                    <div className="px-5 md:px-6 pb-3 pt-1 flex items-center justify-between border-t border-slate-100">
-                      <div className="flex gap-[1.5px] items-end h-[18px] opacity-[0.12]">
-                        {request.id.split('').slice(0, 28).map((char, i) => {
-                          const h = 6 + (char.charCodeAt(0) % 12);
-                          const w = i % 3 === 0 ? 2.5 : 1.5;
-                          return (
-                            <div key={i} className="bg-slate-900 rounded-[0.5px]" style={{ width: `${w}px`, height: `${h}px` }} />
-                          );
-                        })}
-                      </div>
-                      <span className="text-[8px] font-mono text-slate-300 tracking-[0.3em] select-none uppercase">Boarding Pass</span>
-                    </div>
-                  </div>
-
-                  {/* ======= Perforation ======= */}
-                  <div className="relative hidden md:flex flex-col items-center justify-between">
-                    <div className="w-6 h-3 bg-slate-50 rounded-b-full -mt-[1px] z-10 border-b border-x border-slate-200/70" />
-                    <div className="flex-1 flex flex-col items-center justify-center gap-[5px] py-1">
-                      {Array.from({ length: 14 }).map((_, i) => (
-                        <div key={i} className="w-[4px] h-[4px] rounded-full bg-slate-200" />
-                      ))}
-                    </div>
-                    <div className="w-6 h-3 bg-slate-50 rounded-t-full -mb-[1px] z-10 border-t border-x border-slate-200/70" />
-                  </div>
-                  {/* Mobile horizontal perforation */}
-                  <div className="md:hidden relative flex items-center">
-                    <div className="absolute -left-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-r-full border-r border-y border-slate-200/70 z-10" />
-                    <div className="flex-1 flex items-center justify-center gap-[5px] px-5 py-1">
-                      {Array.from({ length: 24 }).map((_, i) => (
-                        <div key={i} className="w-[4px] h-[4px] rounded-full bg-slate-200 shrink-0" />
-                      ))}
-                    </div>
-                    <div className="absolute -right-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-l-full border-l border-y border-slate-200/70 z-10" />
-                  </div>
-
-                  {/* ======= RIGHT: Stub ======= */}
-                  <div className="w-full md:w-44 flex flex-row md:flex-col items-center md:items-center justify-between md:justify-center gap-3 p-4 md:py-5 md:px-4 bg-slate-50/60">
-                    {!['DRAFT', 'CANCELLED', 'EXPIRED'].includes(normalized) ? (
-                      <div className="text-center">
-                        <div className="relative inline-block mb-1.5">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-100 to-orange-50 flex items-center justify-center ring-1 ring-amber-200/50">
-                            <Sparkles className="h-5 w-5 text-amber-500" />
+                        {/* Return */}
+                        <div>
+                          <span className="inline-block bg-gradient-to-r from-pink-400 to-rose-500 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
+                            Return:
+                          </span>
+                          <p className="text-[13px] font-bold text-slate-900 mt-1.5 pl-0.5">
+                            {retDate ? retDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                          </p>
+                        </div>
+                        {/* Duration */}
+                        <div>
+                          <span className="inline-block bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
+                            Duration:
+                          </span>
+                          <p className="text-[13px] font-bold text-slate-900 mt-1.5 pl-0.5">
+                            {tripDays ? `${tripDays} Day${tripDays !== 1 ? 's' : ''}` : '—'}
+                          </p>
+                        </div>
+                        {/* Budget */}
+                        {request.budgetMax && (
+                          <div className="col-span-2 sm:col-span-2">
+                            <span className="inline-block bg-gradient-to-r from-blue-400 to-teal-500 text-white text-[9px] font-extrabold tracking-[0.15em] uppercase px-2.5 py-[3px] rounded-[3px] shadow-sm">
+                              Budget:
+                            </span>
+                            <p className="text-[13px] font-bold text-slate-900 mt-1.5 pl-0.5">
+                              {formatBudget(request.budgetMin, request.budgetMax)}
+                            </p>
                           </div>
-                          {(request.agentsResponded || 0) > 0 && (
-                            <div className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center ring-2 ring-white text-[9px] font-black text-white">
-                              {request.agentsResponded}
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-2xl font-black bg-gradient-to-b from-blue-600 to-indigo-600 bg-clip-text text-transparent leading-none">
-                          {request.agentsResponded || 0}
-                        </p>
-                        <p className="text-[9px] text-slate-400 mt-0.5 font-semibold tracking-wider uppercase">
-                          agent{(request.agentsResponded || 0) !== 1 ? 's' : ''}
-                        </p>
+                        )}
                       </div>
-                    ) : (
-                      <div className="text-center">
-                        <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full mb-1 ring-1 ring-slate-200/50 ${getStatusBgColor(request.state)}`}>
-                          <MapPin className={`h-5 w-5 ${getStatusIconColor(request.state)}`} />
+
+                      {/* Barcode */}
+                      <div className="flex items-center gap-3 pt-3 border-t border-white/25">
+                        <div className="flex gap-[1.5px] items-end h-6">
+                          {request.id.split('').slice(0, 32).map((char, i) => {
+                            const h = 8 + (char.charCodeAt(0) % 14);
+                            const w = i % 3 === 0 ? 2.5 : 1.5;
+                            return (
+                              <div key={i} className="bg-slate-900/40 rounded-[0.5px]" style={{ width: `${w}px`, height: `${h}px` }} />
+                            );
+                          })}
                         </div>
-                        <p className="text-[10px] text-slate-400 font-semibold capitalize">{_getStatusLabel(request.state)}</p>
+                      </div>
+                    </div>
+
+                    {/* Status Stamp Overlay */}
+                    {['EXPIRED', 'CANCELLED', 'COMPLETED', 'CONFIRMED', 'BOOKED'].includes(normalized) && (
+                      <div className="absolute bottom-12 right-6 md:bottom-14 md:right-20 -rotate-12 pointer-events-none select-none z-10">
+                        <div className={`px-5 py-1.5 border-[3px] rounded-md ${getStampStyle(normalized)}`}>
+                          <span className="text-xl md:text-2xl font-black tracking-[0.1em] uppercase whitespace-nowrap">
+                            {_getStatusLabel(request.state)}
+                          </span>
+                        </div>
                       </div>
                     )}
-                    <Button 
-                      size="sm"
-                      variant={normalized === 'PROPOSALS_RECEIVED' ? 'default' : 'outline'}
-                      className={`text-[11px] font-semibold w-full rounded-lg transition-all duration-200 ${
-                        normalized === 'PROPOSALS_RECEIVED' 
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-500/25' 
-                          : 'bg-white hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 shadow-sm'
-                      }`}
-                    >
-                      {getButtonText(request.state)}
-                      <ChevronRight className="h-3.5 w-3.5 ml-0.5 transition-transform group-hover:translate-x-0.5" />
-                    </Button>
+                  </div>
+
+                  {/* === Perforation (desktop vertical) === */}
+                  <div className="relative hidden md:flex flex-col items-center justify-between bg-gradient-to-b from-stone-100/80 to-stone-50/80">
+                    <div className="w-6 h-3 bg-slate-50 rounded-b-full -mt-[1px] z-10 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.06)]" />
+                    <div className="flex-1 flex flex-col items-center justify-center gap-[5px] py-1">
+                      {Array.from({ length: 16 }).map((_, i) => (
+                        <div key={i} className="w-[4px] h-[4px] rounded-full bg-slate-300/60" />
+                      ))}
+                    </div>
+                    <div className="w-6 h-3 bg-slate-50 rounded-t-full -mb-[1px] z-10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]" />
+                  </div>
+                  {/* Mobile horizontal perforation */}
+                  <div className="md:hidden relative flex items-center bg-gradient-to-r from-stone-100/50 via-stone-50/50 to-stone-100/50">
+                    <div className="absolute -left-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-r-full z-10" />
+                    <div className="flex-1 flex items-center justify-center gap-[5px] px-5 py-1.5">
+                      {Array.from({ length: 28 }).map((_, i) => (
+                        <div key={i} className="w-[4px] h-[4px] rounded-full bg-slate-300/60 shrink-0" />
+                      ))}
+                    </div>
+                    <div className="absolute -right-[1px] top-1/2 -translate-y-1/2 w-3 h-6 bg-slate-50 rounded-l-full z-10" />
+                  </div>
+
+                  {/* === RIGHT: Holographic Stub === */}
+                  <div className="w-full md:w-52 relative overflow-hidden">
+                    {/* Holographic gradient layers */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-rose-200/60 via-violet-100/40 via-60% to-cyan-200/50" />
+                    <div className="absolute inset-0 bg-gradient-to-tl from-amber-100/30 via-transparent to-blue-100/30" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-white/10" />
+                    {/* Rainbow shimmer stripe */}
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-300/40 via-yellow-200/40 via-green-200/40 via-cyan-200/40 to-purple-300/40" />
+
+                    <div className="relative flex flex-row md:flex-col items-stretch justify-between gap-3 p-4 md:px-4 md:py-5">
+                      {/* Small status stamp on stub */}
+                      {['EXPIRED', 'CANCELLED'].includes(normalized) && (
+                        <div className="hidden md:block absolute top-3 left-1/2 -translate-x-1/2 -rotate-12 pointer-events-none z-20">
+                          <div className="px-2 py-0.5 border-2 border-red-500/50 rounded-sm">
+                            <span className="text-[9px] font-black text-red-500/60 tracking-[0.15em] uppercase">{_getStatusLabel(request.state)}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* GATE / SEAT / CLASS / FLIGHT */}
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-3 w-full md:mt-5">
+                        <div>
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Gate:</p>
+                          <p className="text-xl font-black text-slate-800">{getGate(destinationCity, request.id)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Seat:</p>
+                          <p className="text-lg font-black text-slate-800">{getSeatNumbers(travelersCount, request.id)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Class:</p>
+                          <p className="text-sm font-bold text-slate-800">{getBudgetClass(request.budgetMax)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold tracking-[0.2em] text-slate-500/80 uppercase mb-0.5">Flight:</p>
+                          <p className="text-lg font-black text-slate-800">{getFlightCode(request.id)}</p>
+                        </div>
+                      </div>
+
+                      {/* Dashed separator */}
+                      <div className="hidden md:block border-t border-dashed border-slate-400/30 w-full my-1" />
+
+                      {/* QR code + View Details */}
+                      <div className="flex md:flex-col items-center gap-3 md:gap-2.5 flex-shrink-0">
+                        {/* QR code pattern */}
+                        <div className="grid grid-cols-7 gap-[1.5px] w-fit shrink-0">
+                          {Array.from({ length: 49 }).map((_, i) => {
+                            const row = Math.floor(i / 7);
+                            const col = i % 7;
+                            const isCorner = (row < 2 && col < 2) || (row < 2 && col > 4) || (row > 4 && col < 2);
+                            const isBorder = row === 0 || row === 6 || col === 0 || col === 6;
+                            const fromId = (request.id.charCodeAt(i % request.id.length) + i) % 3 !== 0;
+                            const isActive = isCorner || (isBorder && i % 2 === 0) || fromId;
+                            return (
+                              <div key={i} className={`w-[5px] h-[5px] rounded-[0.5px] ${isActive ? 'bg-slate-800/60' : 'bg-slate-300/20'}`} />
+                            );
+                          })}
+                        </div>
+
+                        <Button
+                          size="sm"
+                          className="w-full bg-slate-800/90 hover:bg-slate-900 text-white text-[11px] font-bold shadow-md rounded-lg transition-all duration-200 group-hover:shadow-lg"
+                        >
+                          {getButtonText(request.state)}
+                          <ChevronRight className="h-3.5 w-3.5 ml-1 transition-transform group-hover:translate-x-0.5" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -646,6 +691,57 @@ function getTravelersCount(travelers: { adults?: number; children?: number; infa
   if (!travelers) return 1;
   if (travelers.total) return travelers.total;
   return (travelers.adults || 0) + (travelers.children || 0) + (travelers.infants || 0) || 1;
+}
+
+// Tropical background gradient per status
+function getTicketBg(status: string): string {
+  const normalized = normalizeStatus(status);
+  const bgs: Record<string, string> = {
+    OPEN: 'from-amber-300 via-orange-200 to-cyan-200',
+    DRAFT: 'from-stone-200 via-amber-50 to-stone-100',
+    SUBMITTED: 'from-amber-300 via-orange-200 to-cyan-200',
+    MATCHING: 'from-amber-200 via-pink-200 to-violet-200',
+    MATCHED: 'from-amber-200 via-rose-200 to-purple-200',
+    PROPOSALS_RECEIVED: 'from-amber-400 via-orange-300 to-rose-200',
+    BOOKED: 'from-lime-300 via-emerald-200 to-cyan-200',
+    CONFIRMED: 'from-lime-300 via-emerald-200 to-teal-200',
+    COMPLETED: 'from-emerald-300 via-green-200 to-teal-200',
+    CANCELLED: 'from-stone-300 via-red-100 to-stone-200',
+    EXPIRED: 'from-stone-300 via-amber-100 to-stone-200',
+  };
+  return bgs[normalized] || 'from-amber-300 via-orange-200 to-cyan-200';
+}
+
+function getStampStyle(normalized: string): string {
+  if (['EXPIRED', 'CANCELLED'].includes(normalized)) return 'border-red-500/60 text-red-600/60';
+  if (['BOOKED', 'CONFIRMED'].includes(normalized)) return 'border-emerald-500/60 text-emerald-600/60';
+  if (normalized === 'COMPLETED') return 'border-green-600/60 text-green-700/60';
+  return 'border-slate-400/60 text-slate-500/60';
+}
+
+function getFlightCode(id: string): string {
+  const num = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 900 + 100;
+  return `HW${num}`;
+}
+
+function getGate(destination: string, id: string): string {
+  const letter = (destination.charAt(0) || 'A').toUpperCase();
+  const num = (id.charCodeAt(0) % 9) + 1;
+  return `${letter}${num}`;
+}
+
+function getSeatNumbers(count: number, id: string): string {
+  const row = 10 + (id.charCodeAt(1) % 20);
+  const seats = 'ABCDEF';
+  const seatCount = Math.min(Math.max(count, 1), 6);
+  return Array.from({ length: seatCount }, (_, i) => `${row}${seats[i]}`).join('/');
+}
+
+function getBudgetClass(budgetMax: number | null): string {
+  if (!budgetMax) return 'Economy';
+  if (budgetMax >= 500000) return 'First Class';
+  if (budgetMax >= 200000) return 'Business';
+  return 'Economy';
 }
 
 function StatusBadge({ status }: { status: string }) {
