@@ -9,9 +9,10 @@
 import * as jose from 'jose';
 
 // Development JWT configuration matching docker-compose services
+// Must match API gateway config: JWT_ISSUER / JWT_AUDIENCE defaults
 const DEV_JWT_SECRET = 'super-secret-jwt-token-with-at-least-32-characters-long';
-const DEV_JWT_ISSUER = 'tripcomposer';
-const DEV_JWT_AUDIENCE = 'tripcomposer-services';
+const DEV_JWT_ISSUER = 'tripcomposer-identity';
+const DEV_JWT_AUDIENCE = 'tripcomposer-platform';
 
 /**
  * Creates a development access token that matches the format

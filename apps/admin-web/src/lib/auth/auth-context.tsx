@@ -302,13 +302,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   // Get current access token
+  // Tries Supabase session first (production), falls back to apiClient token (dev mode)
   const getAccessToken = useCallback(async (): Promise<string | null> => {
     try {
       const session = await getSession();
-      return session?.access_token ?? null;
+      if (session?.access_token) return session.access_token;
     } catch {
-      return null;
+      // Supabase session unavailable — fall through to stored token
     }
+    // Fallback: dev mode stores a generated JWT on apiClient via setAuthToken()
+    return apiClient.getAuthToken();
   }, []);
 
   const value: AuthContextValue = {

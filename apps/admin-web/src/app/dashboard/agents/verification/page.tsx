@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
+import { apiClient } from '@/lib/api/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -131,107 +131,49 @@ const STATUS_CONFIG = {
 };
 
 // ============================================================================
-// API FUNCTIONS
+// API FUNCTIONS — use apiClient for consistent auth/base-URL/response handling
 // ============================================================================
 
-async function fetchPendingVerifications(token: string, page: number = 1, pageSize: number = 20) {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/identity/admin/verification/pending?page=${page}&pageSize=${pageSize}`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-    }
-  );
-  if (!response.ok) throw new Error('Failed to fetch pending verifications');
-  const data = await response.json();
-  return data.data;
+interface PendingVerificationsResponse {
+  documents: PendingDocument[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
-async function fetchAgentDocuments(token: string, agentId: string) {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/identity/admin/agents/${agentId}/documents`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-    }
+async function fetchPendingVerifications(_token: string, page: number = 1, pageSize: number = 20) {
+  return apiClient.get<PendingVerificationsResponse>(
+    `/api/identity/admin/verification/pending`,
+    { params: { page, pageSize } }
   );
-  if (!response.ok) throw new Error('Failed to fetch agent documents');
-  const data = await response.json();
-  return data.data;
 }
 
-async function fetchAgentComments(token: string, agentId: string) {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/identity/admin/agents/${agentId}/comments`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-    }
+async function fetchAgentDocuments(_token: string, agentId: string) {
+  return apiClient.get<{ documents: VerificationDocument[]; profile: any; progress: VerificationProgress }>(
+    `/api/identity/admin/agents/${agentId}/documents`
   );
-  if (!response.ok) throw new Error('Failed to fetch comments');
-  const data = await response.json();
-  return data.data;
 }
 
-async function approveDocument(token: string, documentId: string, notes?: string) {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/identity/admin/documents/${documentId}/approve`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ notes }),
-    }
+async function fetchAgentComments(_token: string, agentId: string) {
+  return apiClient.get<VerificationComment[]>(
+    `/api/identity/admin/agents/${agentId}/comments`
   );
-  if (!response.ok) throw new Error('Failed to approve document');
-  return response.json();
 }
 
-async function rejectDocument(token: string, documentId: string, reason: string) {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/identity/admin/documents/${documentId}/reject`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ reason }),
-    }
-  );
-  if (!response.ok) throw new Error('Failed to reject document');
-  return response.json();
+async function approveDocument(_token: string, documentId: string, notes?: string) {
+  return apiClient.post(`/api/identity/admin/documents/${documentId}/approve`, { notes });
 }
 
-async function requestReupload(token: string, documentId: string, reason: string, deadlineDays: number = 7) {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/identity/admin/documents/${documentId}/request-reupload`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ reason, deadlineDays }),
-    }
-  );
-  if (!response.ok) throw new Error('Failed to request reupload');
-  return response.json();
+async function rejectDocument(_token: string, documentId: string, reason: string) {
+  return apiClient.post(`/api/identity/admin/documents/${documentId}/reject`, { reason });
 }
 
-async function addComment(token: string, agentId: string, comment: string, documentId?: string) {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/identity/admin/agents/${agentId}/comments`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ comment, documentId: documentId || null }),
-    }
-  );
-  if (!response.ok) throw new Error('Failed to add comment');
-  return response.json();
+async function requestReupload(_token: string, documentId: string, reason: string, deadlineDays: number = 7) {
+  return apiClient.post(`/api/identity/admin/documents/${documentId}/request-reupload`, { reason, deadlineDays });
+}
+
+async function addComment(_token: string, agentId: string, comment: string, documentId?: string) {
+  return apiClient.post(`/api/identity/admin/agents/${agentId}/comments`, { comment, documentId: documentId || null });
 }
 
 // ============================================================================
@@ -240,7 +182,7 @@ async function addComment(token: string, agentId: string, comment: string, docum
 
 export default function VerificationReviewPage() {
   const queryClient = useQueryClient();
-  const { getAccessToken, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [page, setPage] = useState(1);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
@@ -253,44 +195,31 @@ export default function VerificationReviewPage() {
   const [commentText, setCommentText] = useState('');
 
   // Fetch pending verifications
-  const { data: pendingData, isLoading: isPendingLoading, refetch: refetchPending } = useQuery({
+  const { data: pendingData, isLoading: isPendingLoading, error: pendingError, refetch: refetchPending } = useQuery({
     queryKey: ['pending-verifications', page],
-    queryFn: async () => {
-      const token = await getAccessToken();
-      if (!token) throw new Error('Not authenticated');
-      return fetchPendingVerifications(token, page);
-    },
+    queryFn: () => fetchPendingVerifications('', page),
     enabled: isAuthenticated,
+    retry: 1,
   });
 
   // Fetch selected agent's documents
   const { data: agentData, isLoading: isAgentLoading, refetch: refetchAgent } = useQuery({
     queryKey: ['agent-documents', selectedAgentId],
-    queryFn: async () => {
-      const token = await getAccessToken();
-      if (!token) throw new Error('Not authenticated');
-      return fetchAgentDocuments(token, selectedAgentId!);
-    },
+    queryFn: () => fetchAgentDocuments('', selectedAgentId!),
     enabled: isAuthenticated && !!selectedAgentId,
   });
 
   // Fetch agent comments
   const { data: commentsData } = useQuery({
     queryKey: ['agent-comments', selectedAgentId],
-    queryFn: async () => {
-      const token = await getAccessToken();
-      if (!token) throw new Error('Not authenticated');
-      return fetchAgentComments(token, selectedAgentId!);
-    },
+    queryFn: () => fetchAgentComments('', selectedAgentId!),
     enabled: isAuthenticated && !!selectedAgentId,
   });
 
   // Mutations
   const approveMutation = useMutation({
     mutationFn: async ({ documentId, notes }: { documentId: string; notes?: string }) => {
-      const token = await getAccessToken();
-      if (!token) throw new Error('Not authenticated');
-      return approveDocument(token, documentId, notes);
+      return approveDocument('', documentId, notes);
     },
     onSuccess: () => {
       refetchPending();
@@ -302,9 +231,7 @@ export default function VerificationReviewPage() {
 
   const rejectMutation = useMutation({
     mutationFn: async ({ documentId, reason }: { documentId: string; reason: string }) => {
-      const token = await getAccessToken();
-      if (!token) throw new Error('Not authenticated');
-      return rejectDocument(token, documentId, reason);
+      return rejectDocument('', documentId, reason);
     },
     onSuccess: () => {
       refetchPending();
@@ -316,9 +243,7 @@ export default function VerificationReviewPage() {
 
   const reuploadMutation = useMutation({
     mutationFn: async ({ documentId, reason }: { documentId: string; reason: string }) => {
-      const token = await getAccessToken();
-      if (!token) throw new Error('Not authenticated');
-      return requestReupload(token, documentId, reason);
+      return requestReupload('', documentId, reason);
     },
     onSuccess: () => {
       refetchPending();
@@ -330,9 +255,7 @@ export default function VerificationReviewPage() {
 
   const commentMutation = useMutation({
     mutationFn: async ({ agentId, comment, documentId }: { agentId: string; comment: string; documentId?: string }) => {
-      const token = await getAccessToken();
-      if (!token) throw new Error('Not authenticated');
-      return addComment(token, agentId, comment, documentId);
+      return addComment('', agentId, comment, documentId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-comments', selectedAgentId] });
@@ -414,6 +337,25 @@ export default function VerificationReviewPage() {
         </Button>
       </div>
 
+      {/* Error banner */}
+      {pendingError && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium text-red-800">Failed to load pending verifications</p>
+                <p className="text-sm text-red-600 mt-1">
+                  {pendingError.message}. This usually means the admin role is not set in your Supabase user metadata.
+                  Ensure <code className="bg-red-100 px-1 rounded">app_metadata.role = &quot;admin&quot;</code> is set for your Supabase user.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => refetchPending()}>Retry</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         <Card>
@@ -423,7 +365,7 @@ export default function VerificationReviewPage() {
                 <Clock className="h-6 w-6 text-amber-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{pendingData?.total || 0}</p>
+                <p className="text-2xl font-bold">{pendingData?.total ?? (pendingError ? '!' : 0)}</p>
                 <p className="text-sm text-muted-foreground">Pending Review</p>
               </div>
             </div>
